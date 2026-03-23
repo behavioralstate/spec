@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/.github/" />
+  <Folder Name="/.github/instructions/">
+    <File Path="../.github/instructions/general.instructions.md" />
+    <File Path="../.github/instructions/uap.instructions.md" />
+  </Folder>
+  <Project Path="Synion.Abstractions/Synion.Abstractions.csproj" />
+  <Project Path="Synion.Runtime/Synion.Runtime.csproj" Id="c48e95fe-7564-4c3c-89be-68206c928e44" />
+</Solution>
