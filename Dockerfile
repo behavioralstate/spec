@@ -19,4 +19,4 @@ FROM nginx:1.27-alpine
 COPY --from=build /repo/website/build /usr/share/nginx/html
 COPY website/nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 3000

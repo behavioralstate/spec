@@ -75,7 +75,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           REPO_OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE=ghcr.io/${REPO_OWNER_LC}/oap-website:${{ github.sha }}
+          IMAGE=ghcr.io/${REPO_OWNER_LC}/spec:${{ github.sha }}
           docker build -t $IMAGE .
           docker push $IMAGE
 
@@ -83,7 +83,7 @@ jobs:
         id: image_tag
         run: |
           REPO_OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "tag=ghcr.io/${REPO_OWNER_LC}/oap-website:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "tag=ghcr.io/${REPO_OWNER_LC}/spec:${{ github.sha }}" >> $GITHUB_OUTPUT
 
   update-iac:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -101,7 +101,7 @@ jobs:
         run: |
           REPO_OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           DEPLOY_FILE="${{ secrets.IAC_DEPLOY_PATH }}"
-          sed -i 's|^\([[:space:]]*\)image:.*|\1image: ghcr.io/'"$REPO_OWNER_LC"'/oap-website:'"${{ github.sha }}"'|g' "$DEPLOY_FILE"
+          sed -i 's|^\([[:space:]]*\)image:.*|\1image: ghcr.io/'"$REPO_OWNER_LC"'/spec:'"${{ github.sha }}"'|g' "$DEPLOY_FILE"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
