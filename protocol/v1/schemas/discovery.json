@@ -32,10 +32,13 @@
         },
         "agents": {
           "type": "array",
-          "description": "Currently registered agents (optional).",
+          "description": "Snapshot of known agents at manifest-build time (optional). This is a discovery hint only — it is not the authoritative agent list. For the live list, consumers must call GET /agents on the REST endpoint. For dynamic systems where agents are created at runtime, this array may be omitted or contain only representative examples.",
           "items": {
             "$ref": "agents/registry.json#/$defs/agentDescriptor"
           }
+        },
+        "authentication": {
+          "$ref": "#/$defs/authentication"
         }
       },
       "additionalProperties": false
@@ -84,8 +87,8 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Fully qualified capability name (e.g. io.oap.agents.registry).",
-          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*)*$"
+          "description": "Fully qualified capability name using reverse-domain notation. OAP built-in capabilities use the io.oap.* prefix (e.g. io.oap.agents.registry). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_-]*)*$"
         },
         "version": {
           "type": "string",
@@ -175,6 +178,43 @@
           "type": "string",
           "format": "uri",
           "description": "URL to the .proto file."
+        }
+      },
+      "additionalProperties": false
+    },
+    "authentication": {
+      "type": "object",
+      "description": "Authentication requirements for accessing this OAP endpoint. Consumers must present credentials according to the declared scheme before calling any protected endpoint.",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "bearer", "apiKey", "oauth2"],
+          "description": "Authentication mechanism. Use 'none' for public endpoints."
+        },
+        "scheme": {
+          "type": "string",
+          "description": "For 'bearer': the Authorization header scheme (e.g. 'Bearer'). For 'apiKey': the header or query parameter name."
+        },
+        "in": {
+          "type": "string",
+          "enum": ["header", "query"],
+          "description": "Where the API key is passed when type is 'apiKey'."
+        },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required OAuth2 / token scopes (if applicable)."
+        },
+        "tokenUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Token endpoint URL for OAuth2 or token-based flows."
+        },
+        "docs": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to human-readable authentication documentation."
         }
       },
       "additionalProperties": false

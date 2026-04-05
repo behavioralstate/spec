@@ -12,13 +12,16 @@
   "servers": [
     {
       "url": "{endpoint}",
-      "description": "OAP-compliant endpoint (from discovery manifest)",
+      "description": "OAP-compliant endpoint base URL (from the rest.endpoint field in the /.well-known/oap manifest). All API paths below are appended to this base URL. For example, if rest.endpoint is https://app.example.com/oap/, then GET /agents resolves to https://app.example.com/oap/agents.",
       "variables": {
         "endpoint": {
           "default": "http://localhost:5100"
         }
       }
     }
+  ],
+  "security": [
+    { "bearerAuth": [] }
   ],
   "paths": {
     "/.well-known/oap": {
@@ -56,7 +59,8 @@
                 }
               }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       },
       "post": {
@@ -92,6 +96,7 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "409": {
             "description": "Agent already registered",
             "content": {
@@ -128,6 +133,7 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent not found",
             "content": {
@@ -144,6 +150,7 @@
         "tags": ["Agent Registry"],
         "responses": {
           "204": { "description": "Agent removed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent not found",
             "content": {
@@ -171,6 +178,7 @@
         "tags": ["Agent Lifecycle"],
         "responses": {
           "204": { "description": "Agent paused" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent not found",
             "content": {
@@ -198,6 +206,7 @@
         "tags": ["Agent Lifecycle"],
         "responses": {
           "204": { "description": "Agent resumed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent not found",
             "content": {
@@ -234,7 +243,8 @@
                 "schema": { "$ref": "../../schemas/error.json" }
               }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       },
       "get": {
@@ -259,7 +269,8 @@
                 }
               }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
@@ -292,7 +303,8 @@
                 }
               }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
@@ -322,6 +334,7 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent not found",
             "content": {
@@ -341,5 +354,44 @@
     { "name": "Event Delivery", "description": "io.oap.agents.events — Send events, list recent events" },
     { "name": "Command Log", "description": "io.oap.agents.commands — List produced commands" },
     { "name": "Agent Memory", "description": "io.oap.agents.memory — View agent memory state" }
-  ]
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Bearer token authentication. Include the token in the Authorization header: Authorization: Bearer <token>. Required when the discovery manifest's authentication.type is 'bearer'. Omit if authentication.type is 'none'."
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key passed as a request header. Used when authentication.type is 'apiKey' and authentication.in is 'header'."
+      },
+      "apiKeyQuery": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "api_key",
+        "description": "API key passed as a query parameter. Used when authentication.type is 'apiKey' and authentication.in is 'query'."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required or credentials invalid. The endpoint requires authentication as declared in the discovery manifest's authentication block.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "../../schemas/error.json" },
+            "example": {
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Bearer token is missing or invalid",
+                "details": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

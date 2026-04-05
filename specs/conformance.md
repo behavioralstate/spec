@@ -12,6 +12,7 @@ A OAP-compliant endpoint **must**:
 4. Implement the REST API for every listed capability
 5. Return valid JSON conforming to the referenced schemas
 6. Use standard HTTP status codes and the OAP error response format
+7. Declare authentication requirements in the manifest `authentication` block (or omit it for public endpoints); never silently reject requests with an undocumented 401
 
 ## Capability-Level Compliance
 
@@ -25,6 +26,27 @@ For each capability an endpoint claims to support:
 | `agents.commands` | GET /commands |
 | `agents.memory` | GET /agents/{id}/memory |
 | `observability.tracing` | GET /traces, GET /traces/{traceId} |
+
+> **Path resolution:** All paths above are relative to the `rest.endpoint` base URL declared in the discovery manifest. For example, if `rest.endpoint` is `https://app.example.com/oap/`, then `GET /agents` resolves to `https://app.example.com/oap/agents`. The paths are never relative to the domain root unless `rest.endpoint` itself is the domain root.
+
+## Required HTTP Status Codes
+
+All OAP REST endpoints must use standard HTTP status codes. The following are required:
+
+| Status | When |
+|---|---|
+| 200 | Success with body |
+| 201 | Created (agent registration) |
+| 202 | Accepted (async processing, e.g. event delivery) |
+| 204 | Success with no body (pause, resume, delete) |
+| 400 | Invalid request body (schema validation failure) |
+| 401 | Authentication required or credentials invalid (only when `authentication.type` is not `none`) |
+| 404 | Resource not found (agent, trace) |
+| 409 | Conflict (agent already registered) |
+| 422 | Semantic error (capability not supported) |
+| 500 | Internal runtime error |
+
+A `401` response **must** be returned when a request lacks valid credentials and the endpoint declares a non-`none` authentication type. The `/.well-known/oap` endpoint is exempt and must always return `200` without requiring credentials.
 
 ## What Compliance Does NOT Require
 

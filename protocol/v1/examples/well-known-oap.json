@@ -1,6 +1,13 @@
 {
   "oap": {
     "version": "2025-07-01",
+    "authentication": {
+      "type": "bearer",
+      "scheme": "Bearer",
+      "scopes": ["oap:read", "oap:write"],
+      "tokenUrl": "https://auth.example.com/oauth2/token",
+      "docs": "https://docs.example.com/authentication"
+    },
     "services": {
       "io.oap.agents": {
         "version": "2025-07-01",

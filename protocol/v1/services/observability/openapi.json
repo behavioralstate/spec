@@ -12,13 +12,16 @@
   "servers": [
     {
       "url": "{endpoint}",
-      "description": "OAP-compliant endpoint (from discovery manifest)",
+      "description": "OAP-compliant endpoint base URL (from the rest.endpoint field in the /.well-known/oap manifest). All API paths below are appended to this base URL.",
       "variables": {
         "endpoint": {
           "default": "http://localhost:5100"
         }
       }
     }
+  ],
+  "security": [
+    { "bearerAuth": [] }
   ],
   "paths": {
     "/traces": {
@@ -44,7 +47,8 @@
                 }
               }
             }
-          }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
@@ -73,6 +77,7 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Trace not found",
             "content": {
@@ -109,6 +114,7 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent not found",
             "content": {
@@ -145,6 +151,7 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": {
             "description": "Agent or trace not found",
             "content": {
@@ -159,5 +166,38 @@
   },
   "tags": [
     { "name": "Execution Traces", "description": "io.oap.observability.tracing — What happened when an agent processed an event" }
-  ]
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Bearer token authentication. Required when the discovery manifest's authentication.type is 'bearer'."
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key passed as a request header. Used when authentication.type is 'apiKey' and authentication.in is 'header'."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required or credentials invalid.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "../../schemas/error.json" },
+            "example": {
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Bearer token is missing or invalid",
+                "details": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

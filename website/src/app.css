@@ -5,10 +5,11 @@
 	--color-bg-secondary: #12121a;
 	--color-bg-card: #16161f;
 	--color-border: #2a2a3a;
-	--color-text: #e4e4ef;
-	--color-text-muted: #8888a0;
+	--color-text: #d4d4e8;
+	--color-text-muted: #7070a0;
 	--color-accent: #6366f1;
 	--color-accent-hover: #818cf8;
+	--nav-height: 64px;
 }
 
 body {
@@ -16,3 +17,200 @@ body {
 	color: var(--color-text);
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+/* ─── Docs prose content ──────────────────────────────────────── */
+
+.docs-content {
+	font-size: 0.9375rem;
+	line-height: 1.75;
+	color: var(--color-text);
+}
+
+.docs-content > * + * {
+	margin-top: 0;
+}
+
+.docs-content h1 {
+	font-size: 1.875rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: #f0f0ff;
+	margin-top: 0;
+	margin-bottom: 0.25rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid var(--color-border);
+	line-height: 1.2;
+}
+
+.docs-content h2 {
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: #eaeaff;
+	margin-top: 2.75rem;
+	margin-bottom: 0.75rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 1px solid var(--color-border);
+	scroll-margin-top: calc(var(--nav-height) + 1.5rem);
+}
+
+.docs-content h3 {
+	font-size: 1.0625rem;
+	font-weight: 600;
+	color: #e0e0f8;
+	margin-top: 2rem;
+	margin-bottom: 0.5rem;
+	scroll-margin-top: calc(var(--nav-height) + 1.5rem);
+}
+
+.docs-content h4 {
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: #d8d8f0;
+	margin-top: 1.5rem;
+	margin-bottom: 0.375rem;
+	scroll-margin-top: calc(var(--nav-height) + 1.5rem);
+}
+
+.docs-content p {
+	margin-top: 0;
+	margin-bottom: 1rem;
+}
+
+.docs-content a {
+	color: var(--color-accent);
+	text-decoration: none;
+	border-bottom: 1px solid transparent;
+	transition: border-color 0.15s, color 0.15s;
+}
+
+.docs-content a:hover {
+	color: var(--color-accent-hover);
+	border-bottom-color: var(--color-accent-hover);
+}
+
+.docs-content strong {
+	font-weight: 600;
+	color: #f0f0ff;
+}
+
+.docs-content em {
+	color: var(--color-text);
+}
+
+.docs-content code {
+	font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+	font-size: 0.8125em;
+	background: rgba(99, 102, 241, 0.08);
+	color: #c4b5fd;
+	padding: 0.15em 0.45em;
+	border-radius: 4px;
+	border: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+.docs-content pre {
+	background: var(--color-bg-card);
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	padding: 1.125rem 1.375rem;
+	overflow-x: auto;
+	margin: 1.25rem 0;
+}
+
+.docs-content pre code {
+	background: none;
+	border: none;
+	padding: 0;
+	color: #e2e8f0;
+	font-size: 0.8125rem;
+	line-height: 1.65;
+}
+
+.docs-content ul,
+.docs-content ol {
+	padding-left: 1.5rem;
+	margin-bottom: 1rem;
+}
+
+.docs-content ul {
+	list-style-type: disc;
+}
+
+.docs-content ol {
+	list-style-type: decimal;
+}
+
+.docs-content li {
+	margin-bottom: 0.3rem;
+}
+
+.docs-content li > ul,
+.docs-content li > ol {
+	margin-top: 0.3rem;
+	margin-bottom: 0;
+}
+
+.docs-content blockquote {
+	border-left: 3px solid var(--color-accent);
+	padding: 0.85rem 1.25rem;
+	margin: 1.5rem 0;
+	background: rgba(99, 102, 241, 0.06);
+	border-radius: 0 6px 6px 0;
+}
+
+.docs-content blockquote p {
+	margin: 0;
+	color: var(--color-text);
+}
+
+.docs-content blockquote p + p {
+	margin-top: 0.5rem;
+}
+
+.docs-content hr {
+	border: none;
+	border-top: 1px solid var(--color-border);
+	margin: 2.5rem 0;
+}
+
+/* Tables */
+
+.docs-content table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 1.25rem 0;
+	font-size: 0.875rem;
+	display: block;
+	overflow-x: auto;
+}
+
+.docs-content thead {
+	background: var(--color-bg-secondary);
+}
+
+.docs-content th {
+	text-align: left;
+	padding: 0.55rem 1rem;
+	font-weight: 600;
+	color: #eaeaff;
+	border: 1px solid var(--color-border);
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	white-space: nowrap;
+}
+
+.docs-content td {
+	padding: 0.55rem 1rem;
+	border: 1px solid var(--color-border);
+	color: var(--color-text);
+	vertical-align: top;
+}
+
+.docs-content tbody tr:nth-child(even) td {
+	background: rgba(255, 255, 255, 0.018);
+}
+
+.docs-content tbody tr:hover td {
+	background: rgba(99, 102, 241, 0.05);
+}
+

@@ -4,6 +4,12 @@ import { join, relative, dirname } from 'path';
 
 const SPECS_DIR = join(process.cwd(), '..', 'specs');
 
+export interface TocHeading {
+	id: string;
+	text: string;
+	level: number;
+}
+
 /** Recursively collect all .md files under a directory. */
 async function collectMdFiles(dir: string): Promise<string[]> {
 	const entries = await readdir(dir, { withFileTypes: true });
@@ -64,6 +70,60 @@ function rewriteLinks(html: string, slug: string): string {
 	});
 }
 
+/** Convert heading text (may contain HTML tags) to a URL-safe id. */
+function slugify(text: string): string {
+	return text
+		.replace(/<[^>]+>/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9\s-]/g, '')
+		.trim()
+		.replace(/\s+/g, '-')
+		.replace(/-+/g, '-');
+}
+
+/**
+ * Add id attributes to h2/h3 headings and extract them for the TOC.
+ * Existing id attributes are preserved.
+ */
+function processHeadings(html: string): { html: string; headings: TocHeading[] } {
+	const headings: TocHeading[] = [];
+	const idCounts: Record<string, number> = {};
+
+	const processed = html.replace(/<h([23])([^>]*)>([\s\S]+?)<\/h\1>/g, (_, level, attrs, content) => {
+		// Don't add a second id if one already exists
+		if (/id="/.test(attrs)) {
+			const existingId = attrs.match(/id="([^"]+)"/)?.[1] ?? '';
+			headings.push({ id: existingId, text: content.replace(/<[^>]+>/g, ''), level: parseInt(level) });
+			return `<h${level}${attrs}>${content}</h${level}>`;
+		}
+		let id = slugify(content);
+		if (idCounts[id] !== undefined) {
+			idCounts[id]++;
+			id = `${id}-${idCounts[id]}`;
+		} else {
+			idCounts[id] = 0;
+		}
+		headings.push({ id, text: content.replace(/<[^>]+>/g, ''), level: parseInt(level) });
+		return `<h${level}${attrs} id="${id}">${content}</h${level}>`;
+	});
+
+	return { html: processed, headings };
+}
+
+/** Build breadcrumb segments from a slug like "agents/registry". */
+function buildBreadcrumb(slug: string): { label: string }[] {
+	const sectionLabels: Record<string, string> = {
+		agents: 'Agents',
+		observability: 'Observability',
+		transports: 'Transports'
+	};
+	const parts = slug.split('/');
+	if (parts.length === 1) return [];
+	return parts.slice(0, -1).map((part) => ({
+		label: sectionLabels[part] ?? part.charAt(0).toUpperCase() + part.slice(1)
+	}));
+}
+
 export async function load({ params }) {
 	const slug = params.slug;
 	const filePath = join(SPECS_DIR, `${slug}.md`);
@@ -79,10 +139,14 @@ export async function load({ params }) {
 	const { marked } = await import('marked');
 	let html = await marked(markdown);
 	html = rewriteLinks(html, slug);
+	const { html: processedHtml, headings } = processHeadings(html);
 
 	// Extract title from first # heading
 	const titleMatch = markdown.match(/^#\s+(.+)$/m);
 	const title = titleMatch ? titleMatch[1] : slug;
 
-	return { html, title, slug };
+	const breadcrumb = buildBreadcrumb(slug);
+
+	return { html: processedHtml, headings, title, slug, breadcrumb };
 }
+
