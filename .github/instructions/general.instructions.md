@@ -1080,3 +1080,160 @@ SvelteKit's `handleHttpError` in `svelte.config.js` ignores prerender 404s for `
 ### Debugging
 
 The `.vscode/launch.json` is at the **repo root** (not `website/`). It launches the Vite dev server with `cwd` set to `website/` — press F5 from the repo root.
+
+---
+
+## Website Design System
+
+### Design Philosophy
+
+The public website (dark) and the docs section (light) intentionally use **different themes**. The docs shell overrides the CSS variables scoped to `.docs-shell` — do not break this by applying global light styles.
+
+### Color Tokens (Dark — public site)
+
+These match the dotQuant public site palette exactly:
+
+| Token | Value | Usage |
+|---|---|---|
+| `--color-bg` | `#0a0e1a` | Global body, hero background |
+| `--color-bg-secondary` | `#060912` | Features section, footer |
+| `--color-bg-card` | `#111827` | Feature cards, audience cards |
+| `--color-border` | `rgba(255,255,255,0.08)` | Subtle borders |
+| `--color-text` | `#e2e8f0` | Body text |
+| `--color-text-muted` | `#94a3b8` | Subtitles, nav links, card text |
+| `--color-accent` | `#3b82f6` | Brand blue (logo, buttons, eyebrows) |
+| `--color-accent-hover` | `#60a5fa` | Hover state for accent |
+
+These tokens are defined in `app.css` `:root`.
+
+### Color Tokens (Light — docs section only)
+
+The docs layout (`routes/docs/+layout.svelte`) overrides these on `.docs-shell`:
+
+| Token | Value |
+|---|---|
+| `--color-bg` | `#ffffff` |
+| `--color-bg-secondary` | `#f7f7fc` |
+| `--color-bg-card` | `#f1f2f8` |
+| `--color-border` | `#e2e4f0` |
+| `--color-text` | `#1e1e3f` |
+| `--color-text-muted` | `#6b6b8a` |
+| `--color-accent` | `#4f46e5` |
+| `--color-accent-hover` | `#4338ca` |
+
+### Navigation Bar
+
+Source: `src/lib/components/Navigation.svelte`
+
+- Background: `linear-gradient(180deg, rgba(13,17,32,0.98) 0%, rgba(13,17,32,0.95) 100%)`
+- Backdrop: `backdrop-filter: blur(12px)`
+- Border: `rgba(255,255,255,0.05)` bottom
+- Nav links: `#94a3b8` → `#ffffff` on hover (use `.nav-link` class, not Tailwind utilities)
+- Wordmark hides on `max-width: 480px`
+
+### Logo Component
+
+Source: `src/lib/components/Logo.svelte`
+
+- SVG inline component — works on any background (self-contained fill)
+- ViewBox `0 0 48 32` (3:2 ratio); accepts `size` prop (height in px, width auto-derived)
+- Background fill: `#3b82f6` — must match dotQuant's `--public-nav-accent`
+- Inner highlight: `rgba(255,255,255,0.15)` stroke for depth
+- Text: "OAP" in white, `font-weight: 800`, `font-size: 15`, `letter-spacing: -0.5`
+- Used in both `Navigation.svelte` and `Hero.svelte`
+- Favicon (`static/favicon.svg`) uses the same design
+
+### Hero
+
+Source: `src/lib/components/Hero.svelte`
+
+- Background: `#0a0e1a`
+- Glow left: `radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)`
+- Glow right: `radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)`
+- Uses `<Logo>` + wordmark instead of a plain eyebrow label
+- No stats row — removed as it felt product-marketing, not appropriate for a spec site
+
+### Feature / Audience Cards
+
+Source: `src/lib/components/FeatureCard.svelte`
+
+- Background: `#111827`
+- Border: `rgba(255,255,255,0.06)` → hover `rgba(59,130,246,0.3)`
+- Box shadow on hover: `0 0 60px rgba(59,130,246,0.15)`
+- Title: `#ffffff`; description: `#94a3b8`
+
+### Footer
+
+Source: `src/lib/components/Footer.svelte`
+
+- Background: `#060912`
+- Border top: `rgba(255,255,255,0.1)`
+
+### Blockquote Callouts (docs content)
+
+Blockquotes in markdown spec files render as styled callouts. The `+page.server.ts` auto-classifies them by reading the first `<strong>` keyword:
+
+| Markdown | Rendered class | Color |
+|---|---|---|
+| `> **Tip:** ...` | `.tip` | Green (`#059669`) |
+| `> **Note:** ...` | `.tip` | Green (`#059669`) |
+| `> **Warning:** ...` | `.warning` | Amber (`#d97706`) |
+| `> **Caution:** ...` | `.warning` | Amber (`#d97706`) |
+| `> plain text` | (default) | Indigo (`#4f46e5`) |
+
+All blockquotes have a circular icon badge on the left border.
+
+### Docs Landing Page
+
+Source: `routes/docs/+page.svelte`
+
+Contains two sections above the nav group grid:
+
+1. **Flow diagram** — three boxes (Producer → OAP Endpoint → Consumer) with labeled arrows. The center box uses `--color-accent` fill. Stacks vertically on mobile (`max-width: 600px`).
+2. **"How it works" steps** — numbered 1–2–3 with indigo circles, each one sentence of implementation guidance.
+
+### Mobile Sidebar
+
+The docs sidebar (`src/lib/components/DocsSidebar.svelte`) is normally `position: fixed; transform: translateX(-100%)` on `max-width: 767px`. A floating action button (☰/×) in the layout toggles it open. `afterNavigate` in the layout auto-closes it on route change. The overlay (`sidebar-overlay`) closes it on tap.
+
+### Docs Content in `app.css`
+
+All heading colors in `.docs-content` use light-theme values (dark text on white), NOT the global dark-theme palette. When editing `.docs-content` styles, always use light values:
+
+- `h1`: `#111827`
+- `h2`, `h3`: `#1e2035`
+- `h4`: `#374151`
+- `strong`: `#111827`
+- `code`: color `#4338ca`, background `rgba(79,70,229,0.06)`
+
+---
+
+## Documentation Content Added
+
+### `specs/comparisons/ucp.md`
+
+A comparison page at `/docs/comparisons/ucp` covering:
+- Where OAP and UCP converge: `/.well-known` discovery, MCP as transport, A2A compatibility
+- Where they diverge: no AP2 payment primitive, caller-responsibility auth, scope (commerce vs general)
+- Concrete example: `PaymentRequested` / `PaymentAuthorised` as OAP events/commands
+- Summary comparison table
+
+### `specs/overview.md` — Quick Start section
+
+Added a "Quick Start for Implementers" section with 3 steps:
+1. Serve `/.well-known/oap` (with full JSON example)
+2. Implement the 4 minimum REST endpoints (table)
+3. Validate with `node scripts/validate-*.mjs`
+
+Includes a `> **Tip:**` callout demonstrating the auto-classified blockquote system.
+
+### Sidebar nav groups
+
+| Group | Items |
+|---|---|
+| Getting Started | Overview, Discovery |
+| Agents | Registry, Lifecycle, Events, Commands, Memory |
+| Observability | Tracing |
+| Transports | REST, MCP, A2A |
+| Reference | Versioning, Conformance |
+| Comparisons | OAP vs UCP |
