@@ -150,7 +150,7 @@ Each service declares how it can be reached:
 | **A2A** | Other agents (Google Agent-to-Agent protocol) | HTTP/JSON |
 | **gRPC** | Internal native runtime (optional) | Protocol Buffers |
 
-The `rest.endpoint` value is the **base URL**. All REST API paths are appended to it. For example, if `rest.endpoint` is `https://app.dotquant.io/`, then the agents registry is at `https://app.dotquant.io/agents`.
+The `rest.endpoint` value is the **base URL**. All REST API paths are appended to it. For example, if `rest.endpoint` is `https://app.agenthost.example/`, then the agents registry is at `https://app.agenthost.example/agents`.
 
 ## Schema
 

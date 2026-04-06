@@ -15,7 +15,7 @@ The `rest.endpoint` field in the discovery manifest is the **base URL** for all 
 | `rest.endpoint` | Path | Resolved URL |
 |---|---|---|
 | `https://app.example.com/` | `/agents` | `https://app.example.com/agents` |
-| `https://app.dotquant.io/oap/` | `/agents` | `https://app.dotquant.io/oap/agents` |
+| `https://app.agenthost.example/oap/` | `/agents` | `https://app.agenthost.example/oap/agents` |
 | `http://localhost:5100` | `/agents` | `http://localhost:5100/agents` |
 
 Paths are **never** resolved relative to the domain root unless `rest.endpoint` is at the domain root.
