@@ -1,0 +1,9 @@
+{
+  "id": "negotiation",
+  "name": "Contract Negotiation",
+  "description": "Ingests negotiation commands and publishes negotiation events",
+  "type": "negotiation-service",
+  "accepts": ["ProposeCounter", "AcceptContract", "RejectContract", "RequestClarification"],
+  "produces": ["CounterProposed", "ContractAccepted", "ContractRejected", "ClarificationRequested"],
+  "status": "running"
+}
