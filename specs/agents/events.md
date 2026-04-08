@@ -38,6 +38,14 @@ Events are:
 
 Response: `202 Accepted` — the runtime routes the event to matching agents asynchronously.
 
+## Mapping Domain Records to OAP Events
+
+Many implementations do not have a native OAP event store — they have domain-specific records (signals, logs, audit entries, trade history, sensor readings, etc.). Implementers may map these to the OAP event shape at query time.
+
+For example, a signal history table can satisfy `GET /events` by projecting each row to the `{ type, data, metadata }` shape when the endpoint is called. The protocol only requires that the response conforms to the events schema — it does not prescribe how events are stored internally.
+
+For `POST /events`, if no live event store exists, implementers may declare the `events` capability with `status: "partial"` and document which operations are supported in their `rest.openapi` spec.
+
 ## Schema
 
 See [events.json](../../protocol/v1/schemas/agents/events.json).

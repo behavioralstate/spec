@@ -70,7 +70,7 @@
         "version": "2025-07-01",
         "description": "Agent management, event delivery, command observation",
         "rest": {
-          "schema": "https://openagentprotocol.io/v1/services/agents/openapi.json",
+          "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://api.example.com/"
         }
       }
