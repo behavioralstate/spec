@@ -1,10 +1,10 @@
 # OAP — Open Agent Protocol
 
-Events are everywhere. Agents are everywhere. But there is no common way for agents to discover each other, exchange events and commands, or observe what happened.
+CQRS and Event Sourcing give you a clean, scalable architecture. But there is no common way to discover what commands a service accepts, what events it produces, or how to interact with it — without reading bespoke documentation or source code.
 
-OAP is a specification for agent interoperability — how agents discover each other, exchange structured events and commands, and produce observable execution traces — across any runtime, platform, language, or transport.
+OAP is a specification for service interoperability — how domain services expose their command ingestion surface and event log, how callers (AI agents, Process Managers, UIs, other services) discover and interact with them, and how execution is observed — across any runtime, platform, language, or transport.
 
-OAP doesn't care how an agent works internally. It only cares about the interaction surface: what events go in, what commands come out, and how to discover the agent.
+OAP doesn't care how a service works internally. It only cares about the interaction surface: what commands go in, what events come out, and how to discover the service.
 
 If you are new to OAP, start with the [Overview](specs/overview.md) for the protocol's goals and design, then explore [Discovery](specs/discovery.md) and the [Agent capabilities](specs/agents/registry.md).
 
