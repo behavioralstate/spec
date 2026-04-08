@@ -1245,3 +1245,5 @@ Includes a `> **Tip:**` callout demonstrating the auto-classified blockquote sys
 | Transports | REST, MCP, A2A |
 | Reference | Versioning, Conformance |
 | Comparisons | OAP vs UCP |
+
+---
