@@ -7,6 +7,12 @@
 	afterNavigate(() => {
 		sidebarOpen = false;
 	});
+
+	const sha = import.meta.env.VITE_GIT_SHA;
+	const buildTime = import.meta.env.VITE_BUILD_TIME;
+	const shortSha = sha ? sha.slice(0, 7) : null;
+	const buildDate = buildTime ? new Date(buildTime).toUTCString().replace(':00 GMT', ' UTC') : null;
+	const commitUrl = sha ? `https://github.com/openagentprotocol/spec/commit/${sha}` : null;
 </script>
 
 <div class="docs-shell">
@@ -27,6 +33,11 @@
 
 	<div class="docs-body">
 		{@render children()}
+		{#if shortSha}
+		<footer class="build-info">
+			Built from <a href={commitUrl} target="_blank" rel="noopener">{shortSha}</a>{#if buildDate} &middot; {buildDate}{/if}
+		</footer>
+		{/if}
 	</div>
 </div>
 
@@ -49,6 +60,24 @@
 	.docs-body {
 		flex: 1;
 		min-width: 0;
+	}
+
+	.build-info {
+		padding: 1rem 2rem;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		border-top: 1px solid var(--color-border);
+		margin-top: 2rem;
+	}
+
+	.build-info a {
+		color: var(--color-accent);
+		text-decoration: none;
+		font-family: monospace;
+	}
+
+	.build-info a:hover {
+		text-decoration: underline;
 	}
 
 	/* Mobile FAB toggle */
