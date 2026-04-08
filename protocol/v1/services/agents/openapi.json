@@ -2,8 +2,415 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OAP Agent Service",
-    "description": "REST API for the io.oap.agents service — agent management, event delivery, command observation, and agent memory.",
+    "description": "REST API for the io.oap.agents service — service registry, command ingestion, command discovery, event log, and service memory.",
     "version": "2025-07-01",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "{endpoint}",
+      "description": "OAP-compliant endpoint base URL (from the rest.endpoint field in the /.well-known/oap manifest). All API paths below are appended to this base URL. For example, if rest.endpoint is https://app.example.com/oap/, then GET /services resolves to https://app.example.com/oap/services.",
+      "variables": {
+        "endpoint": {
+          "default": "http://localhost:5100"
+        }
+      }
+    }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "paths": {
+    "/.well-known/oap": {
+      "get": {
+        "operationId": "getDiscoveryManifest",
+        "summary": "Discovery manifest",
+        "description": "Returns the OAP discovery manifest describing available services, capabilities, and transport bindings.",
+        "tags": ["Discovery"],
+        "responses": {
+          "200": {
+            "description": "Discovery manifest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/discovery.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/services": {
+      "get": {
+        "operationId": "listServices",
+        "summary": "List all registered services",
+        "tags": ["Service Registry"],
+        "responses": {
+          "200": {
+            "description": "List of service descriptors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/registry.json#/$defs/serviceList"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "registerService",
+        "summary": "Register a new service",
+        "tags": ["Service Registry"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../../schemas/agents/registry.json#/$defs/serviceRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Service registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/registry.json#/$defs/serviceDescriptor"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": {
+            "description": "Service already registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/services/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "Service identifier"
+        }
+      ],
+      "get": {
+        "operationId": "getService",
+        "summary": "Get service detail",
+        "tags": ["Service Registry"],
+        "responses": {
+          "200": {
+            "description": "Service descriptor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/registry.json#/$defs/serviceDescriptor"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeService",
+        "summary": "Remove a service",
+        "tags": ["Service Registry"],
+        "responses": {
+          "204": { "description": "Service removed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/services/{id}/pause": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "Service identifier"
+        }
+      ],
+      "post": {
+        "operationId": "pauseService",
+        "summary": "Pause a running service",
+        "tags": ["Service Lifecycle"],
+        "responses": {
+          "204": { "description": "Service paused" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/services/{id}/resume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "Service identifier"
+        }
+      ],
+      "post": {
+        "operationId": "resumeService",
+        "summary": "Resume a paused service",
+        "tags": ["Service Lifecycle"],
+        "responses": {
+          "204": { "description": "Service resumed" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/commands": {
+      "get": {
+        "operationId": "listCommandCatalogue",
+        "summary": "List available command types",
+        "description": "Returns the catalogue of command types this service accepts, each with its dataschema URI. This is the discovery surface: callers (Process Managers, AI agents, UIs) call this to learn what commands they can POST and what schema each command's data must conform to.",
+        "tags": ["Commands"],
+        "responses": {
+          "200": {
+            "description": "Command catalogue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/commands.json#/$defs/commandCatalogue"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "sendCommand",
+        "summary": "Send a command to the service",
+        "description": "Single CloudEvent ingestion entry point. The runtime validates the data property against the JSON Schema at the dataschema URI (hosted by this API), then queues the command for processing. Returns 201 on success.",
+        "tags": ["Commands"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../../schemas/agents/commands.json#/$defs/command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Command accepted and queued for processing" },
+          "400": {
+            "description": "Invalid command — schema validation failed or missing required CloudEvent attributes",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "listEvents",
+        "summary": "List published domain events",
+        "description": "Returns the log of domain events published by this service as results of command processing. Optional filter by event type.",
+        "tags": ["Events"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by event type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of published domain events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/events.json#/$defs/eventList"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "injectEvent",
+        "summary": "Inject a domain event (simulation/testing only)",
+        "description": "Optional capability. Allows injecting a domain event directly into the event log — intended for testing and simulation only. Implementers may declare this capability with status 'partial' if unsupported.",
+        "tags": ["Events"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../../schemas/agents/events.json#/$defs/event"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Event accepted" },
+          "400": {
+            "description": "Invalid event",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/services/{id}/memory": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "Service identifier"
+        }
+      ],
+      "get": {
+        "operationId": "getServiceMemory",
+        "summary": "Get current memory state for a service",
+        "description": "The memory response body is opaque — different runtimes return different formats.",
+        "tags": ["Service Memory"],
+        "responses": {
+          "200": {
+            "description": "Service memory state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/memory.json#/$defs/agentMemory"
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../../schemas/error.json" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Discovery", "description": "Protocol discovery" },
+    { "name": "Service Registry", "description": "io.oap.agents.registry — Register, remove, list, get services" },
+    { "name": "Service Lifecycle", "description": "io.oap.agents.lifecycle — Pause and resume services" },
+    { "name": "Commands", "description": "io.oap.agents.commands — Discover available commands (GET) and send commands (POST)" },
+    { "name": "Events", "description": "io.oap.agents.events — List published domain events, inject events for testing" },
+    { "name": "Service Memory", "description": "io.oap.agents.memory — View service memory state" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Bearer token authentication. Include the token in the Authorization header: Authorization: Bearer <token>. Required when the discovery manifest's authentication.type is 'bearer'. Omit if authentication.type is 'none'."
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key passed as a request header. Used when authentication.type is 'apiKey' and authentication.in is 'header'."
+      },
+      "apiKeyQuery": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "api_key",
+        "description": "API key passed as a query parameter. Used when authentication.type is 'apiKey' and authentication.in is 'query'."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required or credentials invalid. The endpoint requires authentication as declared in the discovery manifest's authentication block.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "../../schemas/error.json" },
+            "example": {
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Bearer token is missing or invalid",
+                "details": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"

@@ -22,23 +22,23 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			<FeatureCard
 				icon="📋"
-				title="Agent Registry"
-				description="Register, discover, and manage agents with a standard descriptor format."
+				title="Service Registry"
+				description="Register, discover, and manage services with a standard descriptor format."
 			/>
 			<FeatureCard
 				icon="⚡"
-				title="Event Delivery"
-				description="Send immutable events to agents. The runtime routes them asynchronously."
+				title="Command Ingestion"
+				description="POST commands as CloudEvents to the single ingestion endpoint. Validated against the dataschema and queued asynchronously."
 			/>
 			<FeatureCard
 				icon="🎯"
-				title="Command Log"
-				description="Observe commands produced by agents — intents to change the system."
+				title="Command Catalogue"
+				description="GET /commands returns all available command types and their schema URIs — discoverable at runtime by any caller."
 			/>
 			<FeatureCard
 				icon="🔍"
 				title="Execution Traces"
-				description="Full observability: what event went in, what commands came out, how long it took."
+				description="Full observability: what command went in, what events came out, how long it took."
 			/>
 			<FeatureCard
 				icon="🌐"
@@ -68,7 +68,7 @@
     "services": {
       "io.oap.agents": {
         "version": "2025-07-01",
-        "description": "Agent management, event delivery, command observation",
+        "description": "Service registry, command ingestion, event log",
         "rest": {
           "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://api.example.com/"
@@ -77,19 +77,19 @@
     },
     "capabilities": [
       {
-        "name": "io.oap.agents.registry",
+        "name": "io.oap.agents.commands",
         "version": "2025-07-01",
-        "description": "Register, remove, list agents",
-        "spec": "https://openagentprotocol.io/specs/agents/registry",
-        "schema": "https://openagentprotocol.io/v1/schemas/agents/registry.json"
+        "description": "Command catalogue and ingestion",
+        "spec": "https://openagentprotocol.io/specs/agents/commands",
+        "schema": "https://openagentprotocol.io/v1/schemas/agents/commands.json"
       }
     ],
-    "agents": [
+    "services": [
       {
         "id": "negotiation",
         "name": "Contract Negotiation",
-        "accepts": ["ContractProposed"],
-        "produces": ["ProposeCounter", "AcceptContract"],
+        "accepts": ["ProposeCounter", "AcceptContract"],
+        "produces": ["CounterProposed", "ContractAccepted"],
         "status": "running"
       }
     ]
@@ -106,7 +106,7 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 			<div class="audience-card">
 				<h3>For Developers</h3>
-				<p>Build the next generation of agents on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement OAP.</p>
+				<p>Build CQRS + Event Sourcing services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement OAP.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For Businesses</h3>
@@ -118,7 +118,7 @@
 			</div>
 			<div class="audience-card">
 				<h3>For IoT &amp; Sensors</h3>
-				<p>Even a temperature sensor can be an OAP agent — it produces events, exposes a descriptor, and any consumer can discover it.</p>
+				<p>Even a temperature sensor can be an OAP service — it accepts commands and publishes events, and any caller can discover it via the manifest.</p>
 			</div>
 		</div>
 	</div>

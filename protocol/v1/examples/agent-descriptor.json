@@ -1,9 +1,0 @@
-{
-  "id": "negotiation",
-  "name": "Contract Negotiation",
-  "description": "Evaluates contract proposals and produces counter-offers",
-  "type": "negotiator",
-  "accepts": ["ContractProposed", "CounterOfferReceived", "TermsUpdated"],
-  "produces": ["ProposeCounter", "AcceptContract", "RejectContract", "RequestClarification"],
-  "status": "running"
-}

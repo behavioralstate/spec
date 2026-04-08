@@ -1,13 +1,14 @@
 {
-  "type": "ContractProposed",
+  "specversion": "1.0",
+  "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "source": "https://api.example.com/negotiation",
+  "type": "CounterProposed",
+  "datacontenttype": "application/json",
+  "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
+  "time": "2025-07-01T10:30:01Z",
   "data": {
-    "salary": 95000,
+    "salary": 100000,
     "startDate": "2025-09-01",
-    "benefits": ["health", "dental"]
-  },
-  "metadata": {
-    "correlationId": "abc-123",
-    "source": "hr-system",
-    "timestamp": "2025-07-01T10:30:00Z"
+    "contractId": "contract-42"
   }
 }

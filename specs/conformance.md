@@ -20,14 +20,14 @@ For each capability an endpoint claims to support:
 
 | Capability | Required Endpoints |
 |---|---|
-| `agents.registry` | GET/POST /agents, GET/DELETE /agents/{id} |
-| `agents.lifecycle` | POST /agents/{id}/pause, POST /agents/{id}/resume |
-| `agents.events` | POST /events, GET /events |
-| `agents.commands` | GET /commands |
-| `agents.memory` | GET /agents/{id}/memory |
+| `agents.registry` | GET/POST /services, GET/DELETE /services/{id} |
+| `agents.lifecycle` | POST /services/{id}/pause, POST /services/{id}/resume |
+| `agents.events` | GET /events |
+| `agents.commands` | GET /commands, POST /commands |
+| `agents.memory` | GET /services/{id}/memory |
 | `observability.tracing` | GET /traces, GET /traces/{traceId} |
 
-> **Path resolution:** All paths above are relative to the `rest.endpoint` base URL declared in the discovery manifest. For example, if `rest.endpoint` is `https://app.example.com/oap/`, then `GET /agents` resolves to `https://app.example.com/oap/agents`. The paths are never relative to the domain root unless `rest.endpoint` itself is the domain root.
+> **Path resolution:** All paths above are relative to the `rest.endpoint` base URL declared in the discovery manifest. For example, if `rest.endpoint` is `https://app.example.com/oap/`, then `GET /services` resolves to `https://app.example.com/oap/services`. The paths are never relative to the domain root unless `rest.endpoint` itself is the domain root.
 
 ### Partial Capabilities
 

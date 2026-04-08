@@ -54,9 +54,9 @@ Layer 1: Transport
 
 | Primitive | Description |
 |---|---|
-| **Agent** | Something that accepts events and produces commands |
-| **Event** | An immutable observed fact sent to an agent |
-| **Command** | An intent produced by an agent (not executed by the agent) |
+| **Service** | An OAP-compliant domain service that accepts commands and publishes events |
+| **Command** | An intent to change the system — sent to a service by any caller (Process Manager, UI, another service) |
+| **Event** | An immutable domain fact published by a service as the result of processing a command |
 | **Execution Trace** | Observable record of what happened (input, output, duration, success) |
 
 ## Protocol Scope

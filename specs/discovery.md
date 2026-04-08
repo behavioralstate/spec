@@ -17,7 +17,7 @@ This returns a JSON manifest describing the available agents, services, capabili
 
 1. Consumer hits `/.well-known/oap`
 2. Reads the structured manifest
-3. Discovers available agents, services, capabilities, transport bindings, and authentication requirements
+3. Discovers available services, capabilities, transport bindings, and authentication requirements
 4. If `authentication.type` is not `none`, obtains credentials before calling API endpoints
 5. Starts interacting without any hard-coded integration
 
@@ -38,7 +38,7 @@ This returns a JSON manifest describing the available agents, services, capabili
     "authentication": { ... },
     "services": { ... },
     "capabilities": [ ... ],
-    "agents": [ ... ]
+    "services": [ ... ]
   }
 }
 ```
@@ -49,7 +49,7 @@ This returns a JSON manifest describing the available agents, services, capabili
 | `authentication` | object | no | Authentication requirements for this endpoint (omit for public endpoints) |
 | `services` | object | yes | Service definitions with transport bindings |
 | `capabilities` | array | yes | Supported capabilities with schema URLs |
-| `agents` | array | no | Snapshot of known agents (discovery hint only — see below) |
+| `services` | array | no | Snapshot of known services (discovery hint only — see below) |
 
 ## Authentication
 
@@ -82,7 +82,7 @@ Services are top-level domains. Each service has its own version, spec URL, and 
 
 | Service | Namespace | Description |
 |---|---|---|
-| Agents | `io.oap.agents` | Agent management, event delivery, command observation |
+| Agents | `io.oap.agents` | Service registry, command ingestion, event log |
 | Observability | `io.oap.observability` | Execution traces and audit trail |
 
 ## Capabilities
@@ -91,11 +91,11 @@ Capabilities are composable building blocks within a service.
 
 | Capability | Description | Extends |
 |---|---|---|
-| `io.oap.agents.registry` | Register, remove, list, get agents | — |
-| `io.oap.agents.lifecycle` | Pause and resume agents | `agents.registry` |
-| `io.oap.agents.events` | Send events, list recent events | — |
-| `io.oap.agents.commands` | List produced commands | — |
-| `io.oap.agents.memory` | View agent memory state | `agents.registry` |
+| `io.oap.agents.registry` | Register, remove, list, get services | — |
+| `io.oap.agents.lifecycle` | Pause and resume services | `agents.registry` |
+| `io.oap.agents.events` | List published domain events, inject events for simulation | — |
+| `io.oap.agents.commands` | Discover available commands (catalogue), send commands (ingestion) | — |
+| `io.oap.agents.memory` | View service memory state | `agents.registry` |
 | `io.oap.observability.tracing` | Execution traces | — |
 
 Each capability object has these fields:
@@ -136,18 +136,18 @@ Implementers can expose capabilities beyond the `io.oap.*` set. Custom capabilit
 
 The capability name must be unique. Implementers are responsible for ensuring their prefix does not conflict with others. The `io.oap.*` namespace is reserved for the OAP specification.
 
-## Agents Array — Discovery Hint vs. Live Registry
+## Services Array — Discovery Hint vs. Live Registry
 
-The optional `agents` array in the manifest is a **snapshot at manifest-build time**, not the authoritative live list.
+The optional `services` array in the manifest is a **snapshot at manifest-build time**, not the authoritative live list.
 
-| | `agents` in manifest | `GET /agents` endpoint |
+| | `services` in manifest | `GET /services` endpoint |
 |---|---|---|
 | **Purpose** | Quick discovery hint | Authoritative live list |
 | **Freshness** | May be stale (built at deploy time) | Always current |
 | **Required** | No | Yes, if `agents.registry` capability is declared |
-| **Dynamic agents** | May be absent or partial | Always complete |
+| **Dynamic services** | May be absent or partial | Always complete |
 
-For systems where agents are created dynamically at runtime (e.g. per-account brokers, per-tenant workers), the `agents` array **should be omitted** or contain only representative examples. Consumers that need the real-time list must call `GET /agents` on the REST endpoint.
+For systems where services are created dynamically at runtime (e.g. per-account, per-tenant), the `services` array **should be omitted** or contain only representative examples. Consumers that need the real-time list must call `GET /services` on the REST endpoint.
 
 ## Transport Bindings
 

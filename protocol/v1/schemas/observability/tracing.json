@@ -31,25 +31,25 @@
     },
     "executionTrace": {
       "type": "object",
-      "description": "The observable record of what happened when an agent processed an event.",
-      "required": ["traceId", "agentId", "inputEvent", "outputCommands", "startedAt", "completedAt", "duration", "succeeded"],
+      "description": "The observable record of what happened when a service processed a command.",
+      "required": ["traceId", "serviceId", "inputCommand", "outputEvents", "startedAt", "completedAt", "duration", "succeeded"],
       "properties": {
         "traceId": {
           "type": "string",
           "description": "Unique trace identifier."
         },
-        "agentId": {
+        "serviceId": {
           "type": "string",
-          "description": "Which agent processed the event."
+          "description": "Which service processed the command."
         },
-        "inputEvent": {
-          "$ref": "../agents/events.json#/$defs/event",
-          "description": "The event that triggered processing."
+        "inputCommand": {
+          "$ref": "../agents/commands.json#/$defs/command",
+          "description": "The command that was processed."
         },
-        "outputCommands": {
+        "outputEvents": {
           "type": "array",
-          "items": { "$ref": "../agents/commands.json#/$defs/command" },
-          "description": "Commands the agent produced (may be empty)."
+          "items": { "$ref": "../agents/events.json#/$defs/event" },
+          "description": "Events the service published as a result (may be empty)."
         },
         "startedAt": {
           "type": "string",

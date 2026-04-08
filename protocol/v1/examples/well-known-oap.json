@@ -78,23 +78,23 @@
         "schema": "https://openagentprotocol.io/v1/schemas/observability/tracing.json"
       }
     ],
-    "agents": [
+    "services": [
       {
         "id": "negotiation",
         "name": "Contract Negotiation",
-        "description": "Evaluates contract proposals and produces counter-offers",
-        "type": "negotiator",
-        "accepts": ["ContractProposed", "CounterOfferReceived", "TermsUpdated"],
-        "produces": ["ProposeCounter", "AcceptContract", "RejectContract"],
+        "description": "Ingests negotiation commands and publishes negotiation events",
+        "type": "negotiation-service",
+        "accepts": ["ProposeCounter", "AcceptContract", "RejectContract"],
+        "produces": ["CounterProposed", "ContractAccepted", "ContractRejected"],
         "status": "running"
       },
       {
         "id": "pricing",
         "name": "Dynamic Pricing",
-        "description": "Adjusts prices based on demand signals",
+        "description": "Ingests pricing commands and publishes pricing events",
         "type": "pricing-engine",
-        "accepts": ["DemandSignalReceived", "CompetitorPriceChanged", "InventoryUpdated"],
-        "produces": ["AdjustPrice", "FlagAnomaly"],
+        "accepts": ["AdjustPrice", "FlagAnomaly"],
+        "produces": ["PriceAdjusted", "AnomalyFlagged"],
         "status": "paused"
       }
     ]

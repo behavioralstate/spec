@@ -1,10 +1,10 @@
 # OAP — Open Agent Protocol
 
-**OAP (Open Agent Protocol)** is an open protocol that standardises **agent interoperability** — how agents discover each other, exchange events and commands, and observe what happened, across distributed systems.
+**OAP (Open Agent Protocol)** is an open protocol that makes **CQRS + Event Sourcing patterns discoverable and interoperable** — ready to be consumed by any caller, including AI agents.
 
-Any runtime, platform, language, or UI can implement OAP independently.
+Any runtime, platform, language, or UI can implement OAP independently. OAP describes the **interaction surface** of a domain service: what commands it accepts, what events it publishes, and how to discover it. It says nothing about what is behind it.
 
-> Just as Google created **UCP (Universal Commerce Protocol)** to let any business expose shopping capabilities to any agent, OAP lets **anyone expose skills, services, or capabilities** to any agent — without building bespoke integrations.
+> OAP lets **anyone expose a domain service** to any caller — a UI, an AI agent, another service — without building bespoke integrations.
 
 ---
 
@@ -14,34 +14,35 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 
 **Examples:**
 
-| Who | Accepts (events) | Produces (commands) | How it works internally |
+| Who | Accepts (commands) | Produces (events) | How it works internally |
 |---|---|---|---|
-| Freelance translator | `TranslationRequested` | `TranslationCompleted` | Human behind a keyboard |
-| Contract negotiator | `ContractProposed`, `CounterOfferReceived` | `ProposeCounter`, `AcceptContract` | LLM-powered agent |
-| IoT temperature sensor | — (pushes events) | `TemperatureReading` | Embedded firmware |
-| Pricing engine | `DemandSignalReceived`, `CompetitorPriceChanged` | `AdjustPrice`, `FlagAnomaly` | Python ML pipeline |
-| Code reviewer | `PullRequestOpened` | `ReviewCompleted`, `RequestChanges` | LLM-powered API |
-| Approval workflow | `ApprovalRequested` | `ApprovalGranted`, `ApprovalDenied` | Human-in-the-loop form |
+| Freelance translator | `TranslateDocument` | `DocumentTranslated` | Human behind a keyboard |
+| Contract negotiation service | `ProposeCounter`, `AcceptContract` | `CounterProposed`, `ContractAccepted` | LLM-powered agent or human-in-the-loop |
+| IoT temperature sensor | `ReadTemperature` | `TemperatureRead`, `TemperatureAlarm` | Embedded firmware |
+| Pricing engine | `AdjustPrice`, `FlagAnomaly` | `PriceAdjusted`, `AnomalyFlagged` | Python ML pipeline |
+| Code review service | `ReviewPullRequest` | `ReviewCompleted`, `ChangesRequested` | LLM-powered API |
+| Approval workflow | `RequestApproval` | `ApprovalGranted`, `ApprovalDenied` | Human-in-the-loop form |
 
-**OAP doesn't care how the agent works internally.** It only cares about the interaction surface: what events go in, what commands come out, and how to discover the agent.
+**OAP doesn't care how the service works internally.** It only cares about the interaction surface: what commands go in, what events come out, and how to discover the service.
 
 ---
 
 ### What is protocol-level (OAP)
 
-- **Agent** — something that accepts events and produces commands
-- **Event** — an observation sent to an agent
-- **Command** — an intent produced by an agent
+- **Service** — an OAP-compliant domain service that accepts commands and publishes events
+- **Command** — an intent to change the system, sent to a service (CloudEvent wire format)
+- **Event** — an immutable domain fact published by a service as the result of processing a command (CloudEvent wire format)
 - **Execution Trace** — observable record of *what* happened (input, output, duration, success)
 - **Discovery** — `/.well-known/oap` manifest
-- **Capabilities** — what a runtime supports
+- **Capabilities** — what a service supports
 
 ### What is implementation-level (any runtime)
 
-- Internal agent architecture — how an agent processes events (rules, ML pipelines, human workflows, etc.)
-- Internal memory model — how an agent stores state
-- Internal policies — how an agent filters events or arbitrates commands
-- Internal tracing annotations — how an agent records step-level detail
+- Internal service architecture — how a service processes commands (rules, ML pipelines, human workflows, CQRS+ES, etc.)
+- Internal memory model — how a service stores state
+- Internal policies — how a service validates or arbitrates commands
+- Internal tracing annotations — how a service records step-level detail
+- Whether a caller is an AI agent, a Process Manager, a UI, or another service
 
 A developer working on the **OAP web UI** or any other OAP consumer should only need this document and the JSON Schema files. They should never need to read any specific runtime's source code.
 
@@ -55,7 +56,7 @@ A developer working on the **OAP web UI** or any other OAP consumer should only 
 4. **Transport-agnostic** — the same agent semantics work over REST, MCP, A2A, or gRPC
 5. **Modular capabilities** — implementers choose which capabilities to support; consumers discover what's available at runtime
 6. **LLM-readable** — JSON Schema is the canonical format because LLMs can read, generate, and reason about JSON natively
-7. **Implementation-agnostic** — OAP defines the interaction surface (events in, commands out); it never prescribes how an agent processes events internally
+7. **Implementation-agnostic** — OAP defines the interaction surface (commands in, events out); it never prescribes how a service processes commands internally
 
 ---
 
@@ -70,7 +71,7 @@ A developer working on the **OAP web UI** or any other OAP consumer should only 
 | **Architecture** | Services, capabilities, extensions | Services, capabilities, extensions |
 | **Manifest root key** | `"ucp"` | `"oap"` |
 | **Namespace convention** | `dev.ucp.*` | `io.oap.*` |
-| **Internal agnostic** | Doesn't prescribe how Shopify processes orders | Doesn't prescribe how an agent processes events |
+| **Internal agnostic** | Doesn't prescribe how Shopify processes orders | Doesn't prescribe how a service processes commands |
 
 UCP demonstrates the right approach:
 
@@ -138,108 +139,127 @@ Layer 1: Transport
 
 These are the interaction concepts that OAP standardises. Every OAP implementation must understand these types. They define the **surface** of agent interaction, not the internal workings.
 
-### Agent Descriptor
+### Service Descriptor
 
-An **agent descriptor** is the identity card for an agent — what it does, what events it accepts, what commands it produces.
+A **service descriptor** is the identity card for an OAP-compliant service — what commands it accepts and what events it produces.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | yes | Globally unique agent identifier |
+| `id` | string | yes | Globally unique service identifier |
 | `name` | string | yes | Human-readable name |
-| `description` | string | no | What this agent does |
-| `type` | string | no | Agent type classification (e.g. `"negotiator"`, `"sensor"`, `"reviewer"`) |
-| `accepts` | string[] | yes | Event types this agent accepts as input |
-| `produces` | string[] | yes | Command types this agent can produce as output |
+| `description` | string | no | What this service does |
+| `type` | string | no | Service type classification (e.g. `"negotiation-service"`, `"pricing-engine"`) |
+| `accepts` | string[] | yes | Command types this service ingests |
+| `produces` | string[] | yes | Event types this service publishes |
 | `status` | string | yes | One of: `"running"`, `"paused"`, `"stopped"`, `"error"` |
 
-The agent descriptor maps directly to an **A2A Agent Card** for multi-agent interoperability.
+The service descriptor maps directly to an **A2A Agent Card** for multi-agent interoperability.
 
-**Example — a contract negotiation agent:**
+**Example — a contract negotiation service:**
 
 ```json
 {
   "id": "negotiation",
   "name": "Contract Negotiation",
-  "description": "Evaluates contract proposals and produces counter-offers",
-  "type": "negotiator",
-  "accepts": ["ContractProposed", "CounterOfferReceived", "TermsUpdated"],
-  "produces": ["ProposeCounter", "AcceptContract", "RejectContract", "RequestClarification"],
+  "description": "Ingests negotiation commands and publishes negotiation events",
+  "type": "negotiation-service",
+  "accepts": ["ProposeCounter", "AcceptContract", "RejectContract"],
+  "produces": ["CounterProposed", "ContractAccepted", "ContractRejected"],
   "status": "running"
 }
 ```
 
-**Example — a temperature sensor:**
+**Example — a temperature sensor service:**
 
 ```json
 {
   "id": "warehouse-temp-01",
   "name": "Warehouse Temperature Sensor",
-  "type": "sensor",
-  "accepts": [],
-  "produces": ["TemperatureReading", "TemperatureAlarm"],
+  "type": "sensor-service",
+  "accepts": ["ReadTemperature"],
+  "produces": ["TemperatureRead", "TemperatureAlarm"],
   "status": "running"
 }
 ```
 
-Note: there is no `neurons`, `memory`, `guards`, or other internal detail. The protocol does not know or care how the agent works inside.
+Note: there is no `neurons`, `memory`, `guards`, or other internal detail. The protocol does not know or care how the service works inside.
 
 ### Event
 
-An **event** is an immutable observed fact. Events are the **input** to agents.
+A **domain event** is an immutable fact published by an OAP-compliant service as the **result of processing a command**. Events use the **CloudEvent 1.0 specification** as wire format.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `type` | string | yes | Event type identifier (e.g. `"ContractProposed"`, `"DemandSignalReceived"`) |
-| `data` | object | yes | The event payload — structure is domain-specific |
-| `metadata` | object (string→string) | yes | Key-value metadata (correlation ID, source, timestamp, etc.) |
+| `specversion` | string | yes | Always `"1.0"` |
+| `id` | string | yes | Unique message ID (UUID recommended) |
+| `source` | string (URI) | yes | URI identifying the service that published this event |
+| `type` | string | yes | Event type identifier (e.g. `"CounterProposed"`, `"PriceAdjusted"`) |
+| `datacontenttype` | string | yes | Always `"application/json"` |
+| `dataschema` | string (URI) | yes | URI to the JSON Schema for `data` |
+| `time` | string (ISO 8601) | yes | When the event was published |
+| `data` | object | yes | The event payload — semantically opaque to the protocol |
 
 Events are:
 - Immutable
-- Externally produced
+- Published by the service
 - Semantically opaque to the protocol (the protocol does not interpret `data`)
 
 **Example:**
 
 ```json
 {
-  "type": "ContractProposed",
-  "data": { "salary": 95000, "startDate": "2025-09-01", "benefits": ["health", "dental"] },
-  "metadata": { "correlationId": "abc-123", "source": "hr-system", "timestamp": "2025-07-01T10:30:00Z" }
+  "specversion": "1.0",
+  "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "source": "https://api.example.com/negotiation",
+  "type": "CounterProposed",
+  "datacontenttype": "application/json",
+  "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
+  "time": "2025-07-01T10:30:01Z",
+  "data": { "salary": 100000, "startDate": "2025-09-01", "contractId": "contract-42" }
 }
 ```
 
 ### Command
 
-A **command** is an intent to change the system. Agents **produce** commands but **do not execute** them.
+A **command** is an intent to change the system. It is sent **to** an OAP-compliant service by any caller (a Process Manager, an AI agent, a UI, another service). Commands use the **CloudEvent 1.0 specification** as wire format.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `specversion` | string | yes | Always `"1.0"` |
+| `id` | string | yes | Unique message ID (UUID recommended) |
+| `source` | string (URI) | yes | URI identifying the sender |
 | `type` | string | yes | Command type identifier (e.g. `"ProposeCounter"`, `"AdjustPrice"`) |
-| `data` | object | yes | The command payload — structure is domain-specific |
-| `metadata` | object (string→string) | yes | Key-value metadata (agent ID, trace ID, correlation ID, etc.) |
-
-Commands are handled by external actuators, which then emit new events — closing the loop.
+| `datacontenttype` | string | yes | Always `"application/json"` |
+| `dataschema` | string (URI) | yes | URI to the JSON Schema for `data` — hosted by the ingestion API |
+| `time` | string (ISO 8601) | yes | When the command was created |
+| `data` | object | yes | The command payload — validated against `dataschema` before queuing |
 
 **Example:**
 
 ```json
 {
+  "specversion": "1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
-  "data": { "salary": 100000, "startDate": "2025-09-01" },
-  "metadata": { "agentId": "negotiation", "traceId": "trace-001", "correlationId": "abc-123" }
+  "datacontenttype": "application/json",
+  "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+  "time": "2025-07-01T10:30:00Z",
+  "data": { "salary": 100000, "startDate": "2025-09-01" }
 }
 ```
 
 ### Execution Trace
 
-An **execution trace** is the observable record of what happened when an agent processed an event. It captures the **input, output, timing, and outcome** — but NOT how the agent worked internally.
+An **execution trace** is the observable record of what happened when a service processed a command. It captures the **input, output, timing, and outcome** — but NOT how the service worked internally.
 
 | Field | Type | Required | Description |
-|---|---|---|---|
+|---|---|---| ---|
 | `traceId` | string | yes | Unique trace identifier |
-| `agentId` | string | yes | Which agent processed the event |
-| `inputEvent` | Event | yes | The event that triggered processing |
-| `outputCommands` | Command[] | yes | Commands the agent produced (may be empty) |
+| `serviceId` | string | yes | Which service processed the command |
+| `inputCommand` | Command | yes | The command that was processed |
+| `outputEvents` | Event[] | yes | Events the service published (may be empty) |
+| `outputEvents` | Event[] | yes | Events the service published (may be empty) |
 | `startedAt` | datetime | yes | ISO 8601 timestamp |
 | `completedAt` | datetime | yes | ISO 8601 timestamp |
 | `duration` | duration | yes | ISO 8601 duration |
@@ -247,7 +267,7 @@ An **execution trace** is the observable record of what happened when an agent p
 | `error` | string | no | Error message if failed |
 | `steps` | TraceStep[] | no | Optional named steps (implementation-specific detail) |
 
-The `steps` field is the **extension point** for implementations. Any runtime can include implementation-specific execution detail here. A simple webhook agent can omit it entirely. The protocol does not prescribe the structure of steps — they are opaque.
+The `steps` field is the **extension point** for implementations. Any runtime can include implementation-specific execution detail here. A simple webhook service can omit it entirely. The protocol does not prescribe the structure of steps — they are opaque.
 
 #### TraceStep (optional, implementation-specific)
 
@@ -263,17 +283,27 @@ The `steps` field is the **extension point** for implementations. Any runtime ca
 ```json
 {
   "traceId": "trace-001",
-  "agentId": "negotiation",
-  "inputEvent": {
-    "type": "ContractProposed",
-    "data": { "salary": 95000 },
-    "metadata": { "correlationId": "abc-123" }
+  "serviceId": "negotiation",
+  "inputCommand": {
+    "specversion": "1.0",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "source": "https://pm.example.com/negotiation-agent",
+    "type": "ProposeCounter",
+    "datacontenttype": "application/json",
+    "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+    "time": "2025-07-01T10:30:00Z",
+    "data": { "salary": 100000 }
   },
-  "outputCommands": [
+  "outputEvents": [
     {
-      "type": "ProposeCounter",
-      "data": { "salary": 100000 },
-      "metadata": { "agentId": "negotiation", "traceId": "trace-001", "correlationId": "abc-123" }
+      "specversion": "1.0",
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "source": "https://api.example.com/negotiation",
+      "type": "CounterProposed",
+      "datacontenttype": "application/json",
+      "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
+      "time": "2025-07-01T10:30:01Z",
+      "data": { "salary": 100000, "contractId": "contract-42" }
     }
   ],
   "startedAt": "2025-07-01T10:30:00Z",
@@ -307,13 +337,13 @@ GET /.well-known/oap
 Content-Type: application/json
 ```
 
-This returns a JSON manifest describing the available agents, services, capabilities, and transport bindings. No prior configuration is needed — a consumer hits the URL and learns everything it needs to interact.
+This returns a JSON manifest describing the available services, capabilities, and transport bindings. No prior configuration is needed — a consumer hits the URL and learns everything it needs to interact.
 
 ### Discovery Flow
 
 1. Consumer hits `/.well-known/oap`
 2. Reads the structured manifest
-3. Discovers available agents, services, capabilities, and transport bindings
+3. Discovers available services, capabilities, and transport bindings
 4. Starts interacting without any hard-coded integration
 
 ### Manifest Structure

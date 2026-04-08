@@ -1,21 +1,21 @@
-# Agent Registry — `io.oap.agents.registry`
+# Service Registry — `io.oap.agents.registry`
 
 **Version:** 2025-07-01
 
-The agent registry capability provides CRUD operations for managing agents.
+The service registry capability provides CRUD operations for managing OAP-compliant services.
 
-## Agent Descriptor
+## Service Descriptor
 
-An **agent descriptor** is the identity card for an agent.
+A **service descriptor** is the identity card for an OAP-compliant service — what commands it accepts and what events it produces.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | yes | Globally unique agent identifier |
+| `id` | string | yes | Globally unique service identifier |
 | `name` | string | yes | Human-readable name |
-| `description` | string | no | What this agent does |
-| `type` | string | no | Agent type classification |
-| `accepts` | string[] | yes | Event types this agent accepts as input |
-| `produces` | string[] | yes | Command types this agent can produce |
+| `description` | string | no | What this service does |
+| `type` | string | no | Service type classification |
+| `accepts` | string[] | yes | Command types this service ingests |
+| `produces` | string[] | yes | Event types this service publishes |
 | `status` | string | yes | One of: `running`, `paused`, `stopped`, `error` |
 
 ### Example
@@ -24,10 +24,10 @@ An **agent descriptor** is the identity card for an agent.
 {
   "id": "negotiation",
   "name": "Contract Negotiation",
-  "description": "Evaluates contract proposals and produces counter-offers",
-  "type": "negotiator",
-  "accepts": ["ContractProposed", "CounterOfferReceived", "TermsUpdated"],
-  "produces": ["ProposeCounter", "AcceptContract", "RejectContract"],
+  "description": "Ingests negotiation commands and publishes negotiation events",
+  "type": "negotiation-service",
+  "accepts": ["ProposeCounter", "AcceptContract", "RejectContract"],
+  "produces": ["CounterProposed", "ContractAccepted", "ContractRejected"],
   "status": "running"
 }
 ```
@@ -36,18 +36,18 @@ An **agent descriptor** is the identity card for an agent.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/agents` | List all registered agents |
-| GET | `/agents/{id}` | Get agent detail |
-| POST | `/agents` | Register a new agent |
-| DELETE | `/agents/{id}` | Remove an agent |
+| GET | `/services` | List all registered services |
+| GET | `/services/{id}` | Get service detail |
+| POST | `/services` | Register a new service |
+| DELETE | `/services/{id}` | Remove a service |
 
-### POST /agents
+### POST /services
 
-Request body is an agent descriptor without `status` (defaults to `stopped`).
+Request body is a service descriptor without `status` (defaults to `stopped`).
 
-Response: `201 Created` with the created agent descriptor.
+Response: `201 Created` with the created service descriptor.
 
-### DELETE /agents/{id}
+### DELETE /services/{id}
 
 Response: `204 No Content`.
 

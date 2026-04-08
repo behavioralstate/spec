@@ -15,7 +15,7 @@
 			Agent Interoperability.<br /><span class="hero-title-muted">By Design.</span>
 		</h1>
 		<p class="hero-subtitle">
-			The open standard for how agents discover each other, exchange events and commands, and observe what happened — across distributed systems.
+			The open standard for exposing CQRS + Event Sourcing services — making commands and events discoverable by any caller, including AI agents.
 		</p>
 		<div class="hero-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>

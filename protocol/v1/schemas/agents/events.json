@@ -1,34 +1,58 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openagentprotocol.io/v1/schemas/agents/events.json",
-  "title": "OAP Agent Events",
-  "description": "Schema for event delivery capability (io.oap.agents.events).",
+  "title": "OAP Events",
+  "description": "Schema for domain events published by OAP-compliant services (io.oap.agents.events).",
   "$defs": {
     "event": {
       "type": "object",
-      "description": "An immutable observed fact. Events are the input to agents.",
-      "required": ["type", "data", "metadata"],
+      "description": "An immutable domain event published by an OAP-compliant service as the result of processing a command. Uses the CloudEvent 1.0 specification as wire format.",
+      "required": ["specversion", "id", "source", "type", "datacontenttype", "dataschema", "time", "data"],
       "properties": {
+        "specversion": {
+          "type": "string",
+          "const": "1.0",
+          "description": "CloudEvent specification version. Always '1.0'."
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique message identifier (UUID recommended)."
+        },
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI identifying the service that published this event."
+        },
         "type": {
           "type": "string",
-          "description": "Event type identifier (e.g. ContractProposed, DemandSignalReceived)."
+          "description": "Event type identifier (e.g. CounterProposed, OrderSubmitted, PolicyBound)."
+        },
+        "datacontenttype": {
+          "type": "string",
+          "const": "application/json",
+          "description": "Content type of data. Always 'application/json'."
+        },
+        "dataschema": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI to the JSON Schema for the data property."
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when the event was published."
         },
         "data": {
           "type": "object",
-          "description": "The event payload — structure is domain-specific.",
+          "description": "The event payload. Structure is domain-specific and semantically opaque to the protocol.",
           "additionalProperties": true
-        },
-        "metadata": {
-          "type": "object",
-          "description": "Key-value metadata (correlationId, source, timestamp, etc.).",
-          "additionalProperties": { "type": "string" }
         }
       },
       "additionalProperties": false
     },
     "eventList": {
       "type": "object",
-      "description": "Response body for GET /events.",
+      "description": "Response body for GET /events. Lists domain events published by this service.",
       "required": ["events"],
       "properties": {
         "events": {

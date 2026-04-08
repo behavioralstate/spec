@@ -1,17 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openagentprotocol.io/v1/schemas/agents/registry.json",
-  "title": "OAP Agent Registry",
-  "description": "Schema for agent descriptors and the agent registry capability (io.oap.agents.registry).",
+  "title": "OAP Service Registry",
+  "description": "Schema for service descriptors and the service registry capability (io.oap.agents.registry).",
   "$defs": {
-    "agentDescriptor": {
+    "serviceDescriptor": {
       "type": "object",
-      "description": "The identity card for an agent — what it does, what events it accepts, what commands it produces.",
+      "description": "The identity card for an OAP-compliant service — what it does, what commands it accepts, what events it produces.",
       "required": ["id", "name", "accepts", "produces", "status"],
       "properties": {
         "id": {
           "type": "string",
-          "description": "Globally unique agent identifier."
+          "description": "Globally unique service identifier."
         },
         "name": {
           "type": "string",
@@ -19,38 +19,38 @@
         },
         "description": {
           "type": "string",
-          "description": "What this agent does."
+          "description": "What this service does."
         },
         "type": {
           "type": "string",
-          "description": "Agent type classification (e.g. negotiator, sensor, reviewer)."
+          "description": "Service type classification (e.g. negotiation-service, pricing-engine, sensor)."
         },
         "accepts": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Event types this agent accepts as input."
+          "description": "Command types this service ingests."
         },
         "produces": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Command types this agent can produce as output."
+          "description": "Event types this service publishes as a result of processing."
         },
         "status": {
           "type": "string",
           "enum": ["running", "paused", "stopped", "error"],
-          "description": "Current agent status."
+          "description": "Current service status."
         }
       },
       "additionalProperties": false
     },
-    "agentRegistration": {
+    "serviceRegistration": {
       "type": "object",
-      "description": "Request body for registering a new agent. Status defaults to stopped.",
+      "description": "Request body for registering a new service. Status defaults to stopped.",
       "required": ["id", "name", "accepts", "produces"],
       "properties": {
         "id": {
           "type": "string",
-          "description": "Globally unique agent identifier."
+          "description": "Globally unique service identifier."
         },
         "name": {
           "type": "string",
@@ -58,33 +58,33 @@
         },
         "description": {
           "type": "string",
-          "description": "What this agent does."
+          "description": "What this service does."
         },
         "type": {
           "type": "string",
-          "description": "Agent type classification."
+          "description": "Service type classification."
         },
         "accepts": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Event types this agent accepts."
+          "description": "Command types this service accepts."
         },
         "produces": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Command types this agent produces."
+          "description": "Event types this service produces."
         }
       },
       "additionalProperties": false
     },
-    "agentList": {
+    "serviceList": {
       "type": "object",
-      "description": "Response body for GET /agents.",
-      "required": ["agents"],
+      "description": "Response body for GET /services.",
+      "required": ["services"],
       "properties": {
-        "agents": {
+        "services": {
           "type": "array",
-          "items": { "$ref": "#/$defs/agentDescriptor" }
+          "items": { "$ref": "#/$defs/serviceDescriptor" }
         }
       },
       "additionalProperties": false

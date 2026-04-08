@@ -1,16 +1,16 @@
-# Agent Lifecycle — `io.oap.agents.lifecycle`
+# Service Lifecycle — `io.oap.agents.lifecycle`
 
 **Version:** 2025-07-01  
 **Extends:** `io.oap.agents.registry`
 
-The lifecycle capability adds pause and resume operations to the agent registry.
+The lifecycle capability adds pause and resume operations to the service registry.
 
 ## REST API
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/agents/{id}/pause` | Pause a running agent |
-| POST | `/agents/{id}/resume` | Resume a paused agent |
+| POST | `/services/{id}/pause` | Pause a running service |
+| POST | `/services/{id}/resume` | Resume a paused service |
 
 Both return `204 No Content` on success.
 

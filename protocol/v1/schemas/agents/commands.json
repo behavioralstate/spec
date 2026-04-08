@@ -1,39 +1,84 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openagentprotocol.io/v1/schemas/agents/commands.json",
-  "title": "OAP Agent Commands",
-  "description": "Schema for the command observation capability (io.oap.agents.commands).",
+  "title": "OAP Commands",
+  "description": "Schema for the command ingestion and discovery capability (io.oap.agents.commands).",
   "$defs": {
     "command": {
       "type": "object",
-      "description": "An intent to change the system. Agents produce commands but do not execute them.",
-      "required": ["type", "data", "metadata"],
+      "description": "A command sent to an OAP-compliant service. Uses the CloudEvent 1.0 specification as wire format. The data property is validated against the JSON Schema at the dataschema URI, which is hosted by the ingestion API.",
+      "required": ["specversion", "id", "source", "type", "datacontenttype", "dataschema", "time", "data"],
       "properties": {
+        "specversion": {
+          "type": "string",
+          "const": "1.0",
+          "description": "CloudEvent specification version. Always '1.0'."
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique message identifier (UUID recommended)."
+        },
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI identifying the sender (e.g. a Process Manager, a UI, another service)."
+        },
         "type": {
           "type": "string",
-          "description": "Command type identifier (e.g. ProposeCounter, AdjustPrice)."
+          "description": "Command type identifier (e.g. ProposeCounter, SubmitOrder). Must match a type in the command catalogue."
+        },
+        "datacontenttype": {
+          "type": "string",
+          "const": "application/json",
+          "description": "Content type of data. Always 'application/json'."
+        },
+        "dataschema": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI to the JSON Schema for the data property. Hosted by the ingestion API. The API dereferences this URI and validates data against it before queuing."
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when the command was created."
         },
         "data": {
           "type": "object",
-          "description": "The command payload — structure is domain-specific.",
+          "description": "The command payload. Structure is domain-specific and validated against the schema at dataschema.",
           "additionalProperties": true
-        },
-        "metadata": {
-          "type": "object",
-          "description": "Key-value metadata (agentId, traceId, correlationId, etc.).",
-          "additionalProperties": { "type": "string" }
         }
       },
       "additionalProperties": false
     },
-    "commandList": {
+    "commandCatalogueEntry": {
       "type": "object",
-      "description": "Response body for GET /commands.",
+      "description": "An entry in the command catalogue — one available command type with its schema URI.",
+      "required": ["type", "dataschema"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Command type identifier."
+        },
+        "dataschema": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI to the JSON Schema for this command's data payload."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what this command does."
+        }
+      },
+      "additionalProperties": false
+    },
+    "commandCatalogue": {
+      "type": "object",
+      "description": "Response body for GET /commands. Lists all command types this service accepts, with their schema URIs. This is the discovery surface for callers (Process Managers, AI agents, UIs) to learn what they can send.",
       "required": ["commands"],
       "properties": {
         "commands": {
           "type": "array",
-          "items": { "$ref": "#/$defs/command" }
+          "items": { "$ref": "#/$defs/commandCatalogueEntry" }
         }
       },
       "additionalProperties": false

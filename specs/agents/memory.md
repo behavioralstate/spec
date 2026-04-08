@@ -1,15 +1,15 @@
-# Agent Memory — `io.oap.agents.memory`
+# Service Memory — `io.oap.agents.memory`
 
 **Version:** 2025-07-01  
 **Extends:** `io.oap.agents.registry`
 
-The memory capability exposes agent memory state. The response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats.
+The memory capability exposes service memory state. The response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats.
 
 ## REST API
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/agents/{id}/memory` | Get current memory state for an agent |
+| GET | `/services/{id}/memory` | Get current memory state for a service |
 
 The web UI renders memory as raw JSON.
 

@@ -14,12 +14,12 @@
 			]
 		},
 		{
-			label: 'Agents',
+			label: 'Services',
 			items: [
 				{ label: 'Registry', href: '/docs/agents/registry' },
 				{ label: 'Lifecycle', href: '/docs/agents/lifecycle' },
-				{ label: 'Events', href: '/docs/agents/events' },
 				{ label: 'Commands', href: '/docs/agents/commands' },
+				{ label: 'Events', href: '/docs/agents/events' },
 				{ label: 'Memory', href: '/docs/agents/memory' }
 			]
 		},

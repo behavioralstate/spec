@@ -2,16 +2,16 @@
 
 **Version:** 2025-07-01
 
-An **execution trace** is the observable record of what happened when an agent processed an event. It captures the input, output, timing, and outcome — but NOT how the agent worked internally.
+An **execution trace** is the observable record of what happened when a service processed a command. It captures the input, output, timing, and outcome — but NOT how the service worked internally.
 
 ## Execution Trace Shape
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `traceId` | string | yes | Unique trace identifier |
-| `agentId` | string | yes | Which agent processed the event |
-| `inputEvent` | Event | yes | The event that triggered processing |
-| `outputCommands` | Command[] | yes | Commands produced (may be empty) |
+| `serviceId` | string | yes | Which service processed the command |
+| `inputCommand` | Command | yes | The command that was processed |
+| `outputEvents` | Event[] | yes | Events published as a result (may be empty) |
 | `startedAt` | datetime | yes | ISO 8601 timestamp |
 | `completedAt` | datetime | yes | ISO 8601 timestamp |
 | `duration` | duration | yes | ISO 8601 duration |
@@ -33,17 +33,27 @@ An **execution trace** is the observable record of what happened when an agent p
 ```json
 {
   "traceId": "trace-001",
-  "agentId": "negotiation",
-  "inputEvent": {
-    "type": "ContractProposed",
-    "data": { "salary": 95000 },
-    "metadata": { "correlationId": "abc-123" }
+  "serviceId": "negotiation",
+  "inputCommand": {
+    "specversion": "1.0",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "source": "https://pm.example.com/negotiation-agent",
+    "type": "ProposeCounter",
+    "datacontenttype": "application/json",
+    "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+    "time": "2025-07-01T10:30:00Z",
+    "data": { "salary": 100000, "startDate": "2025-09-01" }
   },
-  "outputCommands": [
+  "outputEvents": [
     {
-      "type": "ProposeCounter",
-      "data": { "salary": 100000 },
-      "metadata": { "agentId": "negotiation", "traceId": "trace-001", "correlationId": "abc-123" }
+      "specversion": "1.0",
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "source": "https://api.example.com/negotiation",
+      "type": "CounterProposed",
+      "datacontenttype": "application/json",
+      "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
+      "time": "2025-07-01T10:30:01Z",
+      "data": { "salary": 100000, "startDate": "2025-09-01", "contractId": "contract-42" }
     }
   ],
   "startedAt": "2025-07-01T10:30:00Z",
@@ -61,10 +71,10 @@ An **execution trace** is the observable record of what happened when an agent p
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/traces` | List recent traces (optional `?agentId=` filter) |
+| GET | `/traces` | List recent traces (optional `?serviceId=` filter) |
 | GET | `/traces/{traceId}` | Get a specific trace |
-| GET | `/agents/{id}/traces` | List traces for an agent |
-| GET | `/agents/{id}/traces/latest` | Get the latest trace for an agent |
+| GET | `/services/{id}/traces` | List traces for a service |
+| GET | `/services/{id}/traces/latest` | Get the latest trace for a service |
 
 ## Schema
 

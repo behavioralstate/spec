@@ -1,12 +1,13 @@
 {
+  "specversion": "1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
+  "datacontenttype": "application/json",
+  "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+  "time": "2025-07-01T10:30:00Z",
   "data": {
     "salary": 100000,
     "startDate": "2025-09-01"
-  },
-  "metadata": {
-    "agentId": "negotiation",
-    "traceId": "trace-001",
-    "correlationId": "abc-123"
   }
 }
