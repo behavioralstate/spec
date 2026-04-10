@@ -21,7 +21,7 @@ Commands use the **CloudEvent 1.0 specification** as wire format. The `data` pro
 
 ### Schema Authority
 
-The ingestion API owns and hosts the schemas. The `dataschema` URI may point to a blob storage location, a mounted volume path, or any remotely accessible file — as long as it is resolvable by the API at validation time.
+The ingestion API owns and hosts the schemas via `GET /commands/{schema}/{version}`. The `dataschema` URI in a command catalogue entry points to this endpoint — same base URL, same capability.
 
 ### Example
 
@@ -32,7 +32,7 @@ The ingestion API owns and hosts the schemas. The `dataschema` URI may point to 
   "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+  "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
   "time": "2025-07-01T10:30:00Z",
   "data": {
     "salary": 100000,
@@ -45,8 +45,9 @@ The ingestion API owns and hosts the schemas. The `dataschema` URI may point to 
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/commands` | Return the catalogue of available command types and their schema URIs |
+| GET | `/commands` | Return the catalogue of all available command types and their schema URIs |
 | POST | `/commands` | Send a command (CloudEvent). Validates, queues, returns `201`. |
+| GET | `/commands/{schema}/{version}` | Return the JSON Schema document for a specific command type and version |
 
 ### GET /commands — Command Catalogue
 
@@ -57,12 +58,12 @@ Returns the list of command types this service accepts, each with its `dataschem
   "commands": [
     {
       "type": "ProposeCounter",
-      "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+      "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
       "description": "Propose a counter-offer in a contract negotiation"
     },
     {
       "type": "AcceptContract",
-      "dataschema": "https://api.example.com/schemas/commands/AcceptContract.json",
+      "dataschema": "https://api.example.com/schemas/AcceptContract/1.0",
       "description": "Accept the current contract terms"
     }
   ]
@@ -80,6 +81,18 @@ Processing steps:
 4. If invalid: return `400` with error detail
 
 Response: `201 Created` — the command has been accepted and queued.
+
+### GET /commands/{schema}/{version} — Versioned Schema Document
+
+Returns the JSON Schema document for a specific command type and version. This is the canonical target for the `dataschema` URI in a command catalogue entry.
+
+**Path parameters:**
+- `schema` — schema name, matching the command type (e.g. `ProposeCounter`)
+- `version` — version string (e.g. `1.0`, `2.1`)
+
+Response: a raw JSON Schema document (`application/schema+json`). The URL of this endpoint is the canonical value to put in the `dataschema` field of a command catalogue entry (e.g. `https://api.example.com/commands/ProposeCounter/1.0`).
+
+Returns `404` if the schema name or version is not found.
 
 ## Schema
 

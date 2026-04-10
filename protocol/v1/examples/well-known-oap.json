@@ -36,6 +36,7 @@
       {
         "name": "io.oap.agents.registry",
         "version": "2026-04-10",
+        "service": "io.oap.agents",
         "description": "Register, remove, list agents",
         "spec": "https://openagentprotocol.io/specs/agents/registry",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/registry.json",
@@ -49,6 +50,7 @@
       {
         "name": "io.oap.agents.lifecycle",
         "version": "2026-04-10",
+        "service": "io.oap.agents",
         "description": "Pause, resume agents",
         "spec": "https://openagentprotocol.io/specs/agents/lifecycle",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/lifecycle.json",
@@ -61,6 +63,7 @@
       {
         "name": "io.oap.agents.events",
         "version": "2026-04-10",
+        "service": "io.oap.agents",
         "description": "Send events to agents, list recent events",
         "spec": "https://openagentprotocol.io/specs/agents/events",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/events.json",
@@ -72,17 +75,20 @@
       {
         "name": "io.oap.agents.commands",
         "version": "2026-04-10",
+        "service": "io.oap.agents",
         "description": "Discover command types this service accepts and send commands",
         "spec": "https://openagentprotocol.io/specs/agents/commands",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/commands.json",
         "endpoints": [
-          { "method": "GET",  "path": "/commands", "description": "Command catalogue — list accepted command types with schema URIs" },
-          { "method": "POST", "path": "/commands", "description": "Command ingestion — send a CloudEvent command" }
+          { "method": "GET",  "path": "/commands",                          "description": "Command catalogue — list accepted command types with schema URIs" },
+          { "method": "POST", "path": "/commands",                          "description": "Command ingestion — send a CloudEvent command" },
+          { "method": "GET",  "path": "/commands/{schema}/{version}",  "description": "Get a versioned command schema document" }
         ]
       },
       {
         "name": "io.oap.agents.memory",
         "version": "2026-04-10",
+        "service": "io.oap.agents",
         "description": "View agent memory state (opaque to the protocol)",
         "spec": "https://openagentprotocol.io/specs/agents/memory",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/memory.json",
@@ -94,6 +100,7 @@
       {
         "name": "io.oap.observability.tracing",
         "version": "2026-04-10",
+        "service": "io.oap.observability",
         "description": "Execution traces — what happened when an agent processed an event",
         "spec": "https://openagentprotocol.io/specs/observability/tracing",
         "schema": "https://openagentprotocol.io/v1/schemas/observability/tracing.json",

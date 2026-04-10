@@ -82,6 +82,26 @@
         }
       },
       "additionalProperties": false
+    },
+    "schemaEntry": {
+      "type": "object",
+      "description": "An entry describing one available command schema with its version. Returned in the command catalogue entry's dataschema URI path.",
+      "required": ["schema", "version"],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "description": "Schema name (e.g. ProposeCounter, SubmitOrder). Matches the command type name."
+        },
+        "version": {
+          "type": "string",
+          "description": "Schema version string (e.g. 1.0, 2.1). Used as the second path segment in GET /commands/{schema}/{version}."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what this schema validates."
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

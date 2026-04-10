@@ -243,7 +243,7 @@ A **command** is an intent to change the system. It is sent **to** an OAP-compli
   "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+  "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
   "time": "2025-07-01T10:30:00Z",
   "data": { "salary": 100000, "startDate": "2025-09-01" }
 }
@@ -290,7 +290,7 @@ The `steps` field is the **extension point** for implementations. Any runtime ca
     "source": "https://pm.example.com/negotiation-agent",
     "type": "ProposeCounter",
     "datacontenttype": "application/json",
-    "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+    "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
     "time": "2025-07-01T10:30:00Z",
     "data": { "salary": 100000 }
   },
@@ -408,6 +408,7 @@ This returns a JSON manifest describing the available services, capabilities, an
       {
         "name": "io.oap.agents.registry",
         "version": "2025-07-01",
+        "service": "io.oap.agents",
         "description": "Register, remove, list agents",
         "spec": "https://openagentprotocol.io/specs/agents/registry",
         "schema": "https://openagentprotocol.io/schemas/agents/registry.json",
@@ -421,6 +422,7 @@ This returns a JSON manifest describing the available services, capabilities, an
       {
         "name": "io.oap.agents.lifecycle",
         "version": "2025-07-01",
+        "service": "io.oap.agents",
         "description": "Pause, resume agents",
         "spec": "https://openagentprotocol.io/specs/agents/lifecycle",
         "schema": "https://openagentprotocol.io/schemas/agents/lifecycle.json",
@@ -433,6 +435,7 @@ This returns a JSON manifest describing the available services, capabilities, an
       {
         "name": "io.oap.agents.events",
         "version": "2025-07-01",
+        "service": "io.oap.agents",
         "description": "Send events to agents, list recent events",
         "spec": "https://openagentprotocol.io/specs/agents/events",
         "schema": "https://openagentprotocol.io/schemas/agents/events.json",
@@ -444,17 +447,20 @@ This returns a JSON manifest describing the available services, capabilities, an
       {
         "name": "io.oap.agents.commands",
         "version": "2025-07-01",
+        "service": "io.oap.agents",
         "description": "Discover command types this service accepts and send commands",
         "spec": "https://openagentprotocol.io/specs/agents/commands",
         "schema": "https://openagentprotocol.io/schemas/agents/commands.json",
         "endpoints": [
-          { "method": "GET",  "path": "/commands", "description": "Command catalogue — list accepted command types with schema URIs" },
-          { "method": "POST", "path": "/commands", "description": "Command ingestion — send a CloudEvent command" }
+          { "method": "GET",  "path": "/commands",                         "description": "Command catalogue — list accepted command types with schema URIs" },
+          { "method": "POST", "path": "/commands",                         "description": "Command ingestion — send a CloudEvent command" },
+          { "method": "GET",  "path": "/commands/{schema}/{version}",  "description": "Get a versioned command schema document" }
         ]
       },
       {
         "name": "io.oap.agents.memory",
         "version": "2025-07-01",
+        "service": "io.oap.agents",
         "description": "View agent memory state (opaque to the protocol)",
         "spec": "https://openagentprotocol.io/specs/agents/memory",
         "schema": "https://openagentprotocol.io/schemas/agents/memory.json",
@@ -466,6 +472,7 @@ This returns a JSON manifest describing the available services, capabilities, an
       {
         "name": "io.oap.observability.tracing",
         "version": "2025-07-01",
+        "service": "io.oap.observability",
         "description": "Execution traces — what happened when an agent processed an event",
         "spec": "https://openagentprotocol.io/specs/observability/tracing",
         "schema": "https://openagentprotocol.io/schemas/observability/tracing.json",
@@ -540,6 +547,7 @@ Capabilities are the building blocks of OAP. They define specific actions within
 | `description` | string | yes | Human-readable description |
 | `spec` | string | yes | URL to the capability specification |
 | `schema` | string | yes | URL to the JSON Schema for this capability |
+| `service` | string | no | Key of the implementing service in the manifest's `services` object. Required when the capability name prefix does not match the service key (e.g. `io.dotquant.trading` service implementing `io.oap.agents.commands`). Consumers resolve `rest.endpoint` from this field. |
 | `extends` | string | no | Parent capability this extends |
 | `status` | string | no | `"planned"` if not yet available; omitted if active |
 | `endpoints` | array | no | Machine-readable HTTP endpoints exposed by this capability. Each entry: `{ method, path, description }`. Paths are relative to `rest.endpoint`. HTTP method signals read (GET) vs write (POST/DELETE/etc.). Consumers use this to discover catalogue URLs and determine mutability without reading the spec. |
@@ -740,6 +748,7 @@ Response: `202 Accepted`.
 |---|---|---|
 | GET | `/commands` | Command catalogue: list accepted command types and their schema URIs |
 | POST | `/commands` | Send a command (CloudEvent). Validates `data` against `dataschema`, queues, returns `201`. |
+| GET | `/commands/{schema}/{version}` | Return the JSON Schema document for a specific command type and version |
 
 #### GET /commands — Command catalogue
 
@@ -750,7 +759,7 @@ Response:
   "commands": [
     {
       "type": "ProposeCounter",
-      "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+      "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
       "description": "Propose a counter-offer in a contract negotiation"
     }
   ]
@@ -762,6 +771,10 @@ Response:
 Request body: a CloudEvent (see Command wire format above).
 
 Response: `201 Created` — command accepted and queued.
+
+#### GET /commands/{schema}/{version} — Versioned schema document
+
+Returns the JSON Schema document for a specific command type and version. This is the canonical target for the `dataschema` URI in a catalogue entry (e.g. `https://api.example.com/commands/ProposeCounter/1.0`). The response content type is `application/schema+json`.
 
 ### Service Memory (`io.oap.agents.memory`)
 
@@ -894,11 +907,11 @@ For each capability an endpoint claims to support:
 
 | Capability | Required endpoints |
 |---|---|
-| `agents.registry` | GET/POST /agents, GET/DELETE /agents/{id} |
-| `agents.lifecycle` | POST /agents/{id}/pause, POST /agents/{id}/resume |
-| `agents.events` | POST /events, GET /events |
-| `agents.commands` | GET /commands |
-| `agents.memory` | GET /agents/{id}/memory |
+| `agents.registry` | GET /services, POST /services, GET /services/{id}, DELETE /services/{id} |
+| `agents.lifecycle` | POST /services/{id}/pause, POST /services/{id}/resume |
+| `agents.events` | GET /events, POST /events |
+| `agents.commands` | GET /commands, POST /commands, GET /commands/{schema}/{version} |
+| `agents.memory` | GET /services/{id}/memory |
 | `observability.tracing` | GET /traces, GET /traces/{traceId} |
 
 ### What Compliance Does NOT Require
@@ -1158,6 +1171,14 @@ OAP is NOT:
 ---
 
 ## Repository Structure & Website Build
+
+### Role of This File vs `specs/`
+
+`general.instructions.md` and `cqrs-es.instructions.md` are **AI context only** — they are never read by the website build pipeline. When you edit the spec:
+
+- Edit `specs/**/*.md` for changes that should appear on the **public website** (`/docs/...` pages)
+- Edit `general.instructions.md` to keep the **AI agent** in sync with those same changes
+- Both must be updated together; the instructions file is the AI's working copy of the spec, not the source of truth for the website
 
 ### Directory Layout
 

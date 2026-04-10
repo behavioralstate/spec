@@ -104,7 +104,7 @@ Commands and Events both use the **CloudEvent 1.0 specification** as wire format
   "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+  "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
   "time": "2025-07-01T10:30:00Z",
   "data": {
     "salary": 100000,
@@ -139,8 +139,9 @@ Commands and Events both use the **CloudEvent 1.0 specification** as wire format
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/commands` | **Catalogue**: list all command types this service accepts, each with its `dataschema` URI |
+| `GET` | `/commands` | **Catalogue**: list all command types this service accepts, each with a versioned `dataschema` URI |
 | `POST` | `/commands` | **Ingestion**: send a CloudEvent command. Validates `data` against `dataschema`. Queues and returns `201`. |
+| `GET` | `/commands/{schema}/{version}` | **Versioned schema**: the JSON Schema document for one command type + version |
 
 #### GET /commands response shape
 ```json
@@ -148,17 +149,24 @@ Commands and Events both use the **CloudEvent 1.0 specification** as wire format
   "commands": [
     {
       "type": "ProposeCounter",
-      "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+      "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
       "description": "Propose a counter-offer in a contract negotiation"
     },
     {
       "type": "AcceptContract",
-      "dataschema": "https://api.example.com/schemas/commands/AcceptContract.json",
+      "dataschema": "https://api.example.com/schemas/AcceptContract/1.0",
       "description": "Accept the current contract terms"
     }
   ]
 }
 ```
+
+The `dataschema` URI in `GET /commands` catalogue entries now points to `GET /commands/{schema}/{version}` on the same host (e.g. `.../commands/ProposeCounter/1.0`). Schemas are versioned so consumers can pin to a version and the service can evolve commands without breaking existing callers.
+
+#### GET /commands/{schema}/{version} — Versioned schema document
+
+- Returns the raw JSON Schema document (`application/schema+json`)
+- Returns `404` if the schema name or version is not found
 
 #### POST /commands
 - Request body: CloudEvent (see above)
@@ -264,7 +272,30 @@ All phases below have been implemented. This section serves as a record of what 
 
 ---
 
-## 9. What Does NOT Change
+## 9. Post-Refactor Spec Changes
+
+These changes were made after the initial CQRS refactor (sections 1–8) in response to implementer feedback and live testing.
+
+### Discovery manifest — `endpoints` and `service` fields on capabilities
+
+Each capability in `/.well-known/oap` now has two additional fields:
+- `service` — links the capability to its implementing service key in `manifest.services` (e.g. `"io.oap.agents"`). Required for the playground and any consumer to resolve the correct base URL.
+- `endpoints` — array of `{ method, path, description }` objects listing the REST endpoints the capability exposes. Machine-readable; consumers use this to auto-build request forms.
+
+### Schema versioning — `GET /commands/{schema}/{version}`
+
+`GET /commands/{type}` (single command descriptor) has been **removed**. The schema hosting surface instead uses the same `/commands` path prefix:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /commands` | Catalogue: list command types with versioned dataschema URIs |
+| `GET /commands/{schema}/{version}` | Return the JSON Schema document (`application/schema+json`) for that command/version |
+
+The `dataschema` URI in `GET /commands` catalogue entries points to `GET /commands/{schema}/{version}` (e.g. `https://api.example.com/commands/ProposeCounter/1.0`). No separate `/schemas` path exists.
+
+---
+
+## 10. What Does NOT Change
 
 - The capability names (`io.oap.agents.*`) — these are protocol namespaces, changing them is a breaking version change
 - The URL paths for registry/lifecycle endpoints are now `/services/*` — this was changed as part of this refactor
@@ -275,7 +306,7 @@ All phases below have been implemented. This section serves as a record of what 
 ## 10. Implementation Rules
 
 - Never rename capability namespace strings (e.g. `io.oap.agents.commands`) — these are versioned identifiers
-- Every CloudEvent `dataschema` URI must be a real resolvable URI in examples; use `https://api.example.com/schemas/commands/{type}.json` pattern for examples
+- Every CloudEvent `dataschema` URI must use the versioned path pattern: `https://api.example.com/schemas/{Type}/{version}` (e.g. `https://api.example.com/schemas/ProposeCounter/1.0`). Do NOT use the old flat `.json` pattern.
 - `POST /commands` returns `201` (not `202`) — the command is accepted and queued; 201 signals the resource was created in the queue
 - Schema validation is synchronous; queuing is what happens after validation passes
 - The PM / AI Brain / Process Manager concept belongs in the `general.instructions.md` context section, not in the OAP spec itself (it is a caller pattern, not a protocol primitive)

@@ -113,6 +113,10 @@
           "type": "string",
           "description": "Parent capability this extends (if any)."
         },
+        "service": {
+          "type": "string",
+          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard OAP capability (io.oap.agents.commands). Consumers use this field to resolve which rest.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.oap.agents.* capabilities under the io.oap.agents service)."
+        },
         "status": {
           "type": "string",
           "enum": ["active", "partial", "planned"],
