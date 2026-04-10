@@ -1,6 +1,6 @@
 # OAP Protocol Overview
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 ## What is OAP?
 
@@ -95,7 +95,7 @@ Layer 1: Transport
 
 ## Versioning
 
-OAP uses date-based versioning: `"2025-07-01"`. Consumers should ignore unknown fields (forward compatibility). Multiple versions can coexist in a manifest.
+OAP uses date-based versioning: `"2026-04-10"`. Consumers should ignore unknown fields (forward compatibility). Multiple versions can coexist in a manifest.
 
 ## Quick Start for Implementers
 

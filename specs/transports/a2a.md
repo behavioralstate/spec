@@ -1,6 +1,6 @@
 # A2A Transport
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 A2A (Google Agent-to-Agent) enables multi-agent coordination. Agents can expose themselves as A2A agents.
 

@@ -1,6 +1,6 @@
 # Conformance
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 ## Minimal OAP Compliance
 

@@ -1,10 +1,10 @@
 # Versioning
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 ## Protocol Version
 
-OAP uses **date-based versioning**: `"2025-07-01"`.
+OAP uses **date-based versioning**: `"2026-04-10"`.
 
 The version appears in:
 - The `/.well-known/oap` manifest root

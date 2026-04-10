@@ -1,6 +1,6 @@
 # Service Lifecycle — `io.oap.agents.lifecycle`
 
-**Version:** 2025-07-01  
+**Version:** 2026-04-10  
 **Extends:** `io.oap.agents.registry`
 
 The lifecycle capability adds pause and resume operations to the service registry.

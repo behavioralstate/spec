@@ -1,6 +1,6 @@
 # REST Transport
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 REST is the primary transport for web-based consumers including the OAP web UI. The full REST API is defined by the OpenAPI specs referenced in each service's `rest.openapi` URL.
 

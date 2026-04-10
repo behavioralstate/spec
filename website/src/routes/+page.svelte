@@ -64,10 +64,10 @@
 		</p>
 		<CodeBlock code={`{
   "oap": {
-    "version": "2025-07-01",
+    "version": "2026-04-10",
     "services": {
       "io.oap.agents": {
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Service registry, command ingestion, event log",
         "rest": {
           "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
@@ -78,7 +78,7 @@
     "capabilities": [
       {
         "name": "io.oap.agents.commands",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Command catalogue and ingestion",
         "spec": "https://openagentprotocol.io/specs/agents/commands",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/commands.json"

@@ -1,6 +1,6 @@
 # OAP vs UCP — Comparison
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 Google's **Universal Commerce Protocol (UCP)** and OAP share a common philosophy: define an open, discoverable interface so any agent can interact with any service without bespoke integrations. They differ in scope and in which problems they treat as protocol-level concerns.
 

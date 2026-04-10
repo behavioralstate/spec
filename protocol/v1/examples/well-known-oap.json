@@ -1,6 +1,6 @@
 {
   "oap": {
-    "version": "2025-07-01",
+    "version": "2026-04-10",
     "authentication": {
       "type": "bearer",
       "scheme": "Bearer",
@@ -10,7 +10,7 @@
     },
     "services": {
       "io.oap.agents": {
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Agent management, event delivery, command observation",
         "spec": "https://openagentprotocol.io/specs/agents",
         "rest": {
@@ -23,7 +23,7 @@
         }
       },
       "io.oap.observability": {
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Execution traces and audit trail",
         "spec": "https://openagentprotocol.io/specs/observability",
         "rest": {
@@ -35,7 +35,7 @@
     "capabilities": [
       {
         "name": "io.oap.agents.registry",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Register, remove, list agents",
         "spec": "https://openagentprotocol.io/specs/agents/registry",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/registry.json",
@@ -48,7 +48,7 @@
       },
       {
         "name": "io.oap.agents.lifecycle",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Pause, resume agents",
         "spec": "https://openagentprotocol.io/specs/agents/lifecycle",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/lifecycle.json",
@@ -60,7 +60,7 @@
       },
       {
         "name": "io.oap.agents.events",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Send events to agents, list recent events",
         "spec": "https://openagentprotocol.io/specs/agents/events",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/events.json",
@@ -71,7 +71,7 @@
       },
       {
         "name": "io.oap.agents.commands",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Discover command types this service accepts and send commands",
         "spec": "https://openagentprotocol.io/specs/agents/commands",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/commands.json",
@@ -82,7 +82,7 @@
       },
       {
         "name": "io.oap.agents.memory",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "View agent memory state (opaque to the protocol)",
         "spec": "https://openagentprotocol.io/specs/agents/memory",
         "schema": "https://openagentprotocol.io/v1/schemas/agents/memory.json",
@@ -93,7 +93,7 @@
       },
       {
         "name": "io.oap.observability.tracing",
-        "version": "2025-07-01",
+        "version": "2026-04-10",
         "description": "Execution traces — what happened when an agent processed an event",
         "spec": "https://openagentprotocol.io/specs/observability/tracing",
         "schema": "https://openagentprotocol.io/v1/schemas/observability/tracing.json",

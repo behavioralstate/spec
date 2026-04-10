@@ -1,6 +1,6 @@
 # MCP Transport
 
-**Version:** 2025-07-01
+**Version:** 2026-04-10
 
 MCP (Model Context Protocol) allows any LLM client to manage agents directly.
 

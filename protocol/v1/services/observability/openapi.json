@@ -3,7 +3,7 @@
   "info": {
     "title": "OAP Observability Service",
     "description": "REST API for the io.oap.observability service — execution traces and audit trail.",
-    "version": "2025-07-01",
+    "version": "2026-04-10",
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"
