@@ -27,6 +27,8 @@ When a caller selects `POST /commands` in a playground or tooling UI, the CloudE
 
 The ingestion API owns and hosts the schemas via `GET /commands/{schema}/{version}`. The `dataschema` URI in a command catalogue entry points to this endpoint — same base URL, same capability.
 
+> **Command types are domain data, not protocol capabilities.** Individual command types (`ProposeCounter`, `SubmitOrder`) must not appear as capability entries in `/.well-known/oap`. The capability `io.oap.agents.commands` declares that this service supports the command surface; the specific command types accepted are discovered at runtime via `GET /commands`. Proliferating per-command capabilities would mix domain identifiers into the protocol namespace and make the manifest domain-specific rather than protocol-specific.
+
 ### Example
 
 ```json

@@ -360,6 +360,7 @@ This returns a JSON manifest describing the available services, capabilities, an
 {
   "oap": {
     "version": "2025-07-01",
+    "tenants": { ... },
     "services": { ... },
     "capabilities": [ ... ],
     "agents": [ ... ]
@@ -370,6 +371,7 @@ This returns a JSON manifest describing the available services, capabilities, an
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `version` | string | yes | OAP spec version (date-based: `"YYYY-MM-DD"`) |
+| `tenants` | object | no | Multi-tenant manifest discovery. If present, the `tenants.manifest` field is an RFC 6570 URI template with a single `{tenantId}` variable. Consumers expand it to obtain a fully-resolved, self-contained tenant manifest. The root manifest must only declare capabilities it can fulfill directly — tenant-scoped capabilities (e.g. `io.oap.agents.commands`) are omitted from the root and appear only in the tenant manifest. |
 | `services` | object | yes | Service definitions with transport bindings. Each service has a `rest` block with two fields: `rest.openapi` (URL to the implementer's OpenAPI spec) and `rest.endpoint` (consumer-facing base URL). |
 | `capabilities` | array | yes | Supported capabilities. Each capability has a `schema` field pointing to a **JSON Schema** file for that capability's data structures. Note: `capability.schema` is a JSON Schema, not an OpenAPI spec. It is a different field from `rest.openapi`. |
 | `agents` | array | no | Currently registered agents |

@@ -36,6 +36,7 @@ This returns a JSON manifest describing the available agents, services, capabili
   "oap": {
     "version": "2025-07-01",
     "authentication": { ... },
+    "tenants": { ... },
     "services": { ... },
     "capabilities": [ ... ],
     "services": [ ... ]
@@ -47,6 +48,7 @@ This returns a JSON manifest describing the available agents, services, capabili
 |---|---|---|---|
 | `version` | string | yes | OAP spec version (date-based: `"YYYY-MM-DD"`) |
 | `authentication` | object | no | Authentication requirements for this endpoint (omit for public endpoints) |
+| `tenants` | object | no | Multi-tenant manifest discovery. When present, signals that this is a multi-tenant host and provides a URI template for consumers to obtain a tenant-scoped manifest. See [Multi-Tenant Routing](#multi-tenant-routing). |
 | `services` | object | yes | Service definitions with transport bindings |
 | `capabilities` | array | yes | Supported capabilities with schema URLs |
 | `services` | array | no | Snapshot of known services (discovery hint only — see below) |
@@ -186,6 +188,87 @@ POST https://api.example.com/{tenantId}/events
 ```
 
 `rest.endpoint` remains the root consumer-facing URL (e.g. `https://api.example.com/`). The `{tenantId}` segment is declared as a path parameter in `rest.openapi` on every tenant-scoped route. Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant's surface to target. Both are required on every request.
+
+### `tenants.manifest` — URI Template for Tenant Discovery
+
+To make tenant manifest discovery machine-actionable, the root manifest may declare a `tenants` block with a `manifest` URI template (RFC 6570):
+
+```json
+"tenants": {
+  "manifest": "https://api.example.com/api/oap/tenants/{tenantId}/.well-known/oap"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `tenants.manifest` | string (URI template) | yes (if `tenants` present) | RFC 6570 URI template. `{tenantId}` is the only defined variable. Consumers expand this template with a known tenant ID to obtain a fully-resolved, self-contained manifest. |
+
+Rules:
+- `{tenantId}` is the only permitted variable in the template. No other template variables are defined by OAP.
+- A consumer expands the template and fetches the resulting URL. That URL returns a fully self-contained manifest with no placeholders.
+- The root manifest's `capabilities` array must contain **only capabilities the root can fulfill directly**. Tenant-scoped capabilities (e.g. `io.oap.agents.commands`, `io.oap.agents.events`) must be **omitted from the root manifest** — they appear only in the tenant manifest.
+- The tenant manifest does not include a `tenants` block itself — it is already fully scoped.
+- The `tenants.manifest` template is distinct from `dataschema`. URI templates are only valid in `tenants.manifest`; everywhere else in the manifest URIs must be fully resolved.
+
+**Root manifest (multi-tenant host):**
+
+```json
+{
+  "oap": {
+    "version": "2026-04-10",
+    "tenants": {
+      "manifest": "https://api.example.com/api/oap/tenants/{tenantId}/.well-known/oap"
+    },
+    "services": {
+      "io.oap.agents": {
+        "rest": { "openapi": "...", "endpoint": "https://api.example.com/" }
+      }
+    },
+    "capabilities": [
+      {
+        "name": "io.oap.agents.registry",
+        "endpoints": [
+          { "method": "GET",    "path": "/services" },
+          { "method": "POST",   "path": "/services" },
+          { "method": "GET",    "path": "/services/{id}" },
+          { "method": "DELETE", "path": "/services/{id}" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Tenant manifest (returned at the expanded URI):**
+
+```json
+{
+  "oap": {
+    "version": "2026-04-10",
+    "services": {
+      "io.dotquant.trading": {
+        "rest": {
+          "openapi": "https://api.example.com/api/oap/tenants/be9e0176/openapi.json",
+          "endpoint": "https://api.example.com/api/oap/tenants/be9e0176"
+        }
+      }
+    },
+    "capabilities": [
+      {
+        "name": "io.oap.agents.commands",
+        "service": "io.dotquant.trading",
+        "endpoints": [
+          { "method": "GET",  "path": "/commands" },
+          { "method": "POST", "path": "/commands" },
+          { "method": "GET",  "path": "/commands/{schema}/{version}" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **`dataschema` URIs must be fully resolvable.** The `dataschema` field in a command catalogue entry is a URI that a consumer dereferences directly. It must not contain placeholder segments (e.g. `{tenantId}`) that require caller-side substitution — OAP defines no URI templating convention. For multi-tenant implementations where command schemas are tenant-scoped, serve a distinct `/.well-known/oap` manifest per tenant — either via subdomain (`https://{tenantId}.api.example.com/.well-known/oap`) or path prefix (`https://api.example.com/t/{tenantId}/.well-known/oap`) — so that every manifest contains fully-resolved `dataschema` URIs. Tenant context is established at the manifest level, not inside nested URI values.
 
 See [REST Transport](./transports/rest.md) for the full multi-tenant routing reference.
 

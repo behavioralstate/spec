@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentprotocol.io/v1/schemas/cloudEvent.json",
+  "title": "CloudEvent",
+  "description": "Canonical CloudEvent 1.0 envelope used by OAP as the wire format for both commands and events. Commands and events share this exact envelope shape — the distinction is in semantics (intent vs. fact) and routing, not in the envelope itself.",
+  "$defs": {
+    "cloudEvent": {
+      "type": "object",
+      "description": "A CloudEvent 1.0 message. Used as the wire format for OAP commands (sent to a service) and OAP events (published by a service). The data property is a domain-specific payload whose shape is defined by the JSON Schema at dataschema.",
+      "required": ["specversion", "id", "source", "type", "datacontenttype", "dataschema", "time", "data"],
+      "properties": {
+        "specversion": {
+          "type": "string",
+          "const": "1.0",
+          "description": "CloudEvent specification version. Always '1.0'."
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique message identifier. UUID recommended. Must be unique within the scope of the source."
+        },
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI identifying the origin of the message. For commands: the sender (a Process Manager, a UI, another service). For events: the service that published the event."
+        },
+        "type": {
+          "type": "string",
+          "description": "Message type identifier in PascalCase (e.g. ProposeCounter, CounterProposed). For commands this must match a type in the command catalogue. For events this identifies the domain fact."
+        },
+        "datacontenttype": {
+          "type": "string",
+          "const": "application/json",
+          "description": "Content type of the data payload. Always 'application/json'."
+        },
+        "dataschema": {
+          "type": "string",
+          "format": "uri",
+          "description": "URI to the JSON Schema that defines the structure of data. For OAP commands this is hosted by the ingestion API at GET /commands/{schema}/{version}. The API dereferences this URI and validates data against it."
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when the message was created."
+        },
+        "data": {
+          "type": "object",
+          "description": "The domain payload. Structure is defined by the schema at dataschema. For commands: the input to the domain operation. For events: the recorded fact.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
