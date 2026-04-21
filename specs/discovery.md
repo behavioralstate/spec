@@ -1,7 +1,5 @@
 # Discovery — `/.well-known/oap`
 
-**Version:** 2026-04-10
-
 Every OAP-compliant endpoint exposes a standard discovery URL:
 
 ```

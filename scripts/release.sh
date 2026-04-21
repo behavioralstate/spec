@@ -6,8 +6,8 @@ set -euo pipefail
 #
 # --protocol-version  Date string to stamp into all spec files as the OAP protocol version.
 #                     Defaults to today's date (YYYY-MM-DD).
-#                     This updates every "version": "YYYY-MM-DD" field in JSON examples,
-#                     OpenAPI specs, and **Version:** headers in Markdown spec pages.
+#                     This updates every "version": "YYYY-MM-DD" field in JSON examples
+#                     and OpenAPI specs.
 #                     It does NOT touch example timestamps (CloudEvent "time", "startedAt",
 #                     "completedAt" fields) — those are illustrative and left unchanged.
 #
@@ -118,11 +118,6 @@ else
   # JSON files: replace "version": "YYYY-MM-DD"
   find protocol/ specs/ website/src/ -type f \( -name "*.json" -o -name "*.svelte" \) | while read -r f; do
     sed -i "s/\"version\": \"${CURRENT_PROTO_VERSION}\"/\"version\": \"${PROTOCOL_VERSION}\"/g" "$f"
-  done
-
-  # Markdown spec pages: replace **Version:** YYYY-MM-DD header line
-  find specs/ -type f -name "*.md" | while read -r f; do
-    sed -i "s/\*\*Version:\*\* ${CURRENT_PROTO_VERSION}/\*\*Version:\*\* ${PROTOCOL_VERSION}/g" "$f"
   done
 
   # Markdown body references: replace bare version string inside backticks or quotes

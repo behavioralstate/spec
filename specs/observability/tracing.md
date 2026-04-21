@@ -1,7 +1,5 @@
 # Execution Tracing — `io.oap.observability.tracing`
 
-**Version:** 2026-04-10
-
 An **execution trace** is the observable record of what happened when a service processed a command. It captures the input, output, timing, and outcome — but NOT how the service worked internally.
 
 ## Execution Trace Shape

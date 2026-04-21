@@ -1,7 +1,5 @@
 # Versioning
 
-**Version:** 2026-04-10
-
 ## Protocol Version
 
 OAP uses **date-based versioning**: `"2026-04-10"`.

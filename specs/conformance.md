@@ -1,7 +1,5 @@
 # Conformance
 
-**Version:** 2026-04-10
-
 ## Minimal OAP Compliance
 
 A OAP-compliant endpoint **must**:

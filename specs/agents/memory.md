@@ -1,6 +1,5 @@
 # Service Memory — `io.oap.agents.memory`
 
-**Version:** 2026-04-10  
 **Extends:** `io.oap.agents.registry`
 
 The memory capability exposes service memory state. The response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats.
