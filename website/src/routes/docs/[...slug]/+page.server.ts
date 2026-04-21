@@ -60,10 +60,14 @@ function rewriteLinks(html: string, slug: string): string {
 			return `href="/${resolved.replace('protocol/', '')}"`;
 		}
 
-		// Other spec .md files → /docs/... routes
-		if (resolved.endsWith('.md')) {
-			const route = resolved.replace(/\.md$/, '');
-			return `href="/docs/${route}"`;
+		// Other spec .md files → /docs/... routes (with optional #anchor)
+		if (resolved.includes('.md')) {
+			const mdHashMatch = resolved.match(/^(.+?)\.md(#(.*))?$/);
+			if (mdHashMatch) {
+				const route = mdHashMatch[1];
+				const hash = mdHashMatch[3] ? `#${mdHashMatch[3]}` : '';
+				return `href="/docs/${route}${hash}"`;
+			}
 		}
 
 		return `href="${href}"`;

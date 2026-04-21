@@ -77,8 +77,9 @@ Use the release script to tag and publish a new version:
 
 The script will:
 1. Stamp the protocol version date into all `"version": "YYYY-MM-DD"` fields in JSON and Svelte source files (defaults to today's date).
-2. Prompt you to confirm before committing the version stamp and before creating the tag.
-3. Create an annotated git tag (`v<version>`) and push it to `origin`.
+2. Update the documents table in this README to reference the new tag.
+3. Prompt you to confirm before committing the version stamp and before creating the tag.
+4. Create an annotated git tag (`v<version>`) and push it to `origin`.
 
 ## Community
 

@@ -144,7 +144,31 @@ else
   fi
 fi
 
-# Step 2: Create and push the tag
+# Step 2: Update README.md documents table to reference the new tag
+CURRENT_README_TAG=$(grep -oP '(?<=blob/)(v[0-9]+\.[0-9]+\.[0-9]+)' README.md | sort | uniq | head -1)
+if [ -z "$CURRENT_README_TAG" ]; then
+  echo "Warning: Could not detect current tag in README.md — skipping table update."
+elif [ "$CURRENT_README_TAG" = "$TAG" ]; then
+  echo "README.md already references $TAG — no update needed."
+else
+  echo "Updating README.md: $CURRENT_README_TAG → $TAG"
+  sed -i "s|blob/${CURRENT_README_TAG}/|blob/${TAG}/|g" README.md
+  sed -i "s|releases/tag/${CURRENT_README_TAG}|releases/tag/${TAG}|g" README.md
+  if [ "$PRERELEASE" = true ]; then
+    sed -i "s/The most recent pre-release is \[${CURRENT_README_TAG}\]([^)]*)/The most recent pre-release is [${TAG}](${REPO_URL}\/releases\/tag\/${TAG})/g" README.md
+  else
+    sed -i "s/The most recent.*is \[${CURRENT_README_TAG}\]([^)]*)/The most recent stable release is [${TAG}](${REPO_URL}\/releases\/tag\/${TAG})/g" README.md
+  fi
+  git add README.md
+  if git diff --cached --quiet; then
+    echo "No README.md changes to commit."
+  else
+    git commit -m "chore: update README docs table to ${TAG}"
+    git push origin main
+  fi
+fi
+
+# Step 3: Create and push the tag
 if [ "$PRERELEASE" = true ]; then
   git tag -a "$TAG" -m "OAP Specification $TAG (pre-release)"
 else
@@ -154,7 +178,7 @@ fi
 echo "Pushing tag $TAG..."
 git push origin "$TAG"
 
-# Step 3: Create GitHub Release (if gh CLI is available)
+# Step 4: Create GitHub Release (if gh CLI is available)
 if command -v gh &>/dev/null; then
   echo "Creating GitHub Release..."
   if [ "$PRERELEASE" = true ]; then
@@ -169,7 +193,7 @@ else
   echo "  ${REPO_URL}/releases/new?tag=${TAG}&prerelease=$PRERELEASE"
 fi
 
-# Step 4: Update oap@stable tag for stable releases
+# Step 5: Update oap@stable tag for stable releases
 if [ "$PRERELEASE" = false ]; then
   echo "Updating oap@stable tag..."
   git tag -f -a oap@stable "$TAG" -m "Stable pointer to $TAG"
@@ -181,5 +205,3 @@ echo ""
 echo "=== Done ==="
 echo "Tag:     $TAG"
 echo "Release: ${REPO_URL}/releases/tag/${TAG}"
-echo ""
-echo "Don't forget to update the README.md documents table if needed."
