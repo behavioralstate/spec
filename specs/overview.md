@@ -1,7 +1,5 @@
 # OAP Protocol Overview
 
-**Version:** 2026-04-10
-
 ## What is OAP?
 
 OAP (Open Agent Protocol) is an open protocol that standardises **agent interoperability** — how agents discover each other, exchange events and commands, and observe what happened, across distributed systems.

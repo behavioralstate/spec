@@ -1,7 +1,5 @@
 # Service Registry — `io.oap.agents.registry`
 
-**Version:** 2026-04-10
-
 The service registry capability provides CRUD operations for managing OAP-compliant services.
 
 ## Service Descriptor

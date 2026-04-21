@@ -1,7 +1,5 @@
 # Commands — `io.oap.agents.commands`
 
-**Version:** 2026-04-10
-
 Commands are **intents to change** a domain service. They are sent **to** the service by any caller — a Process Manager, an AI agent, a UI, or another service. The service validates, queues, and processes them asynchronously.
 
 ## Command Wire Format

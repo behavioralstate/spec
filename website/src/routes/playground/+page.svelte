@@ -314,6 +314,13 @@
 			<aside class="tree-panel">
 				<div class="tree-section-label">Capabilities</div>
 
+				{#if capabilities.length === 0}
+					<div class="no-capabilities">
+						<p>No capabilities found at this URL.</p>
+						<p>If this is a tenant-scoped service, try a more specific endpoint — for example <code>https://your-service.example.com/tenants/your-tenant-id</code>.</p>
+					</div>
+				{/if}
+
 				{#each capabilities as cap}
 					{@const capBase = resolveEndpointBase(cap)}
 					<details class="cap-group" open>
@@ -686,6 +693,33 @@
 		color: var(--color-text-muted);
 		font-size: 0.75rem;
 		margin: 0;
+	}
+
+	.no-capabilities {
+		margin: 0.75rem 0;
+		padding: 0.75rem 1rem;
+		background: rgba(251, 191, 36, 0.07);
+		border: 1px solid rgba(251, 191, 36, 0.2);
+		border-radius: 0.5rem;
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+		line-height: 1.5;
+	}
+
+	.no-capabilities p {
+		margin: 0 0 0.4rem;
+	}
+
+	.no-capabilities p:last-child {
+		margin: 0;
+	}
+
+	.no-capabilities code {
+		font-family: 'Fira Code', monospace;
+		font-size: 0.75rem;
+		background: rgba(255, 255, 255, 0.07);
+		padding: 0.1em 0.3em;
+		border-radius: 0.25rem;
 	}
 
 	/* Method badges */

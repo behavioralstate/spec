@@ -1,7 +1,5 @@
 # Events — `io.oap.agents.events`
 
-**Version:** 2026-04-10
-
 Domain events are **immutable facts** published by an OAP-compliant service as the result of processing a command. They are the **output** of the service. Callers (Process Managers, synchronisers, other services) subscribe to events to react and keep read models up to date.
 
 ## Event Wire Format
