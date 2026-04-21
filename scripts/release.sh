@@ -153,6 +153,7 @@ elif [ "$CURRENT_README_TAG" = "$TAG" ]; then
 else
   echo "Updating README.md: $CURRENT_README_TAG → $TAG"
   sed -i "s|blob/${CURRENT_README_TAG}/|blob/${TAG}/|g" README.md
+  sed -i "s|\[${CURRENT_README_TAG}\](${REPO_URL}/blob/${TAG}/|[${TAG}](${REPO_URL}/blob/${TAG}/|g" README.md
   sed -i "s|releases/tag/${CURRENT_README_TAG}|releases/tag/${TAG}|g" README.md
   if [ "$PRERELEASE" = true ]; then
     sed -i "s|The most recent pre-release is \[${CURRENT_README_TAG}\]([^)]*)|The most recent pre-release is [${TAG}](${REPO_URL}/releases/tag/${TAG})|g" README.md
