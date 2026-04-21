@@ -63,14 +63,22 @@ cd website && npm install && npm run dev
 Use the release script to tag and publish a new version:
 
 ```bash
-# Pre-release (draft, not yet production-ready)
+# Pre-release
 ./scripts/release.sh 0.2.0 --prerelease
 
-# Stable release (also creates the oap@stable pointer tag)
+# Stable release
 ./scripts/release.sh 1.0.0
+
+# Override the protocol version date stamped into JSON/Svelte files
+./scripts/release.sh 1.0.0 --protocol-version 2026-04-21
 ```
 
-The script will validate your working tree, create an annotated tag, push it, and create a GitHub Release (if `gh` CLI is installed). For stable releases it also updates the `oap@stable` tag.
+**Prerequisites:** must be run from the repo root, on `main`, with no uncommitted changes and with `origin/main` up to date.
+
+The script will:
+1. Stamp the protocol version date into all `"version": "YYYY-MM-DD"` fields in JSON and Svelte source files (defaults to today's date).
+2. Prompt you to confirm before committing the version stamp and before creating the tag.
+3. Create an annotated git tag (`v<version>`) and push it to `origin`.
 
 ## Community
 

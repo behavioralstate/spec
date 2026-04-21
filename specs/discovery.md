@@ -208,6 +208,8 @@ Rules:
 - The tenant manifest does not include a `tenants` block itself — it is already fully scoped.
 - The `tenants.manifest` template is distinct from `dataschema`. URI templates are only valid in `tenants.manifest`; everywhere else in the manifest URIs must be fully resolved.
 
+For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-Tenant Routing in the REST spec](transports/rest.md#multi-tenant-routing).
+
 **Root manifest (multi-tenant host):**
 
 ```json

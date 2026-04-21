@@ -48,6 +48,8 @@ When this pattern is used:
 - The `{tenantId}` path segment is documented in `rest.openapi` as a path parameter on every tenant-scoped route.
 - Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies _which_ tenant's surface to target. Both are required on every request.
 
+For machine-actionable tenant discovery (letting consumers resolve a tenant manifest without prior knowledge of the URL structure), see [`tenants.manifest` in the Discovery spec](../discovery.md#tenants-manifest--uri-template-for-tenant-discovery).
+
 ## Authentication
 
 When the discovery manifest declares an `authentication` block, consumers must include credentials on all REST requests (except `GET /.well-known/oap`):

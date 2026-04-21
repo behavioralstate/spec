@@ -317,7 +317,7 @@
 				{#if capabilities.length === 0}
 					<div class="no-capabilities">
 						<p>No capabilities found at this URL.</p>
-						<p>If this is a tenant-scoped service, try a more specific endpoint — for example <code>https://your-service.example.com/tenants/your-tenant-id</code>.</p>
+						<p>If this is a tenant-scoped service, try a more specific endpoint — for example <code>https://your-service.example.com/tenants/your-tenant-id</code>. See the <a href="/docs/discovery#tenants-manifest--uri-template-for-tenant-discovery">Discovery docs</a> for details.</p>
 					</div>
 				{/if}
 
@@ -720,6 +720,15 @@
 		background: rgba(255, 255, 255, 0.07);
 		padding: 0.1em 0.3em;
 		border-radius: 0.25rem;
+	}
+
+	.no-capabilities a {
+		color: var(--color-accent);
+		text-decoration: none;
+	}
+
+	.no-capabilities a:hover {
+		text-decoration: underline;
 	}
 
 	/* Method badges */
