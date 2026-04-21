@@ -21,6 +21,11 @@
 	// Credential supplied by the user for authenticated endpoints
 	let credential = $state('');
 
+	// Tenant ID for multi-tenant manifests (two-step discovery)
+	let tenantId = $state('');
+	let tenantDiscovering = $state(false);
+	let tenantError = $state('');
+
 	// Path parameters extracted from the active path template, e.g. { tenantId: '' }
 	let pathParams = $state({});
 
@@ -29,6 +34,10 @@
 	let services = $derived(manifest?.services ?? []);
 	let auth = $derived(manifest?.authentication ?? null);
 	let needsAuth = $derived(auth && auth.type !== 'none');
+
+	// True when the root manifest has no capabilities but advertises a tenants.manifest template
+	let tenantTemplate = $derived(manifest?.tenants?.manifest ?? null);
+	let needsTenant = $derived(tenantTemplate !== null && capabilities.length === 0);
 
 	// Active path with {param} tokens replaced by user-supplied values
 	let resolvedPath = $derived(
@@ -82,6 +91,34 @@
 		return normalizedBase;
 	}
 
+	async function loadTenantManifest() {
+		if (!tenantId || !tenantTemplate) return;
+		tenantDiscovering = true;
+		tenantError = '';
+		responseText = '';
+		responseStatus = null;
+		responseError = '';
+		try {
+			const url = tenantTemplate.replace('{tenantId}', encodeURIComponent(tenantId));
+			const res = await fetch(url, {
+				headers: { Accept: 'application/json', ...authHeaders() }
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+			const json = await res.json();
+			manifest = json.oap ?? json;
+			responseText = JSON.stringify(json, null, 2);
+			responseStatus = res.status;
+			activeMethod = 'GET';
+			activePath = `/.well-known/oap/${tenantId}`;
+			activeEndpointBase = normalizedBase;
+			activeDescription = 'Tenant manifest';
+		} catch (e) {
+			tenantError = e.message;
+		} finally {
+			tenantDiscovering = false;
+		}
+	}
+
 	async function discover() {
 		discovering = true;
 		discoverError = '';
@@ -95,6 +132,8 @@
 		activePath = '';
 		activeEndpointBase = '';
 		credential = '';
+		tenantId = '';
+		tenantError = '';
 		try {
 			const res = await fetch(`${normalizedBase}/.well-known/oap`);
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
@@ -309,15 +348,37 @@
 			</div>
 		{/if}
 
+		{#if needsTenant}
+			<div class="auth-strip">
+				<span class="auth-label">Tenant ID required</span>
+				<input
+					class="auth-input"
+					type="text"
+					placeholder="Enter your tenant ID…"
+					bind:value={tenantId}
+					onkeydown={(e) => { if (e.key === 'Enter') loadTenantManifest(); }}
+					autocomplete="off"
+					spellcheck="false"
+				/>
+				<button class="btn-discover" onclick={loadTenantManifest} disabled={tenantDiscovering || !tenantId}>
+					{#if tenantDiscovering}<span class="spinner"></span> Loading…{:else}Load Tenant{/if}
+				</button>
+				{#if tenantError}
+					<span class="auth-warning">{tenantError}</span>
+				{:else if !tenantId}
+					<span class="auth-warning">Enter your tenant ID to access capabilities.</span>
+				{/if}
+			</div>
+		{/if}
+
 		<div class="playground-body">
 			<!-- Left: capabilities tree -->
 			<aside class="tree-panel">
 				<div class="tree-section-label">Capabilities</div>
 
-				{#if capabilities.length === 0}
+				{#if capabilities.length === 0 && !tenantTemplate}
 					<div class="no-capabilities">
-						<p>No capabilities found at this URL.</p>
-						<p>If this is a tenant-scoped service, try a more specific endpoint — for example <code>https://your-service.example.com/tenants/your-tenant-id</code>. See the <a href="/docs/discovery#tenants-manifest--uri-template-for-tenant-discovery">Discovery docs</a> for details.</p>
+						<p>No capabilities declared in this manifest.</p>
 					</div>
 				{/if}
 

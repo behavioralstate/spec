@@ -193,9 +193,11 @@ To make tenant manifest discovery machine-actionable, the root manifest may decl
 
 ```json
 "tenants": {
-  "manifest": "https://api.example.com/api/oap/tenants/{tenantId}/.well-known/oap"
+  "manifest": "https://api.example.com/.well-known/oap/{tenantId}"
 }
 ```
+
+The `{tenantId}` segment trails the canonical `/.well-known/oap` path. This keeps the well-known URL in its standard position and makes the tenant qualifier obvious to any consumer already familiar with the discovery convention.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -217,7 +219,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
   "oap": {
     "version": "2026-04-10",
     "tenants": {
-      "manifest": "https://api.example.com/api/oap/tenants/{tenantId}/.well-known/oap"
+      "manifest": "https://api.example.com/.well-known/oap/{tenantId}"
     },
     "services": {
       "io.oap.agents": {
@@ -268,7 +270,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 }
 ```
 
-> **`dataschema` URIs must be fully resolvable.** The `dataschema` field in a command catalogue entry is a URI that a consumer dereferences directly. It must not contain placeholder segments (e.g. `{tenantId}`) that require caller-side substitution — OAP defines no URI templating convention. For multi-tenant implementations where command schemas are tenant-scoped, serve a distinct `/.well-known/oap` manifest per tenant — either via subdomain (`https://{tenantId}.api.example.com/.well-known/oap`) or path prefix (`https://api.example.com/t/{tenantId}/.well-known/oap`) — so that every manifest contains fully-resolved `dataschema` URIs. Tenant context is established at the manifest level, not inside nested URI values.
+> **`dataschema` URIs must be fully resolvable.** The `dataschema` field in a command catalogue entry is a URI that a consumer dereferences directly. It must not contain placeholder segments (e.g. `{tenantId}`) that require caller-side substitution — OAP defines no URI templating convention. For multi-tenant implementations where command schemas are tenant-scoped, serve a distinct `/.well-known/oap` manifest per tenant — via subdomain (`https://{tenantId}.api.example.com/.well-known/oap`) or the canonical trailing-segment pattern (`https://api.example.com/.well-known/oap/{tenantId}`) — so that every manifest contains fully-resolved `dataschema` URIs. Tenant context is established at the manifest level, not inside nested URI values.
 
 See [REST Transport](./transports/rest.md) for the full multi-tenant routing reference.
 

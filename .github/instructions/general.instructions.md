@@ -1176,8 +1176,10 @@ OAP is NOT:
 - Multi-tenant SaaS pattern: prefix all tenant-scoped paths with `{tenantId}` (e.g. `/{tenantId}/agents`). `rest.endpoint` stays as the root consumer URL. The `{tenantId}` path parameter is declared in `rest.openapi`. Bearer auth identifies the caller; `{tenantId}` identifies the tenant.
 - Events capability: implementers may map domain-specific records (signals, logs, trade history) to the OAP event shape at query time. `POST /events` can be declared `"partial"` if no live event store exists.
 - `well-known-uap.json` example was an orphaned leftover from an earlier "UAP" working name — it has been deleted.
-- The website build injects `VITE_GIT_SHA` and `VITE_BUILD_TIME` via Docker build args (set in `cicd.yaml` `docker-publish` step). These are not repo secrets — they come from `github.sha` and `github.event.head_commit.timestamp`. The docs layout footer displays the short SHA (linked to the GitHub commit) and UTC timestamp so readers can verify which version is deployed.
+- The website build injects `VITE_GIT_TAG` via Docker build args (set in `cicd.yaml` `docker-publish` step). The value comes from `git describe --tags --always`. Do not reintroduce `VITE_GIT_SHA` or `VITE_BUILD_TIME` for version display.
 - The website is built **inside Docker** (`Dockerfile`) not in the CI `build` job — env vars must be passed as `--build-arg` to `docker build`, which the Dockerfile then exposes as `ENV` before running `npm run build`.
+- **Canonical `tenants.manifest` URI shape:** `https://host/.well-known/oap/{tenantId}` — the `{tenantId}` segment trails the canonical `/.well-known/oap` path. Never use path-prefix patterns like `/api/oap/tenants/{tenantId}/.well-known/oap`.
+- **Playground two-step tenant discovery:** When the root manifest has no capabilities but includes a `tenants.manifest` template, the playground automatically shows a "Tenant ID" input strip. The user enters their tenant ID and clicks "Load Tenant"; the playground expands `{tenantId}` and re-fetches the manifest.
 
 ---
 
