@@ -5,19 +5,19 @@
 <div class="index-page">
 	<div class="index-header">
 		<h1>Documentation</h1>
-		<p>Open Agent Protocol — a standard interaction surface so any producer can send events to any agent, and any consumer can observe the commands it produces.</p>
+		<p>Open Agent Protocol — a standard interaction surface so any caller can send commands to any service, and any observer can consume the events it produces.</p>
 	</div>
 
 	<!-- Flow diagram — analogous to dotQuant's TradingView → Bridge → Brokers -->
 	<div class="flow-diagram">
 		<div class="flow-node">
-			<div class="node-title">Producer</div>
-			<div class="node-box">Any Service</div>
+			<div class="node-title">Caller</div>
+			<div class="node-box">Any Caller</div>
 			<div class="node-sub">app · agent · IoT · human</div>
 		</div>
 
 		<div class="flow-arrow">
-			<div class="arrow-label">Event</div>
+			<div class="arrow-label">Command</div>
 			<div class="arrow-track"><span class="arrow-head">→</span></div>
 		</div>
 
@@ -28,7 +28,7 @@
 		</div>
 
 		<div class="flow-arrow">
-			<div class="arrow-label">Command</div>
+			<div class="arrow-label">Event</div>
 			<div class="arrow-track"><span class="arrow-head">→</span></div>
 		</div>
 
@@ -51,15 +51,15 @@
 		<div class="step">
 			<span class="step-num">2</span>
 			<div class="step-body">
-				<strong>Accept events, produce commands</strong>
-				<p>Consumers POST events to your agent. Your agent processes them (any way it likes) and the commands it produces are observable via the REST or MCP API.</p>
+				<strong>Accept commands, produce events</strong>
+				<p>Callers POST commands to your service. Your service processes them (any way it likes) and the events it produces are observable via the REST or MCP API.</p>
 			</div>
 		</div>
 		<div class="step">
 			<span class="step-num">3</span>
 			<div class="step-body">
 				<strong>Observe every execution</strong>
-				<p>Every event→command cycle is stored as an execution trace — input, output, duration, and success — giving you a full audit trail.</p>
+				<p>Every command→event cycle is stored as an execution trace — input, output, duration, and success — giving you a full audit trail.</p>
 			</div>
 		</div>
 	</div>
@@ -78,7 +78,7 @@
 			<ul>
 				<li><a href="/docs/agents/registry">Registry</a><span>Register, list, and remove agents</span></li>
 				<li><a href="/docs/agents/lifecycle">Lifecycle</a><span>Pause and resume agents</span></li>
-				<li><a href="/docs/agents/events">Events</a><span>Send events to agents</span></li>
+				<li><a href="/docs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/docs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
 				<li><a href="/docs/agents/memory">Memory</a><span>View agent memory state</span></li>
 			</ul>

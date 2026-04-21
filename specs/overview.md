@@ -134,8 +134,8 @@ The minimum set for a functional agent service:
 |---|---|---|
 | `POST` | `/agents` | Register an agent |
 | `GET` | `/agents` | List registered agents |
-| `POST` | `/events` | Deliver an event to an agent |
-| `GET` | `/commands` | Poll produced commands |
+| `POST` | `/events` | Inject a domain event (simulation only) |
+| `GET` | `/commands` | Browse accepted command types |
 
 **Step 3 — Validate**
 
@@ -152,8 +152,8 @@ node scripts/validate-examples.mjs
 
 - [Discovery](./discovery.md) — How agents are discovered
 - [Agent Registry](./agents/registry.md) — How agents are registered and managed
-- [Events](./agents/events.md) — How events are delivered
-- [Commands](./agents/commands.md) — How commands are observed
+- [Events](./agents/events.md) — How events are published
+- [Commands](./agents/commands.md) — How commands are accepted
 - [Tracing](./observability/tracing.md) — How execution is traced
 - [Transports](./transports/rest.md) — REST, MCP, and A2A bindings
 - [Conformance](./conformance.md) — What it means to be OAP-compliant
