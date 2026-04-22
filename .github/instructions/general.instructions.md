@@ -392,8 +392,16 @@ This returns a JSON manifest describing the available services, capabilities, an
           "endpoint": "https://your.compliant.oap.endpoint/"
         },
         "mcp": {
-          "transport": "stdio",
-          "server": "oap-mcp"
+          "transport": "http",
+          "server": "https://mcp.example.com/mcp",
+          "authentication": {
+            "type": "apiKey",
+            "headers": [
+              { "name": "X-Api-Key",   "description": "Your API key" },
+              { "name": "X-Tenant-Id", "description": "Your tenant identifier", "example": "acme" }
+            ],
+            "docs": "https://docs.example.com/authentication"
+          }
         }
       },
       "io.oap.observability": {
@@ -603,8 +611,16 @@ Each service declares how it can be reached. A consumer chooses the transport th
   "endpoint": "https://your.compliant.oap.endpoint/"
 },
 "mcp": {
-  "transport": "stdio",
-  "server": "oap-mcp"
+  "transport": "http",
+  "server": "https://mcp.example.com/mcp",
+  "authentication": {
+    "type": "apiKey",
+    "headers": [
+      { "name": "X-Api-Key",   "description": "Your API key" },
+      { "name": "X-Tenant-Id", "description": "Your tenant identifier", "example": "acme" }
+    ],
+    "docs": "https://docs.example.com/authentication"
+  }
 },
 "a2a": {
   "agent_card_url": "https://your.compliant.oap.endpoint/.well-known/agent.json"
@@ -632,6 +648,8 @@ MCP allows any LLM client to manage agents directly:
 - Agents are exposed as **MCP resources** (list, read state, read traces)
 - Agent management is exposed as **MCP tools** (register, remove, pause, resume)
 - Event delivery and command observation are **MCP tools**
+
+The `mcp` transport block supports an optional `authentication` object that tells consumers — including AI agents and IDE tooling (e.g. VS Code Copilot) — what credentials to supply when connecting to the MCP server. The `authentication.headers` array enumerates each required HTTP header with `name`, `description`, and an optional `example` value (useful for pre-filling tenant IDs in per-tenant manifests). Authentication on the `mcp` block is independent of the root `authentication` block, which describes REST API credentials.
 
 ### A2A — The Agent Transport
 
@@ -1165,6 +1183,13 @@ OAP is NOT:
 ---
 
 ## Spec Changelog (implementation-relevant decisions)
+
+**2026-04-22**
+
+- **MCP transport `authentication` block** — the `mcp` transport object in the manifest now supports an optional `authentication` field. This is distinct from the root-level `authentication` block (which describes REST API credentials). The `mcp.authentication` block describes what credentials to supply when connecting to the MCP server specifically.
+- **`mcp.authentication.headers` array** — for `apiKey` type auth, use the `headers` array to enumerate every required HTTP header. Each entry has `name` (required), `description` (optional), and `example` (optional). The `example` field is a tooling hint — a per-tenant manifest may pre-fill a tenant-scoped header's `example` with the resolved tenant ID so IDE tooling (e.g. VS Code Copilot) can generate a complete, ready-to-use MCP server config.
+- **`mcp.transport` now accepts `"http"`** — the `http` value (Streamable HTTP, MCP spec 2025-03-26) is now a valid `transport` type alongside `"stdio"` and `"sse"`. Use `"http"` when the MCP server is accessed over an HTTP endpoint URL.
+- **Root `authentication` vs `mcp.authentication` are independent.** Each transport declares its own auth requirements. An endpoint may use Bearer for REST and multi-header API key for MCP, or the same mechanism for both.
 
 **2026-04-08**
 

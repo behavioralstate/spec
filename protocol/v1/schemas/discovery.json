@@ -172,12 +172,15 @@
       "properties": {
         "transport": {
           "type": "string",
-          "enum": ["stdio", "sse"],
+          "enum": ["stdio", "sse", "http"],
           "description": "MCP transport type."
         },
         "server": {
           "type": "string",
-          "description": "MCP server identifier."
+          "description": "MCP server identifier or URL."
+        },
+        "authentication": {
+          "$ref": "#/$defs/mcpAuthentication"
         }
       },
       "additionalProperties": false
@@ -243,6 +246,65 @@
           "type": "string",
           "format": "uri",
           "description": "URL to human-readable authentication documentation."
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcpAuthentication": {
+      "type": "object",
+      "description": "Authentication requirements for connecting to an MCP server. Consumers (including AI agents and IDE tooling) must read this block and supply the declared credentials when connecting.",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "bearer", "apiKey", "oauth2"],
+          "description": "Authentication mechanism."
+        },
+        "headers": {
+          "type": "array",
+          "description": "Required HTTP headers for 'apiKey' type. Use when more than one header is needed (e.g. an API key and a tenant ID). For single-header API key auth, a one-entry array is preferred.",
+          "items": {
+            "$ref": "#/$defs/mcpAuthHeader"
+          }
+        },
+        "scheme": {
+          "type": "string",
+          "description": "For 'bearer': the Authorization header prefix (e.g. 'Bearer')."
+        },
+        "tokenUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Token endpoint URL for 'oauth2' or token-based flows."
+        },
+        "scopes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required OAuth2 / token scopes (if applicable)."
+        },
+        "docs": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to human-readable authentication documentation."
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcpAuthHeader": {
+      "type": "object",
+      "description": "Descriptor for a single required HTTP header when connecting to an MCP server.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "HTTP header name (e.g. 'X-Api-Key')."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what value to supply."
+        },
+        "example": {
+          "type": "string",
+          "description": "Pre-filled example value. Tooling (e.g. VS Code Copilot MCP config generator) may use this to populate the header automatically. A per-tenant manifest may pre-fill this with the resolved tenant ID."
         }
       },
       "additionalProperties": false
