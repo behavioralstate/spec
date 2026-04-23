@@ -18,8 +18,16 @@
           "endpoint": "https://your.compliant.oap.endpoint/"
         },
         "mcp": {
-          "transport": "stdio",
-          "server": "oap-mcp"
+          "transport": "http",
+          "server": "https://mcp.example.com/mcp",
+          "authentication": {
+            "type": "apiKey",
+            "headers": [
+              { "name": "X-Api-Key",   "description": "Your API key" },
+              { "name": "X-Tenant-Id", "description": "Your tenant identifier", "example": "acme" }
+            ],
+            "docs": "https://docs.example.com/authentication"
+          }
         }
       },
       "io.oap.observability": {
