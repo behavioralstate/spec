@@ -183,7 +183,7 @@ The `dataschema` URI in `GET /commands` catalogue entries now points to `GET /co
 | `GET` | `/events/{schema}/{version}` | Return the JSON Schema document for a specific event type and version |
 | `POST` | `/events` | Inject a domain event (for testing/simulation only — optional capability) |
 
-The `?correlationId={id}` filter accepts the `id` returned by `POST /commands` (the correlation identifier). `GET /events/{schema}/{version}` mirrors `GET /commands/{schema}/{version}` exactly and is the canonical target for `dataschema` URIs in a command's `produces` field.
+The `?correlationId={id}` filter accepts the `id` returned by `POST /commands` (the correlation identifier). `GET /events/{schema}/{version}` mirrors `GET /commands/{schema}/{version}` exactly.
 
 ### Services (was: Agents)
 
@@ -325,17 +325,12 @@ All additions are purely additive. Affected files: `specs/agents/commands.md`, `
 
 #### `produces` on command schema documents
 
-`GET /commands/{schema}/{version}` may return a `produces` field declaring domain events this command can raise. Mixed array of plain strings (event type names) or `ProducesEntry` objects:
+`GET /commands/{schema}/{version}` may return a `produces` field declaring domain events this command can raise. It is a plain array of PascalCase event type name strings. The schema for each event is self-describing on the CloudEvent envelope when the event arrives, and is also discoverable via the event catalogue (`GET /events`).
 
 ```json
-"produces": [
-  { "event": "CounterProposed", "dataschema": "https://api.example.com/events/counter-proposed/1.0" },
-  "NegotiationFailed"
-]
+"produces": ["CounterProposed", "NegotiationFailed"]
 ```
 
-- `event` (string, required) — PascalCase event type name
-- `dataschema` (URI, optional) — points to `GET /events/{schema}/{version}` for that event
 - Failure events are regular items in `produces`; naming convention is service-defined
 - Correlation: the `id` in the `201` response from `POST /commands` is the correlation identifier; no additional protocol field
 

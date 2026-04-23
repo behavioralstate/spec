@@ -115,27 +115,12 @@ Returns `404` if the schema name or version is not found.
 
 The JSON Schema document returned by this endpoint **may** include a `produces` field declaring the domain events this command can raise. This field is optional — its absence does not indicate non-conformance. When absent, callers may fall back to parsing the human-readable `description` field.
 
-`produces` is an array where each element is either a plain string (event type name) or a `ProducesEntry` object. Mixed lists are allowed.
+`produces` is an array of PascalCase event type name strings. The schema for each event is self-describing on the CloudEvent envelope (`dataschema` field) when the event arrives, and is also discoverable upfront via the event catalogue (`GET /events`).
 
-**`ProducesEntry` object:**
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `event` | string | yes | PascalCase event type name (e.g. `CounterProposed`) |
-| `dataschema` | string (URI) | no | Resolvable URI to the JSON Schema for this event's `data` payload — canonical target is `GET /events/{schema}/{version}` |
-
-**Examples:**
+**Example:**
 
 ```json
 "produces": ["CounterProposed", "NegotiationFailed"]
-```
-
-```json
-"produces": [
-  { "event": "CounterProposed", "dataschema": "https://api.example.com/events/counter-proposed/1.0" },
-  { "event": "ContractAccepted" },
-  "NegotiationFailed"
-]
 ```
 
 #### Failure Events

@@ -71,8 +71,6 @@ Returns the raw JSON Schema document (`application/schema+json`) for a specific 
 
 Returns `404` if not found.
 
-This endpoint is the canonical target for `dataschema` URIs in a `produces` entry on a command schema.
-
 ### POST /events (optional)
 
 Allows injecting a domain event directly into the event log. Intended for testing and simulation only. Implementations that do not support this **must** declare the `events` capability with `status: "partial"` in the manifest.
