@@ -93,7 +93,7 @@ Capabilities are composable building blocks within a service.
 |---|---|---|
 | `io.oap.agents.registry` | Register, remove, list, get services | — |
 | `io.oap.agents.lifecycle` | Pause and resume services | `agents.registry` |
-| `io.oap.agents.events` | List published domain events, inject events for simulation | — |
+| `io.oap.agents.events` | List and query domain events, event catalogue, event schema discovery | — |
 | `io.oap.agents.commands` | Discover available commands (catalogue), send commands (ingestion) | — |
 | `io.oap.agents.memory` | View service memory state | `agents.registry` |
 | `io.oap.observability.tracing` | Execution traces | — |
@@ -111,6 +111,33 @@ Each capability object has these fields:
 | `status` | `active`, `partial`, or `planned` (omitted means active) |
 | `extends` | Parent capability name, if this extends another |
 | `endpoints` | Machine-readable list of HTTP endpoints exposed by this capability. Paths are relative to `rest.endpoint`. Each entry has a `method` (GET/POST/DELETE/etc.) and a `path`. The HTTP method signals whether the operation is a read (GET) or a write (POST/DELETE/etc.). Consumers use this to discover catalogue URLs and determine mutability without reading the spec page. |
+| `push` | Optional object declaring which push channels this capability supports (see [Push Channel Declaration](#push-channel-declaration)). |
+
+### Push Channel Declaration
+
+The `io.oap.agents.events` capability **may** include a `push` object declaring which push channels are supported for delivering events to callers. All fields are optional — absence means the channel is not supported.
+
+```json
+{
+  "name": "io.oap.agents.events",
+  "version": "2025-07-01",
+  "endpoints": [
+    { "method": "GET", "path": "/events" },
+    { "method": "GET", "path": "/events/{schema}/{version}" }
+  ],
+  "push": {
+    "mcp": true,
+    "a2a": true,
+    "webhook": true
+  }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `push.mcp` | boolean | Server-to-client MCP notifications are supported — see [MCP transport](../transports/mcp.md) |
+| `push.a2a` | boolean | A2A message delivery to caller agent is supported — see [A2A transport](../transports/a2a.md) |
+| `push.webhook` | boolean | Webhook callback delivery is supported — callers may register a `webhook` on `POST /services` |
 
 ### Capability Status
 

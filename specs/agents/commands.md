@@ -111,6 +111,47 @@ Response: a raw JSON Schema document (`application/schema+json`). The URL of thi
 
 Returns `404` if the schema name or version is not found.
 
+#### `produces` — Declared Event Outcomes (optional)
+
+The JSON Schema document returned by this endpoint **may** include a `produces` field declaring the domain events this command can raise. This field is optional — its absence does not indicate non-conformance. When absent, callers may fall back to parsing the human-readable `description` field.
+
+`produces` is an array where each element is either a plain string (event type name) or a `ProducesEntry` object. Mixed lists are allowed.
+
+**`ProducesEntry` object:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `event` | string | yes | PascalCase event type name (e.g. `CounterProposed`) |
+| `dataschema` | string (URI) | no | Resolvable URI to the JSON Schema for this event's `data` payload — canonical target is `GET /events/{schema}/{version}` |
+
+**Examples:**
+
+```json
+"produces": ["CounterProposed", "NegotiationFailed"]
+```
+
+```json
+"produces": [
+  { "event": "CounterProposed", "dataschema": "https://api.example.com/events/counter-proposed/1.0" },
+  { "event": "ContractAccepted" },
+  "NegotiationFailed"
+]
+```
+
+#### Failure Events
+
+Failure outcomes are regular domain events in the `produces` list. The naming convention that distinguishes a failure event (e.g. suffix `Failed`, `Failure`) is service-defined — OAP does not mandate a specific suffix. Services must document their convention in the `description` field. Silent failures (no event raised at all) are handled client-side via timeout.
+
+#### Correlation
+
+The `id` returned in the `201 Created` response to `POST /commands` is the **correlation identifier**. Callers use it to match incoming events back to the originating command:
+
+```json
+{ "id": "XCSFIFR04763087" }
+```
+
+No additional correlation field is defined at the protocol level. The field name used to carry the correlation identifier inside an event payload is agreed between client and server — OAP does not mandate it.
+
 ## Schema
 
 See [commands.json](../../protocol/v1/schemas/agents/commands.json).

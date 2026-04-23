@@ -179,8 +179,11 @@ The `dataschema` URI in `GET /commands` catalogue entries now points to `GET /co
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/events` | Log of domain events published by this service (optional `?type=` filter) |
+| `GET` | `/events` | Log of domain events published by this service (optional `?type=` and `?correlationId=` filters) |
+| `GET` | `/events/{schema}/{version}` | Return the JSON Schema document for a specific event type and version |
 | `POST` | `/events` | Inject a domain event (for testing/simulation only — optional capability) |
+
+The `?correlationId={id}` filter accepts the `id` returned by `POST /commands` (the correlation identifier). `GET /events/{schema}/{version}` mirrors `GET /commands/{schema}/{version}` exactly and is the canonical target for `dataschema` URIs in a command's `produces` field.
 
 ### Services (was: Agents)
 
@@ -208,6 +211,7 @@ Replaces the "agent descriptor". The `accepts` and `produces` fields are now inv
 | `accepts` | string[] | yes | **Command** types this service ingests |
 | `produces` | string[] | yes | **Event** types this service publishes |
 | `status` | string | yes | One of: `running`, `paused`, `stopped`, `error` |
+| `webhook` | object | no | Callback config for push event delivery over REST: `{ url: string (HTTPS), secret?: string (HMAC) }` |
 
 ### Example
 ```json
@@ -218,7 +222,11 @@ Replaces the "agent descriptor". The `accepts` and `produces` fields are now inv
   "type": "negotiation-service",
   "accepts": ["ProposeCounter", "AcceptContract", "RejectContract"],
   "produces": ["CounterProposed", "ContractAccepted", "ContractRejected"],
-  "status": "running"
+  "status": "running",
+  "webhook": {
+    "url": "https://my-agent.example.com/oap/events",
+    "secret": "optional-hmac-secret"
+  }
 }
 ```
 
@@ -310,6 +318,52 @@ The CloudEvent `type` field on the wire envelope remains PascalCase (e.g. `Propo
 ### Shared CloudEvent envelope — `cloudEvent.json`
 
 A new top-level schema file `protocol/v1/schemas/cloudEvent.json` defines the canonical `$defs/cloudEvent` shape. `commands.json#/$defs/command` and `events.json#/$defs/event` both `$ref` this instead of repeating the eight fields inline. This is the single source of truth for the CloudEvent envelope and the template used by playground tooling for `POST /commands`.
+
+### v0.3.14 — Command-to-Event Traceability & Push Notifications
+
+All additions are purely additive. Affected files: `specs/agents/commands.md`, `specs/agents/events.md`, `specs/agents/registry.md`, `specs/discovery.md`, `specs/transports/mcp.md`.
+
+#### `produces` on command schema documents
+
+`GET /commands/{schema}/{version}` may return a `produces` field declaring domain events this command can raise. Mixed array of plain strings (event type names) or `ProducesEntry` objects:
+
+```json
+"produces": [
+  { "event": "CounterProposed", "dataschema": "https://api.example.com/events/counter-proposed/1.0" },
+  "NegotiationFailed"
+]
+```
+
+- `event` (string, required) — PascalCase event type name
+- `dataschema` (URI, optional) — points to `GET /events/{schema}/{version}` for that event
+- Failure events are regular items in `produces`; naming convention is service-defined
+- Correlation: the `id` in the `201` response from `POST /commands` is the correlation identifier; no additional protocol field
+
+#### Event Catalogue shape
+
+`GET /events` may return a full event catalogue (same structure as `GET /commands`):
+
+```json
+{ "events": [{ "schema": "counter-proposed", "version": "1.0", "dataschema": "...", "description": "..." }] }
+```
+
+#### Push channels
+
+Polling `GET /events` is the fallback. Three push channels:
+
+| Channel | How declared | How it works |
+|---|---|---|
+| MCP | `"push": true` on `mcp` transport block | Server-to-client MCP notification, matched by correlation ID |
+| A2A | implicit when A2A transport is active | Domain event delivered as A2A Message on the command's task |
+| Webhook | `webhook` field on service descriptor in `POST /services` | Server POSTs CloudEvent to `webhook.url` |
+
+The `io.oap.agents.events` capability declares supported channels via an optional `push` object:
+
+```json
+"push": { "mcp": true, "a2a": true, "webhook": true }
+```
+
+Absence of a key means that channel is not supported.
 
 ---
 

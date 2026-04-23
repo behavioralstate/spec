@@ -8,7 +8,7 @@ MCP (Model Context Protocol) allows any LLM client to manage agents directly.
 |---|---|
 | Agent descriptors | MCP resources (list, read state) |
 | Agent management | MCP tools (register, remove, pause, resume) |
-| Event delivery | MCP tools |
+| Event delivery | MCP tools or server-to-client notifications (push) |
 | Command observation | MCP tools |
 | Execution traces | MCP resources |
 
@@ -31,6 +31,7 @@ The `mcp` block in the service definition declares how to reach the MCP server:
 |---|---|---|---|
 | `transport` | string | yes | MCP transport type: `"stdio"`, `"sse"`, or `"http"` |
 | `server` | string | yes | MCP server identifier or URL |
+| `push` | boolean | no | When `true`, the server supports server-to-client push notifications for domain events. Callers should prefer this channel over polling `GET /events`. |
 | `authentication` | object | no | Authentication requirements for connecting to this MCP server |
 
 MCP transport is **optional** — REST is the baseline. MCP is declared in the `/.well-known/oap` manifest only if the endpoint supports it.
@@ -126,3 +127,17 @@ Each entry in `headers` describes one required HTTP header:
 > **Tooling hint:** The `example` field on a header is intended for IDE tooling (e.g. VS Code Copilot's MCP server config). When consuming a per-tenant manifest, `example` values may be pre-filled so tooling can generate a ready-to-use MCP server config with no manual entry required.
 
 > **MCP authentication vs. root authentication.** The root `authentication` block in the manifest describes credentials for the REST API. The `mcp.authentication` block describes credentials for the MCP server specifically. These may use the same mechanism or different ones — each transport declares its own requirements independently.
+
+## Push Event Delivery
+
+When a caller maintains an active MCP session and `"push": true` is declared on the `mcp` block, the server **may** push domain events to the caller using MCP's server-to-client notification mechanism. Events are delivered as MCP notifications matched by the correlation identifier of a previously submitted command.
+
+```json
+"mcp": {
+  "transport": "http",
+  "server": "https://mcp.example.com/mcp",
+  "push": true
+}
+```
+
+When `"push": true` is present, callers **should** prefer this channel over polling `GET /events`. The `io.oap.agents.events` capability in the manifest declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#push-channel-declaration).
