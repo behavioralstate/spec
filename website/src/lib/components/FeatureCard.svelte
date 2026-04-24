@@ -1,9 +1,15 @@
 <script>
-	let { icon, title, description } = $props();
+	let { icon = '', title, description, logoSvg = '' } = $props();
 </script>
 
 <div class="card">
-	<div class="card-icon">{icon}</div>
+	<div class="card-icon">
+		{#if logoSvg}
+			{@html logoSvg}
+		{:else}
+			{icon}
+		{/if}
+	</div>
 	<h3 class="card-title">{title}</h3>
 	<p class="card-desc">{description}</p>
 </div>
@@ -25,6 +31,14 @@
 	.card-icon {
 		font-size: 1.5rem;
 		margin-bottom: 1rem;
+		height: 2rem;
+		display: flex;
+		align-items: center;
+	}
+
+	.card-icon :global(svg) {
+		height: 2rem;
+		width: auto;
 	}
 
 	.card-title {
