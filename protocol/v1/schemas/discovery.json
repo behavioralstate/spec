@@ -12,9 +12,9 @@
       "properties": {
         "version": {
           "type": "string",
-          "description": "OAP spec version (date-based: YYYY-MM-DD)",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-          "examples": ["2025-07-01"]
+          "description": "OAP spec version (semver: MAJOR.MINOR.PATCH)",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "examples": ["0.4.0"]
         },
         "services": {
           "type": "object",
@@ -53,8 +53,8 @@
       "properties": {
         "version": {
           "type": "string",
-          "description": "Service version (date-based).",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          "description": "Service version (semver).",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
         "description": {
           "type": "string",
@@ -92,8 +92,8 @@
         },
         "version": {
           "type": "string",
-          "description": "Capability version (date-based).",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          "description": "Capability version (semver).",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
         "description": {
           "type": "string",
