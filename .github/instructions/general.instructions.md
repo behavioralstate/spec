@@ -290,7 +290,7 @@ This returns a JSON manifest describing the available services, capabilities, an
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | string | yes | OAP spec version (date-based: `"YYYY-MM-DD"`) |
+| `version` | string | yes | OAP spec version (semver: `"MAJOR.MINOR.PATCH"`) |
 | `tenants` | object | no | Multi-tenant manifest discovery. If present, the `tenants.manifest` field is an RFC 6570 URI template with a single `{tenantId}` variable. Consumers expand it to obtain a fully-resolved, self-contained tenant manifest. The root manifest must only declare capabilities it can fulfill directly — tenant-scoped capabilities (e.g. `io.oap.agents.commands`) are omitted from the root and appear only in the tenant manifest. |
 | `services` | object | yes | Service definitions with transport bindings. Each service has a `rest` block with two fields: `rest.openapi` (URL to the implementer's OpenAPI spec) and `rest.endpoint` (consumer-facing base URL). |
 | `capabilities` | array | yes | Supported capabilities. Each capability has a `schema` field pointing to a **JSON Schema** file for that capability's data structures. Note: `capability.schema` is a JSON Schema, not an OpenAPI spec. It is a different field from `rest.openapi`. |
@@ -442,7 +442,7 @@ Capabilities are the building blocks of OAP. They define specific actions within
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Fully qualified capability name (e.g. `"io.oap.agents.registry"`) |
-| `version` | string | yes | Capability version (date-based) |
+| `version` | string | yes | Capability version (semver) |
 | `description` | string | yes | Human-readable description |
 | `spec` | string | yes | URL to the capability specification |
 | `schema` | string | yes | URL to the JSON Schema for this capability |
@@ -725,34 +725,34 @@ All OAP REST endpoints use standard HTTP status codes with a consistent error bo
 
 ### Protocol Version
 
-OAP uses **date-based versioning**: a `YYYY-MM-DD` string that appears in:
+OAP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](https://semver.org) rules. The version string appears in:
 - The `/.well-known/oap` manifest root — `oap.version`
 - Each service definition — `services["io.oap.*"].version`
 - Each capability definition — `capabilities[*].version`
 
-The version string is a **single source of truth that lives in the files themselves**. There is no separate config file or environment variable. When a release is cut, `scripts/release.sh` stamps the new date atomically across all files.
+The version string is a **single source of truth that lives in the files themselves**. There is no separate config file or environment variable. When a release is cut, `scripts/release.sh` stamps the new semver version atomically across all files.
 
 ### How the Version Gets Bumped — Release Script
 
 The release script (`scripts/release.sh`) handles all version stamping. Never manually edit version strings across files.
 
 ```sh
-# Cut a stable release, stamp protocol version to today
+# Cut a stable release, stamp protocol version to match the tag
 ./scripts/release.sh 1.0.0
 
-# Pre-release with an explicit protocol version date
-./scripts/release.sh 1.1.0 --prerelease --protocol-version 2026-04-10
+# Pre-release with an explicit protocol version
+./scripts/release.sh 1.1.0 --prerelease --protocol-version 1.1.0
 ```
 
 **What `--protocol-version` does:**
 
-1. Auto-detects the current version string already in the files (e.g. `2025-07-01`)
-2. Replaces it with the new date in three passes:
+1. Auto-detects the current version string already in the files (e.g. `0.4.0`)
+2. Replaces it with the new semver in three passes:
    - `"version": "OLD"` → `"version": "NEW"` in all `.json` and `.svelte` files under `protocol/`, `specs/`, `website/src/`
    - `**Version:** OLD` → `**Version:** NEW` in all Markdown spec pages (`specs/**/*.md`)
    - `` `"OLD"` `` → `` `"NEW"` `` for inline backtick references in Markdown body text
 3. Shows `git diff --stat` and asks for confirmation before committing
-4. Commits as `chore: stamp protocol version to YYYY-MM-DD for release vX.Y.Z` and pushes to main
+4. Commits as `chore: stamp protocol version to X.Y.Z for release vX.Y.Z` and pushes to main
 5. Then creates the git tag and GitHub release
 
 **What it deliberately does NOT touch:**
@@ -764,19 +764,24 @@ The release script (`scripts/release.sh`) handles all version stamping. Never ma
 
 The website hero and every docs page footer display the same version string. It is injected at build time via the `VITE_GIT_TAG` environment variable, which CI sets by running `git describe --tags --always`. This produces:
 
-- **On a tagged release** (e.g. after `release.sh 0.3.8`) → `v0.3.8`, linking to the GitHub release
-- **Between releases** (e.g. commits after a tag) → `v0.3.8-14-gabcdef1`, linking to the specific commit
+- **On a tagged release** (e.g. after `release.sh 0.4.0`) → `v0.4.0`, linking to the GitHub release
+- **Between releases** (e.g. commits after a tag) → `v0.4.0-14-gabcdef1`, linking to the specific commit
 
 This keeps the version on the website identical to the tag shown in the README. Never reintroduce separate `VITE_GIT_SHA` or `VITE_BUILD_TIME` variables for version display purposes.
 
-**Default behaviour:** if `--protocol-version` is omitted, it defaults to today's date (`date +%Y-%m-%d`).
+**Default behaviour:** if `--protocol-version` is omitted, it defaults to the release version argument.
 
 ### Compatibility Rules
 
-- **Additive changes** (new optional fields, new capabilities) do NOT bump the version
-- **Breaking changes** (field removal, type changes, semantic changes) bump the version
-- Consumers should ignore unknown fields (forward compatibility)
-- Multiple versions can coexist in a manifest (services can have different versions)
+| Change type | Bump |
+|---|---|
+| Breaking changes — field removal, type change, semantic change | `MAJOR` |
+| Additive changes — new optional fields, new capabilities | `MINOR` |
+| Documentation, clarifications, non-breaking fixes | `PATCH` |
+
+- Consumers must **ignore unknown fields** — forward compatibility
+- A `MAJOR` bump signals breaking changes; consumers should review the changelog
+- Multiple capabilities can have different versions in the same manifest
 
 ### Namespace Convention
 
@@ -946,7 +951,7 @@ Tasks:
 
 1. Create `protocol/v1/README.md` with:
    - Protocol overview and purpose
-   - Versioning strategy (date-based, additive-only minor changes)
+   - Versioning strategy (semver, breaking/minor/patch rules)
    - Namespace convention (`io.oap.{service}.{capability}`)
    - How to read the discovery manifest
    - Conformance checklist
