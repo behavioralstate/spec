@@ -24,22 +24,40 @@ When present, the server POSTs events matching the caller's `accepts` list to th
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `url` | string (URI) | yes | HTTPS endpoint to receive events as CloudEvents |
-| `secret` | string | no | Optional HMAC secret for payload signing |
+| `secret` | string | no | HMAC secret for payload signing. **Write-only** — accepted on `POST /services`, never returned in read responses. |
 
-### Example
+> **Note:** `secret` is marked `writeOnly: true` in the JSON Schema. Servers must not include it in `GET /services` or `GET /services/{id}` responses. OpenAPI tooling and validators understand this annotation and will suppress the field in generated docs and response models.
+
+> **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/docs/security#webhook-ssrf-protection).
+
+### Examples
+
+**POST /services — registration request (secret accepted):**
 
 ```json
 {
   "id": "negotiation",
   "name": "Contract Negotiation",
-  "description": "Ingests negotiation commands and publishes negotiation events",
-  "type": "negotiation-service",
-  "accepts": ["ProposeCounter", "AcceptContract", "RejectContract"],
-  "produces": ["CounterProposed", "ContractAccepted", "ContractRejected"],
-  "status": "running",
+  "accepts": ["ProposeCounter", "AcceptContract"],
+  "produces": ["CounterProposed", "ContractAccepted"],
   "webhook": {
     "url": "https://my-agent.example.com/oap/events",
-    "secret": "optional-hmac-secret"
+    "secret": "hmac-signing-secret"
+  }
+}
+```
+
+**GET /services/{id} — read response (secret omitted):**
+
+```json
+{
+  "id": "negotiation",
+  "name": "Contract Negotiation",
+  "accepts": ["ProposeCounter", "AcceptContract"],
+  "produces": ["CounterProposed", "ContractAccepted"],
+  "status": "running",
+  "webhook": {
+    "url": "https://my-agent.example.com/oap/events"
   }
 }
 ```

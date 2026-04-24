@@ -211,7 +211,7 @@ Replaces the "agent descriptor". The `accepts` and `produces` fields are now inv
 | `accepts` | string[] | yes | **Command** types this service ingests |
 | `produces` | string[] | yes | **Event** types this service publishes |
 | `status` | string | yes | One of: `running`, `paused`, `stopped`, `error` |
-| `webhook` | object | no | Callback config for push event delivery over REST: `{ url: string (HTTPS), secret?: string (HMAC) }` |
+| `webhook` | object | no | Callback config for push event delivery over REST: `{ url: string (HTTPS), secret?: string (HMAC, writeOnly) }` |
 
 ### Example
 ```json
@@ -224,8 +224,8 @@ Replaces the "agent descriptor". The `accepts` and `produces` fields are now inv
   "produces": ["CounterProposed", "ContractAccepted", "ContractRejected"],
   "status": "running",
   "webhook": {
-    "url": "https://my-agent.example.com/oap/events",
-    "secret": "optional-hmac-secret"
+    "url": "https://my-agent.example.com/oap/events"
+    // secret accepted on POST /services but never returned in GET responses (writeOnly)
   }
 }
 ```

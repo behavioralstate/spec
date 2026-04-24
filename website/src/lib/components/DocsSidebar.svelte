@@ -36,6 +36,7 @@
 			items: [
 				{ label: 'Versioning', href: '/docs/versioning' },
 				{ label: 'Conformance', href: '/docs/conformance' },
+				{ label: 'Security', href: '/docs/security' },
 				{ label: 'Design Decisions', href: '/docs/design-decisions' }
 			]
 		},
