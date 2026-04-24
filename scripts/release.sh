@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # OAP Release Script
-# Usage: ./scripts/release.sh <version> [--prerelease] [--protocol-version <YYYY-MM-DD>]
+# Usage: ./scripts/release.sh <version> [--prerelease] [--protocol-version <MAJOR.MINOR.PATCH>]
 #
-# --protocol-version  Date string to stamp into all spec files as the OAP protocol version.
-#                     Defaults to today's date (YYYY-MM-DD).
-#                     This updates every "version": "YYYY-MM-DD" field in JSON examples
+# --protocol-version  Semver string to stamp into all spec files as the OAP protocol version.
+#                     Defaults to the release version argument.
+#                     This updates every "version": "X.Y.Z" field in JSON examples
 #                     and OpenAPI specs.
 #                     It does NOT touch example timestamps (CloudEvent "time", "startedAt",
 #                     "completedAt" fields) — those are illustrative and left unchanged.
 #
 # Examples:
-#   ./scripts/release.sh 0.1.0 --prerelease
+#   ./scripts/release.sh 0.4.0 --prerelease
 #   ./scripts/release.sh 1.0.0
-#   ./scripts/release.sh 1.0.0 --protocol-version 2026-04-10
+#   ./scripts/release.sh 1.1.0 --protocol-version 1.1.0
 
 REPO_URL="https://github.com/openagentprotocol/spec"
 
@@ -31,7 +31,7 @@ fi
 VERSION="$1"
 TAG="v${VERSION}"
 PRERELEASE=false
-PROTOCOL_VERSION="$(date +%Y-%m-%d)"
+PROTOCOL_VERSION="$VERSION"
 
 shift
 while [ $# -gt 0 ]; do
@@ -42,7 +42,7 @@ while [ $# -gt 0 ]; do
       ;;
     --protocol-version)
       if [ -z "${2:-}" ]; then
-        echo "Error: --protocol-version requires a YYYY-MM-DD argument."
+        echo "Error: --protocol-version requires a MAJOR.MINOR.PATCH argument."
         exit 1
       fi
       PROTOCOL_VERSION="$2"
@@ -100,13 +100,13 @@ fi
 # Step 1: Stamp protocol version into spec files
 # Detects the current version string already in the files and replaces it.
 # Touches only:
-#   - "version": "YYYY-MM-DD"  in JSON (examples, openapi, well-known)
-#   - **Version:** YYYY-MM-DD  in Markdown spec pages
-#   - version: "YYYY-MM-DD"    in Svelte/JS source
+#   - "version": "X.Y.Z"  in JSON (examples, openapi, well-known)
+#   - **Version:** X.Y.Z  in Markdown spec pages
+#   - version: "X.Y.Z"    in Svelte/JS source
 # Does NOT touch CloudEvent timestamp fields (time, startedAt, completedAt).
-CURRENT_PROTO_VERSION=$(grep -r --include="*.json" --include="*.md" --include="*.svelte" \
-  -hP '"version":\s*"\d{4}-\d{2}-\d{2}"' protocol/ specs/ website/src/ \
-  | grep -oP '\d{4}-\d{2}-\d{2}' | sort | uniq | head -1)
+CURRENT_PROTO_VERSION=$(grep -r --include="*.json" --include="*.svelte" \
+  -hP '"version":\s*"\d+\.\d+\.\d+"' protocol/ website/src/ \
+  | grep -oP '\d+\.\d+\.\d+' | sort | uniq | head -1 || true)
 
 if [ -z "$CURRENT_PROTO_VERSION" ]; then
   echo "Warning: Could not auto-detect current protocol version. Skipping version stamp."
@@ -115,7 +115,7 @@ elif [ "$CURRENT_PROTO_VERSION" = "$PROTOCOL_VERSION" ]; then
 else
   echo "Stamping protocol version: $CURRENT_PROTO_VERSION → $PROTOCOL_VERSION"
 
-  # JSON files: replace "version": "YYYY-MM-DD"
+  # JSON/Svelte files: replace "version": "X.Y.Z"
   find protocol/ specs/ website/src/ -type f \( -name "*.json" -o -name "*.svelte" \) | while read -r f; do
     sed -i "s/\"version\": \"${CURRENT_PROTO_VERSION}\"/\"version\": \"${PROTOCOL_VERSION}\"/g" "$f"
   done
