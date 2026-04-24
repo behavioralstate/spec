@@ -297,6 +297,86 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 
 See [REST Transport](./transports/rest.md) for the full multi-tenant routing reference.
 
+## Agent Navigation Guide
+
+This section describes the algorithm an AI agent or automated client should follow when interacting with an OAP endpoint for the first time. This is the canonical discovery flow — not just for web UIs.
+
+### Step 1 — Fetch the root manifest
+
+```
+GET /.well-known/oap
+```
+
+This endpoint is **always public** — no credentials required. It returns the manifest JSON. An implementation that requires auth on `/.well-known/oap` is non-conformant.
+
+From the root manifest, extract two things before doing anything else:
+- `oap.authentication` — what credentials are required for all other calls
+- `oap.tenants.manifest` — whether this is a multi-tenant host
+
+### Step 2 — Identify the manifest type and collect prerequisites
+
+| What the root manifest shows | What it means | What to collect from the user |
+|---|---|---|
+| `capabilities` contains `io.oap.agents.commands` | Direct service — commands discoverable here | Credentials only (if `authentication` is declared) |
+| `tenants.manifest` present, no `io.oap.agents.commands` | Multi-tenant router — must fetch tenant manifest first | **Both credentials and tenant ID** |
+| Neither | Service has no command surface | Nothing — report to user |
+
+> **Collect everything before making any authenticated request.** When the root manifest declares authentication AND requires a tenant ID, ask the user for both in a single prompt. Do not make a round-trip to the tenant manifest endpoint without credentials — you already know from the root manifest that auth is required.
+
+### Step 3 — Resolve the tenant manifest (multi-tenant only)
+
+Once you have both credentials and the tenant ID:
+
+1. Expand the URI template: replace `{tenantId}` in `tenants.manifest` with the tenant ID the user provided.
+2. Fetch the expanded URL, including any required credentials declared in `oap.authentication`.
+3. The tenant manifest is a self-contained, fully-resolved manifest. Treat it exactly as you would a direct service manifest from this point on.
+
+```
+Template:  https://api.example.com/.well-known/oap/{tenantId}
+Tenant ID: acme
+Resolved:  GET https://api.example.com/.well-known/oap/acme
+           X-Api-Key: <user's key>
+```
+
+> **Tenant manifest auth:** Only the API key credential is required to fetch a tenant manifest — the tenant ID is already in the URL. Implementations MUST NOT require a tenant ID header to access `/.well-known/oap/{tenantId}`; the path parameter already carries it.
+
+### Step 4 — Read the capability endpoints
+
+Find the `io.oap.agents.commands` capability in `oap.capabilities`. Its `endpoints` array lists the available REST operations:
+
+```json
+{
+  "name": "io.oap.agents.commands",
+  "service": "io.example.myservice",
+  "endpoints": [
+    { "method": "GET",  "path": "/commands" },
+    { "method": "POST", "path": "/commands" }
+  ]
+}
+```
+
+Resolve each path against the `rest.endpoint` of the service named in `service` (or the default `io.oap.agents` service if `service` is absent).
+
+### Step 5 — Fetch the command catalogue
+
+```
+GET {rest.endpoint}/commands
+X-Api-Key: <credentials>
+```
+
+This returns the list of command types the service accepts, each with a `schema`, `version`, `dataschema` URI, and optional `description`. This is the definitive answer to "what commands are available."
+
+### Quick reference: signals and actions
+
+| What you see in the manifest | What to collect | What to do |
+|---|---|---|
+| `capabilities` has `io.oap.agents.commands` | Credentials only | Fetch `GET /commands` |
+| `tenants.manifest` present, no commands capability | Credentials + tenant ID together | Expand template, fetch tenant manifest, then proceed |
+| `capabilities` has `io.oap.agents.commands` with `status: "planned"` | — | Commands not yet implemented — report to user |
+| `capabilities` is empty and no `tenants.manifest` | — | No discoverable capabilities — report to user |
+
+> **Do not fall back to external OpenAPI/Swagger documents.** The OAP manifest is the canonical discovery surface. Any Swagger or OpenAPI URL in an implementer's response describes their application API — it is not the OAP command catalogue and may expose internal, non-OAP endpoints.
+
 ### `rest` Transport Fields
 
 | Field | Description |

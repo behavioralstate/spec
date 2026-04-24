@@ -32,7 +32,20 @@ A capability declared with `status: "partial"` is exempt from the full endpoint 
 
 A capability declared with `status: "active"` (or with no `status` field) **must** implement all required endpoints in the table above. Declaring a capability `active` while returning `404` or `501` on required routes is a conformance violation.
 
-## Required HTTP Status Codes
+## Root Manifest Rules (Multi-Tenant Hosts)
+
+When a host serves multiple tenants and uses the `tenants.manifest` pattern, the root manifest (at `/.well-known/oap`) has additional conformance requirements:
+
+1. The root manifest **MUST** include a `tenants.manifest` URI template if tenant-scoped capabilities exist.
+2. The root manifest **MUST NOT** declare tenant-scoped capabilities (e.g. `io.oap.agents.commands`, `io.oap.agents.events`) — these belong only in tenant manifests.
+3. The root manifest **MAY** declare root-level capabilities it can fulfill directly without a tenant context (e.g. a tenant listing endpoint).
+4. The root manifest **MUST** return `200` without authentication. Auth is not required to discover that a tenant ID is needed.
+5. The tenant manifest (returned at the expanded `tenants.manifest` URI) **MUST** be a self-contained, fully-resolved manifest with no `{tenantId}` placeholders in any URI field and no `tenants` block of its own.
+6. Tenant manifest endpoints (`/.well-known/oap/{tenantId}`) **MUST NOT** require a tenant ID header or query parameter — the tenant ID is already in the URL path. At most, the API key credential declared in the root `authentication` block is required.
+
+**Why this matters for agents:** An AI agent hitting a root manifest that has an empty `capabilities` array but no `tenants.manifest` cannot proceed — it has no signal for what to do next. A root manifest that follows these rules gives any agent unambiguous guidance: check capabilities → if absent, check tenants.manifest → ask user for tenant ID → fetch tenant manifest.
+
+
 
 All OAP REST endpoints must use standard HTTP status codes. The following are required:
 

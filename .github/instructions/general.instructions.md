@@ -1076,6 +1076,8 @@ OAP is NOT:
 **2026-04-24**
 
 - **`rest.openapi` removed** — the `rest` transport block on a service now contains only `rest.endpoint`. The field was a footgun: implementers naturally pointed it at their full application swagger, leaking internal non-OAP endpoints to any agent that followed the link. The REST API surface is fully described by the capability `endpoints` arrays in the manifest; no bespoke OpenAPI document adds protocol value beyond what is already there.
+- **Agent navigation guide added** to `specs/discovery.md` — a step-by-step algorithm for AI agents discovering a multi-tenant OAP endpoint. Key rule: if `capabilities` has no `io.oap.agents.commands` but `tenants.manifest` is present, the agent MUST ask the user for a tenant ID before proceeding. Agents must never fall back to external Swagger/OpenAPI documents.
+- **Root manifest conformance rules added** to `specs/conformance.md` — multi-tenant root manifests must not declare tenant-scoped capabilities; tenant manifests must be self-contained with no `{tenantId}` placeholders.
 
 ---
 
