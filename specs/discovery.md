@@ -32,7 +32,7 @@ This returns a JSON manifest describing the available agents, services, capabili
 ```json
 {
   "oap": {
-    "version": "2025-07-01",
+    "version": "0.4.0",
     "authentication": { ... },
     "tenants": { ... },
     "services": { ... },
@@ -44,7 +44,7 @@ This returns a JSON manifest describing the available agents, services, capabili
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | string | yes | OAP spec version (date-based: `"YYYY-MM-DD"`) |
+| `version` | string | yes | OAP spec version (semver: `"MAJOR.MINOR.PATCH"`) |
 | `authentication` | object | no | Authentication requirements for this endpoint (omit for public endpoints) |
 | `tenants` | object | no | Multi-tenant manifest discovery. When present, signals that this is a multi-tenant host and provides a URI template for consumers to obtain a tenant-scoped manifest. See [Multi-Tenant Routing](#multi-tenant-routing). |
 | `services` | object | yes | Service definitions with transport bindings |
@@ -101,7 +101,7 @@ Each capability object has these fields:
 | Field | Description |
 |---|---|
 | `name` | Fully qualified capability identifier (e.g. `io.oap.agents.registry`) |
-| `version` | Date-based version string |
+| `version` | Semver version string |
 | `description` | Human-readable summary |
 | `spec` | URL to the capability specification page |
 | `schema` | URL to the **JSON Schema** for this capability's data structures — e.g. `registry.json`, `events.json`. This is a JSON Schema file, not an OpenAPI spec. Do not confuse with `rest.openapi` (see Transport Bindings below). |
@@ -118,7 +118,7 @@ The `io.oap.agents.events` capability **may** include a `push` object declaring 
 ```json
 {
   "name": "io.oap.agents.events",
-  "version": "2025-07-01",
+  "version": "0.4.0",
   "endpoints": [
     { "method": "GET", "path": "/events" },
     { "method": "GET", "path": "/events/{schema}/{version}" }
@@ -242,7 +242,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 ```json
 {
   "oap": {
-    "version": "2026-04-10",
+    "version": "0.4.0",
     "tenants": {
       "manifest": "https://api.example.com/.well-known/oap/{tenantId}"
     },
@@ -271,7 +271,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 ```json
 {
   "oap": {
-    "version": "2026-04-10",
+    "version": "0.4.0",
     "services": {
       "io.dotquant.trading": {
         "rest": {

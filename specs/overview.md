@@ -92,7 +92,7 @@ Layer 1: Transport
 
 ## Versioning
 
-OAP uses date-based versioning: `"2026-04-10"`. Consumers should ignore unknown fields (forward compatibility). Multiple versions can coexist in a manifest.
+OAP uses **semantic versioning** (`MAJOR.MINOR.PATCH`). Consumers should ignore unknown fields (forward compatibility). A `MAJOR` bump signals breaking changes. See [Versioning](/docs/versioning) for the full compatibility rules.
 
 ## Quick Start for Implementers
 
@@ -106,10 +106,10 @@ Return a JSON manifest describing your agent:
 GET /.well-known/oap
 {
   "oap": {
-    "version": "2025-07-01",
+    "version": "0.4.0",
     "services": {
       "io.oap.agents": {
-        "version": "2025-07-01",
+        "version": "0.4.0",
         "rest": {
           "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://your-service.example.com/"
@@ -117,9 +117,9 @@ GET /.well-known/oap
       }
     },
     "capabilities": [
-      { "name": "io.oap.agents.registry", "version": "2025-07-01" },
-      { "name": "io.oap.agents.events",   "version": "2025-07-01" },
-      { "name": "io.oap.agents.commands", "version": "2025-07-01" }
+      { "name": "io.oap.agents.registry", "version": "0.4.0" },
+      { "name": "io.oap.agents.events",   "version": "0.4.0" },
+      { "name": "io.oap.agents.commands", "version": "0.4.0" }
     ]
   }
 }
