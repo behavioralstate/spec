@@ -1,6 +1,6 @@
 {
   "oap": {
-    "version": "0.4.4",
+    "version": "0.4.5",
     "authentication": {
       "type": "bearer",
       "scheme": "Bearer",
@@ -10,7 +10,7 @@
     },
     "services": {
       "io.oap.agents": {
-        "version": "0.4.4",
+        "version": "0.4.5",
         "description": "Agent management, event delivery, command observation",
         "spec": "https://openagentprotocol.io/specs/agents",
         "rest": {
@@ -34,7 +34,7 @@
     "capabilities": [
       {
         "name": "io.oap.agents.registry",
-        "version": "0.4.4",
+        "version": "0.4.5",
         "service": "io.oap.agents",
         "description": "Register, remove, list agents",
         "spec": "https://openagentprotocol.io/specs/agents/registry",
@@ -48,7 +48,7 @@
       },
       {
         "name": "io.oap.agents.lifecycle",
-        "version": "0.4.4",
+        "version": "0.4.5",
         "service": "io.oap.agents",
         "description": "Pause, resume agents",
         "spec": "https://openagentprotocol.io/specs/agents/lifecycle",
@@ -61,7 +61,7 @@
       },
       {
         "name": "io.oap.agents.events",
-        "version": "0.4.4",
+        "version": "0.4.5",
         "service": "io.oap.agents",
         "description": "Send events to agents, list recent events",
         "spec": "https://openagentprotocol.io/specs/agents/events",
@@ -73,7 +73,7 @@
       },
       {
         "name": "io.oap.agents.commands",
-        "version": "0.4.4",
+        "version": "0.4.5",
         "service": "io.oap.agents",
         "description": "Discover command types this service accepts and send commands",
         "spec": "https://openagentprotocol.io/specs/agents/commands",
@@ -86,7 +86,7 @@
       },
       {
         "name": "io.oap.agents.memory",
-        "version": "0.4.4",
+        "version": "0.4.5",
         "service": "io.oap.agents",
         "description": "View agent memory state (opaque to the protocol)",
         "spec": "https://openagentprotocol.io/specs/agents/memory",
