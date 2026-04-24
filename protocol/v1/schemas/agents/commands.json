@@ -5,8 +5,11 @@
   "description": "Schema for the command ingestion and discovery capability (io.oap.agents.commands).",
   "$defs": {
     "command": {
-      "$ref": "../cloudEvent.json#/$defs/cloudEvent",
-      "description": "A command sent to an OAP-compliant service. CloudEvent 1.0 envelope — the type field must match a type in the command catalogue, and the data property is validated against the JSON Schema at the dataschema URI before the command is queued."
+      "allOf": [
+        { "$ref": "../cloudEvent.json#/$defs/cloudEvent" },
+        { "required": ["dataschema"] }
+      ],
+      "description": "A command sent to an OAP-compliant service. CloudEvent 1.0 envelope — the type field must match a type in the command catalogue, and the data property is validated against the JSON Schema at the dataschema URI before the command is queued. dataschema is required for commands."
     },
     "commandCatalogueEntry": {
       "type": "object",
