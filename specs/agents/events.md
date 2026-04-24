@@ -13,7 +13,7 @@ Events use the **CloudEvent 1.0 specification** as wire format.
 | `source` | string (URI) | yes | URI identifying the service that published this event |
 | `type` | string | yes | Event type identifier (e.g. `CounterProposed`, `OrderSubmitted`) |
 | `datacontenttype` | string | yes | Always `"application/json"` |
-| `dataschema` | string (URI) | yes | URI to the JSON Schema for `data` |
+| `dataschema` | string (URI) | **no** | URI to the JSON Schema for `data` — present for typed events, omitted for untyped |
 | `time` | string (ISO 8601) | yes | When the event was published |
 | `data` | object | yes | The event payload — semantically opaque to the protocol |
 
@@ -22,7 +22,15 @@ Events are:
 - **Published by the service** — they are the result of processing a command
 - **Semantically opaque** — the protocol does not interpret `data`
 
-### Example
+> **Note:** `dataschema` is required for **commands** (the server must validate the payload before queuing) but optional for **events** (the consumer is responsible for interpreting the data when no schema is declared).
+
+## Typed vs Untyped Events
+
+OAP supports two event patterns. Services choose per event type; both can coexist in the same service.
+
+### Typed event — `dataschema` present
+
+The service declares a JSON Schema for the `data` payload. Consumers can fetch the schema, validate payloads, and generate models. This is the preferred pattern when the event shape is stable and well-defined.
 
 ```json
 {
@@ -31,12 +39,33 @@ Events are:
   "source": "https://api.example.com/negotiation",
   "type": "CounterProposed",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
+  "dataschema": "https://api.example.com/events/counter-proposed/1.0",
   "time": "2025-07-01T10:30:01Z",
   "data": {
     "salary": 100000,
     "startDate": "2025-09-01",
     "contractId": "contract-42"
+  }
+}
+```
+
+### Untyped event — `dataschema` absent
+
+The service publishes events without a formal schema. The CloudEvent envelope (`type`, `source`, `id`, `time`) is still present — consumers can route and correlate events. The consumer takes responsibility for interpreting `data`.
+
+This pattern suits services that emit dynamic, loosely-structured payloads (e.g. sensor readings, log streams, forwarded third-party events) where defining a rigid schema would be impractical.
+
+```json
+{
+  "specversion": "1.0",
+  "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "source": "https://api.example.com/warehouse-sensor",
+  "type": "TemperatureRead",
+  "datacontenttype": "application/json",
+  "time": "2025-07-01T10:30:05Z",
+  "data": {
+    "celsius": 4.2,
+    "sensorId": "fridge-01"
   }
 }
 ```
@@ -95,8 +124,9 @@ Response: `202 Accepted`.
       "description": "A counter-offer was proposed in a contract negotiation"
     },
     {
-      "schema": "negotiation-failed",
-      "version": "1.0"
+      "schema": "temperature-read",
+      "version": "1.0",
+      "description": "A temperature reading from a sensor. No formal schema — data shape varies by sensor model."
     }
   ]
 }
@@ -106,8 +136,8 @@ Response: `202 Accepted`.
 |---|---|---|---|
 | `schema` | string | yes | Event schema name in kebab-case. Used as the `{schema}` path segment in `GET /events/{schema}/{version}`. |
 | `version` | string | yes | Schema version string (e.g. `1.0`). |
-| `dataschema` | string (URI) | no | Resolvable URI to the JSON Schema for this event's `data` payload. |
-| `description` | string | no | Human-readable summary of what the event means. |
+| `dataschema` | string (URI) | no | Resolvable URI to the JSON Schema for this event's `data` payload. Omitted for untyped events. |
+| `description` | string | no | Human-readable summary of what the event means. For untyped events, this is the primary documentation. |
 
 ## Push Notification Channels
 

@@ -7,7 +7,7 @@
     "cloudEvent": {
       "type": "object",
       "description": "A CloudEvent 1.0 message. Used as the wire format for OAP commands (sent to a service) and OAP events (published by a service). The data property is a domain-specific payload whose shape is defined by the JSON Schema at dataschema.",
-      "required": ["specversion", "id", "source", "type", "datacontenttype", "dataschema", "time", "data"],
+      "required": ["specversion", "id", "source", "type", "datacontenttype", "time", "data"],
       "properties": {
         "specversion": {
           "type": "string",
@@ -35,7 +35,7 @@
         "dataschema": {
           "type": "string",
           "format": "uri",
-          "description": "URI to the JSON Schema that defines the structure of data. For OAP commands this is hosted by the ingestion API at GET /commands/{schema}/{version}. The API dereferences this URI and validates data against it."
+          "description": "URI to the JSON Schema that defines the structure of data. Required for commands — hosted by the ingestion API at GET /commands/{schema}/{version}. Optional for events — when omitted the consumer is responsible for interpreting the data payload (untyped event)."
         },
         "time": {
           "type": "string",
@@ -44,7 +44,7 @@
         },
         "data": {
           "type": "object",
-          "description": "The domain payload. Structure is defined by the schema at dataschema. For commands: the input to the domain operation. For events: the recorded fact.",
+          "description": "The domain payload. For commands: validated against the schema at dataschema before queuing. For events: the recorded fact — opaque to the protocol.",
           "additionalProperties": true
         }
       },
