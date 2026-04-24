@@ -72,7 +72,6 @@
         "version": "0.4.6",
         "description": "Service registry, command ingestion, published events",
         "rest": {
-          "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://api.example.com/"
         }
       }

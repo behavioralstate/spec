@@ -151,17 +151,12 @@
     },
     "restTransport": {
       "type": "object",
-      "required": ["openapi", "endpoint"],
+      "required": ["endpoint"],
       "properties": {
-        "openapi": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL to the implementer's OpenAPI spec (JSON) describing their consumer-facing API surface. All paths in this spec are relative to rest.endpoint and must describe only endpoints reachable at that URL — never internal or backend-private paths."
-        },
         "endpoint": {
           "type": "string",
           "format": "uri",
-          "description": "Consumer-facing base URL for all REST operations. This must be the public or proxy-facing address reachable by consumers — never an internal backend address. All paths from the OpenAPI spec are appended to this URL."
+          "description": "Consumer-facing base URL for all REST operations. This must be the public or proxy-facing address reachable by consumers — never an internal backend address. All capability endpoint paths are appended to this URL."
         }
       },
       "additionalProperties": false

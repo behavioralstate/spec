@@ -1,6 +1,6 @@
 # REST Transport
 
-REST is the primary transport for web-based consumers including the OAP web UI. The full REST API is defined by the OpenAPI specs referenced in each service's `rest.openapi` URL.
+REST is the primary transport for web-based consumers including the OAP web UI. The REST API surface is fully described by the capability `endpoints` arrays in the discovery manifest — no separate OpenAPI document is required from implementers.
 
 ## Content Type
 
@@ -12,26 +12,24 @@ The `rest.endpoint` field in the discovery manifest is the **consumer-facing bas
 
 | `rest.endpoint` | Path | Resolved URL |
 |---|---|---|
-| `https://app.example.com/` | `/agents` | `https://app.example.com/agents` |
-| `https://app.agenthost.example/oap/` | `/agents` | `https://app.agenthost.example/oap/agents` |
-| `https://your.compliant.oap.endpoint` | `/agents` | `https://your.compliant.oap.endpoint/agents` |
+| `https://app.example.com/` | `/services` | `https://app.example.com/services` |
+| `https://app.agenthost.example/oap/` | `/services` | `https://app.agenthost.example/oap/services` |
+| `https://your.compliant.oap.endpoint` | `/services` | `https://your.compliant.oap.endpoint/services` |
 
 Paths are **never** resolved relative to the domain root unless `rest.endpoint` is at the domain root.
 
-> **`rest.endpoint` is always the consumer-facing URL.** It must be the public or proxy address reachable by external consumers, not an internal backend address (e.g. not a private service URL behind an API gateway). If the implementer routes traffic internally, `rest.endpoint` is the _outermost_ address consumers hit.
-
-> **`rest.openapi` describes the consumer surface only.** The OpenAPI spec at `rest.openapi` must define only the paths and operations available at `rest.endpoint`. Internal backend paths, private BaaS endpoints, and implementation-internal routes must not appear in the spec consumers read.
+> **`rest.endpoint` is always the consumer-facing URL.** It must be the public or proxy address reachable by external consumers, not an internal backend address. If the implementer routes traffic internally, `rest.endpoint` is the _outermost_ address consumers hit.
 
 ## Multiple Transports, One Capability Surface
 
 A service may declare multiple transport bindings (`rest`, `mcp`, `a2a`) for the same capability surface. All transports expose the same logical operations — the transports are alternative access methods, not separate operation sets.
 
 ```json
-"rest": { "openapi": "...", "endpoint": "https://api.example.com/" },
+"rest": { "endpoint": "https://api.example.com/" },
 "mcp": { "transport": "stdio", "server": "oap-mcp" }
 ```
 
-Both REST and MCP above provide access to the same agents registry, event delivery, and command observation. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
+Both REST and MCP above provide access to the same services registry, event delivery, and command ingestion. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
 
 ## Multi-Tenant Routing
 
@@ -45,7 +43,7 @@ GET  https://api.example.com/{tenantId}/agents
 When this pattern is used:
 
 - `rest.endpoint` is still the root consumer-facing URL (e.g. `https://api.example.com/`).
-- The `{tenantId}` path segment is documented in `rest.openapi` as a path parameter on every tenant-scoped route.
+- The `{tenantId}` path segment is declared in capability `endpoints` entries on every tenant-scoped route.
 - Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies _which_ tenant's surface to target. Both are required on every request.
 
 For machine-actionable tenant discovery (letting consumers resolve a tenant manifest without prior knowledge of the URL structure), see [`tenants.manifest` in the Discovery spec](../discovery.md#tenantsmanifest-uri-template-for-tenant-discovery).

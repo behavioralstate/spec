@@ -14,7 +14,6 @@
         "description": "Agent management, event delivery, command observation",
         "spec": "https://openagentprotocol.io/specs/agents",
         "rest": {
-          "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://your.compliant.oap.endpoint/"
         },
         "mcp": {

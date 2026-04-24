@@ -104,7 +104,7 @@ Each capability object has these fields:
 | `version` | Semver version string |
 | `description` | Human-readable summary |
 | `spec` | URL to the capability specification page |
-| `schema` | URL to the **JSON Schema** for this capability's data structures — e.g. `registry.json`, `events.json`. This is a JSON Schema file, not an OpenAPI spec. Do not confuse with `rest.openapi` (see Transport Bindings below). |
+| `schema` | URL to the **JSON Schema** for this capability's data structures — e.g. `registry.json`, `events.json`. This is a JSON Schema file, not an OpenAPI spec. |
 | `service` | Key of the implementing service in the manifest's `services` object (e.g. `"io.oap.agents"`, `"io.dotquant.trading"`). Required when the capability's name prefix does not match the service key — for example, a custom service implementing a standard OAP capability. Consumers use this to resolve which `rest.endpoint` to call for the capability's endpoints. |
 | `status` | `active`, `partial`, or `planned` (omitted means active) |
 | `extends` | Parent capability name, if this extends another |
@@ -182,7 +182,6 @@ Each service declares how it can be reached:
 
 ```json
 "rest": {
-  "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
   "endpoint": "https://your.compliant.oap.endpoint/"
 },
 "mcp": {
@@ -210,7 +209,7 @@ GET  https://api.example.com/{tenantId}/agents
 POST https://api.example.com/{tenantId}/events
 ```
 
-`rest.endpoint` remains the root consumer-facing URL (e.g. `https://api.example.com/`). The `{tenantId}` segment is declared as a path parameter in `rest.openapi` on every tenant-scoped route. Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant's surface to target. Both are required on every request.
+`rest.endpoint` remains the root consumer-facing URL (e.g. `https://api.example.com/`). The `{tenantId}` segment is declared as a path parameter on every tenant-scoped route. Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant's surface to target. Both are required on every request.
 
 ### `tenants.manifest` — URI Template for Tenant Discovery
 
@@ -248,7 +247,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
     },
     "services": {
       "io.oap.agents": {
-        "rest": { "openapi": "...", "endpoint": "https://api.example.com/" }
+        "rest": { "endpoint": "https://api.example.com/" }
       }
     },
     "capabilities": [
@@ -275,7 +274,6 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
     "services": {
       "io.dotquant.trading": {
         "rest": {
-          "openapi": "https://api.example.com/api/oap/tenants/be9e0176/openapi.json",
           "endpoint": "https://api.example.com/api/oap/tenants/be9e0176"
         }
       }
@@ -303,14 +301,11 @@ See [REST Transport](./transports/rest.md) for the full multi-tenant routing ref
 
 | Field | Description |
 |---|---|
-| `rest.openapi` | URL to the implementer's **OpenAPI spec** (JSON) describing the consumer-facing REST API surface. All paths in this spec are relative to `rest.endpoint`. This is a domain API contract — not a JSON Schema and not an OAP protocol schema. |
 | `rest.endpoint` | **Consumer-facing base URL.** Must be publicly reachable by the consumer — never an internal backend address or private service-mesh URL. All REST API paths are appended to this value. |
 
-The `rest.endpoint` value is the **consumer-facing base URL**. All REST API paths are appended to it. For example, if `rest.endpoint` is `https://app.agenthost.example/`, then the agents registry is at `https://app.agenthost.example/agents`.
+The `rest.endpoint` value is the **consumer-facing base URL**. All REST API paths are appended to it. For example, if `rest.endpoint` is `https://app.agenthost.example/`, then the services registry is at `https://app.agenthost.example/services`.
 
-> **`rest.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If a backend service URL already exists in your codebase (e.g. a BaaS endpoint), it is not the right value for `rest.endpoint` unless it is also the consumer-facing address. If the implementation sits behind a proxy or API gateway, `rest.endpoint` is the outermost address consumers hit.
-
-> **`rest.openapi` describes the consumer surface only.** All paths in the referenced OpenAPI spec are relative to `rest.endpoint` and must describe only the endpoints accessible at that public address. Internal or backend-private paths must not appear in the spec consumers read.
+> **`rest.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If the implementation sits behind a proxy or API gateway, `rest.endpoint` is the outermost address consumers hit.
 
 > **Multiple transports describe the same capability surface.** When both `rest` and `mcp` (or `a2a`) are declared, they each provide access to the same logical capabilities — they are alternative access methods, not separate operation sets. Consumers choose one transport; they do not infer separate capabilities from the presence of multiple transports.
 

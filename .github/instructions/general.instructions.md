@@ -292,8 +292,8 @@ This returns a JSON manifest describing the available services, capabilities, an
 |---|---|---|---|
 | `version` | string | yes | OAP spec version (semver: `"MAJOR.MINOR.PATCH"`) |
 | `tenants` | object | no | Multi-tenant manifest discovery. If present, the `tenants.manifest` field is an RFC 6570 URI template with a single `{tenantId}` variable. Consumers expand it to obtain a fully-resolved, self-contained tenant manifest. The root manifest must only declare capabilities it can fulfill directly — tenant-scoped capabilities (e.g. `io.oap.agents.commands`) are omitted from the root and appear only in the tenant manifest. |
-| `services` | object | yes | Service definitions with transport bindings. Each service has a `rest` block with two fields: `rest.openapi` (URL to the implementer's OpenAPI spec) and `rest.endpoint` (consumer-facing base URL). |
-| `capabilities` | array | yes | Supported capabilities. Each capability has a `schema` field pointing to a **JSON Schema** file for that capability's data structures. Note: `capability.schema` is a JSON Schema, not an OpenAPI spec. It is a different field from `rest.openapi`. |
+| `services` | object | yes | Service definitions with transport bindings. Each service has a `rest` block with one required field: `rest.endpoint` (consumer-facing base URL). |
+| `capabilities` | array | yes | Supported capabilities. Each capability has a `schema` field pointing to a **JSON Schema** file for that capability's data structures. Note: `capability.schema` is a JSON Schema file, not an OpenAPI spec. |
 | `agents` | array | no | Currently registered agents |
 
 ### Full Manifest Example
@@ -524,9 +524,9 @@ Each service declares how it can be reached. A consumer chooses the transport th
 
 ### REST — The Web UI Transport
 
-REST is the primary transport for **web-based consumers** including the OAP web UI. The full REST API is defined by the OpenAPI spec referenced in each service's `rest.openapi` URL.
+REST is the primary transport for **web-based consumers** including the OAP web UI. The REST API surface is fully described by the capability `endpoints` arrays in the discovery manifest. No separate OpenAPI document is required from implementers — the `rest.openapi` field has been removed.
 
-> **`rest.endpoint` is always the consumer-facing address** — never an internal backend or private service URL. `rest.openapi` describes only the consumer-facing operation surface; internal backend paths must not appear in the spec consumers read.
+> **`rest.endpoint` is always the consumer-facing address** — never an internal backend or private service URL. The `rest` transport block now contains only `endpoint`.
 
 > **Multiple transports, one surface.** When a service declares both `rest` and `mcp` (or `a2a`), all transports expose the same logical capabilities. They are alternative access methods, not separate operation sets.
 
@@ -557,7 +557,7 @@ This section defines the HTTP API that a **web UI** or any REST consumer uses to
 
 > **`rest.endpoint` is the consumer-facing base URL** for all paths below. It must be a public address reachable by external consumers — never an internal backend URL or private service-mesh address. If a backend URL already exists in your codebase, verify it is also the consumer-facing address before using it as `rest.endpoint`.
 
-> **Multi-tenant routing:** For SaaS platforms serving multiple tenants, prefix all tenant-scoped paths with `{tenantId}` (e.g. `/{tenantId}/services`, `/{tenantId}/commands`). Set `rest.endpoint` to the root consumer URL without a tenant segment. The `{tenantId}` path parameter must be declared in `rest.openapi`. Authentication (a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant to target.
+> **Multi-tenant routing:** For SaaS platforms serving multiple tenants, prefix all tenant-scoped paths with `{tenantId}` (e.g. `/{tenantId}/services`, `/{tenantId}/commands`). Set `rest.endpoint` to the root consumer URL without a tenant segment. Authentication (a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant to target.
 
 ### Discovery
 
@@ -1063,16 +1063,19 @@ OAP is NOT:
 
 - `rest.schema` renamed to `rest.openapi` throughout — the field in the `rest` transport block of a service is now `openapi`, not `schema`. The `schema` field still exists on **capability** objects (pointing to a JSON Schema file) — these are different fields. Do not confuse them.
 - Capability `status` field now supports `"partial"` in addition to `"active"` and `"planned"`. Use `"partial"` when a backing service exists but does not cover all required endpoints for a capability. A capability declared `"active"` must implement all required endpoints.
-- `rest.endpoint` must always be the **consumer-facing public URL** — never an internal backend or private service-mesh address. If a backend URL already exists in a codebase, verify it is also the consumer-facing address before using it as `rest.endpoint`.
-- `rest.openapi` must describe only the **consumer-facing API surface** — internal backend paths must not appear in the spec consumers read.
+- `rest.endpoint` must always be the **consumer-facing public URL** — never an internal backend or private service-mesh address.
 - Multiple transports (`rest`, `mcp`, `a2a`) on a service expose the **same capability surface** — they are alternative access methods, not separate operation sets.
-- Multi-tenant SaaS pattern: prefix all tenant-scoped paths with `{tenantId}` (e.g. `/{tenantId}/agents`). `rest.endpoint` stays as the root consumer URL. The `{tenantId}` path parameter is declared in `rest.openapi`. Bearer auth identifies the caller; `{tenantId}` identifies the tenant.
+- Multi-tenant SaaS pattern: prefix all tenant-scoped paths with `{tenantId}` (e.g. `/{tenantId}/agents`). `rest.endpoint` stays as the root consumer URL. Bearer auth identifies the caller; `{tenantId}` identifies the tenant.
 - Events capability: implementers may map domain-specific records (signals, logs, trade history) to the OAP event shape at query time. `POST /events` can be declared `"partial"` if no live event store exists.
 - `well-known-uap.json` example was an orphaned leftover from an earlier "UAP" working name — it has been deleted.
 - The website build injects `VITE_GIT_TAG` via Docker build args (set in `cicd.yaml` `docker-publish` step). The value comes from `git describe --tags --always`. Do not reintroduce `VITE_GIT_SHA` or `VITE_BUILD_TIME` for version display.
 - The website is built **inside Docker** (`Dockerfile`) not in the CI `build` job — env vars must be passed as `--build-arg` to `docker build`, which the Dockerfile then exposes as `ENV` before running `npm run build`.
 - **Canonical `tenants.manifest` URI shape:** `https://host/.well-known/oap/{tenantId}` — the `{tenantId}` segment trails the canonical `/.well-known/oap` path. Never use path-prefix patterns like `/api/oap/tenants/{tenantId}/.well-known/oap`.
 - **Playground two-step tenant discovery:** When the root manifest has no capabilities but includes a `tenants.manifest` template, the playground automatically shows a "Tenant ID" input strip. The user enters their tenant ID and clicks "Load Tenant"; the playground expands `{tenantId}` and re-fetches the manifest.
+
+**2026-04-24**
+
+- **`rest.openapi` removed** — the `rest` transport block on a service now contains only `rest.endpoint`. The field was a footgun: implementers naturally pointed it at their full application swagger, leaking internal non-OAP endpoints to any agent that followed the link. The REST API surface is fully described by the capability `endpoints` arrays in the manifest; no bespoke OpenAPI document adds protocol value beyond what is already there.
 
 ---
 
