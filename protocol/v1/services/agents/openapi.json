@@ -3,7 +3,7 @@
   "info": {
     "title": "OAP Agent Service",
     "description": "REST API for the io.oap.agents service â€” service registry, command ingestion, command discovery, event log, and service memory.",
-    "version": "0.4.5",
+    "version": "0.4.6",
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"
