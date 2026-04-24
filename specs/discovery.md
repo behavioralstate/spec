@@ -82,8 +82,7 @@ Services are top-level domains. Each service has its own version, spec URL, and 
 
 | Service | Namespace | Description |
 |---|---|---|
-| Agents | `io.oap.agents` | Service registry, command ingestion, event log |
-| Observability | `io.oap.observability` | Execution traces and audit trail |
+| Agents | `io.oap.agents` | Service registry, command ingestion, published events |
 
 ## Capabilities
 
@@ -96,7 +95,6 @@ Capabilities are composable building blocks within a service.
 | `io.oap.agents.events` | List and query domain events, event catalogue, event schema discovery | — |
 | `io.oap.agents.commands` | Discover available commands (catalogue), send commands (ingestion) | — |
 | `io.oap.agents.memory` | View service memory state | `agents.registry` |
-| `io.oap.observability.tracing` | Execution traces | — |
 
 Each capability object has these fields:
 

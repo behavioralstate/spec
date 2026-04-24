@@ -35,7 +35,7 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 
 ```
 Layer 4: OAP Agent Semantics
-         Agent, Event, Command, Execution Trace
+         Service, Event, Command
          Defined as JSON Schema
 
 Layer 3: Agent Coordination
@@ -55,18 +55,17 @@ Layer 1: Transport
 | **Service** | An OAP-compliant domain service that accepts commands and publishes events |
 | **Command** | An intent to change the system — sent to a service by any caller (Process Manager, UI, another service) |
 | **Event** | An immutable domain fact published by a service as the result of processing a command |
-| **Execution Trace** | Observable record of what happened (input, output, duration, success) |
 
 ## Protocol Scope
 
 ### What OAP Owns
 
-- Interaction primitives — Agent, Event, Command, Execution Trace
+- Interaction primitives — Service, Event, Command
 - Message shapes — JSON Schema definitions for every protocol message
 - Discovery mechanism — `/.well-known/oap` manifest structure
-- Service taxonomy — `io.oap.agents`, `io.oap.observability`
+- Service taxonomy — `io.oap.agents`
 - Capability model — composable capabilities with extensions
-- REST API surface — HTTP endpoints for agent management, event delivery, observability
+- REST API surface — HTTP endpoints for service management and event/command delivery
 - Transport bindings — how services map to REST, MCP, and A2A
 - Conformance requirements — what it means to be OAP-compliant
 
@@ -154,6 +153,6 @@ node scripts/validate-examples.mjs
 - [Agent Registry](./agents/registry.md) — How agents are registered and managed
 - [Events](./agents/events.md) — How events are published
 - [Commands](./agents/commands.md) — How commands are accepted
-- [Tracing](./observability/tracing.md) — How execution is traced
+- [Design Decisions](./design-decisions.md) — Why OAP is shaped the way it is
 - [Transports](./transports/rest.md) — REST, MCP, and A2A bindings
 - [Conformance](./conformance.md) — What it means to be OAP-compliant

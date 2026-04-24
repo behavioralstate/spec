@@ -73,7 +73,7 @@ Returns `404` if not found.
 
 ### POST /events (optional)
 
-Allows injecting a domain event directly into the event log. Intended for testing and simulation only. Implementations that do not support this **must** declare the `events` capability with `status: "partial"` in the manifest.
+Allows injecting a domain event directly into the published event feed. Intended for testing and simulation only. Implementations that do not support this **must** declare the `events` capability with `status: "partial"` in the manifest.
 
 Response: `202 Accepted`.
 

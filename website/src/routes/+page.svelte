@@ -35,11 +35,7 @@
 				title="Command Catalogue"
 				description="GET /commands returns all available command types and their schema URIs — discoverable at runtime by any caller."
 			/>
-			<FeatureCard
-				icon="🔍"
-				title="Execution Traces"
-				description="Full observability: what command went in, what events came out, how long it took."
-			/>
+			
 			<FeatureCard
 				icon="🌐"
 				title="Discovery"
@@ -68,7 +64,7 @@
     "services": {
       "io.oap.agents": {
         "version": "2026-04-10",
-        "description": "Service registry, command ingestion, event log",
+        "description": "Service registry, command ingestion, published events",
         "rest": {
           "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://api.example.com/"
@@ -106,7 +102,7 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 			<div class="audience-card">
 				<h3>For Developers</h3>
-				<p>Build CQRS + Event Sourcing services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement OAP.</p>
+				<p>Build command-and-event services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement OAP.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For Businesses</h3>

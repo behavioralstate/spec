@@ -23,7 +23,6 @@ For each capability an endpoint claims to support:
 | `agents.events` | GET /events |
 | `agents.commands` | GET /commands, POST /commands |
 | `agents.memory` | GET /services/{id}/memory |
-| `observability.tracing` | GET /traces, GET /traces/{traceId} |
 
 > **Path resolution:** All paths above are relative to the `rest.endpoint` base URL declared in the discovery manifest. For example, if `rest.endpoint` is `https://app.example.com/oap/`, then `GET /services` resolves to `https://app.example.com/oap/services`. The paths are never relative to the domain root unless `rest.endpoint` itself is the domain root.
 
@@ -45,7 +44,7 @@ All OAP REST endpoints must use standard HTTP status codes. The following are re
 | 204 | Success with no body (pause, resume, delete) |
 | 400 | Invalid request body (schema validation failure) |
 | 401 | Authentication required or credentials invalid (only when `authentication.type` is not `none`) |
-| 404 | Resource not found (agent, trace) |
+| 404 | Resource not found |
 | 409 | Conflict (agent already registered) |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |

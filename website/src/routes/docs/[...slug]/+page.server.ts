@@ -135,7 +135,6 @@ function classifyBlockquotes(html: string): string {
 function buildBreadcrumb(slug: string): { label: string }[] {
 	const sectionLabels: Record<string, string> = {
 		agents: 'Agents',
-		observability: 'Observability',
 		transports: 'Transports'
 	};
 	const parts = slug.split('/');

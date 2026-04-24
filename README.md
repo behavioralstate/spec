@@ -1,8 +1,8 @@
 # OAP — Open Agent Protocol
 
-CQRS and Event Sourcing give you a clean, scalable architecture. But there is no common way to discover what commands a service accepts, what events it produces, or how to interact with it — without reading bespoke documentation or source code.
+CQRS separates write (commands) and read (events) — but there is no common way to discover what commands a service accepts, what events it produces, or how to interact with it, without reading bespoke documentation or source code.
 
-OAP is a specification for service interoperability — how domain services expose their command ingestion surface and event log, how callers (AI agents, Process Managers, UIs, other services) discover and interact with them, and how execution is observed — across any runtime, platform, language, or transport.
+OAP is a specification for service interoperability — how domain services expose their command ingestion surface and published events, how callers (AI agents, Process Managers, UIs, other services) discover and interact with them — across any runtime, platform, language, or transport.
 
 OAP doesn't care how a service works internally. It only cares about the interaction surface: what commands go in, what events come out, and how to discover the service.
 
@@ -26,7 +26,7 @@ If you are new to OAP, start with the [Overview](specs/overview.md) for the prot
 | [Memory](specs/agents/memory.md) | [v0.3.15](https://github.com/openagentprotocol/spec/blob/v0.3.15/specs/agents/memory.md) | [WIP](specs/agents/memory.md) |
 | | | |
 | **Observability:** | | |
-| [Tracing](specs/observability/tracing.md) | [v0.3.15](https://github.com/openagentprotocol/spec/blob/v0.3.15/specs/observability/tracing.md) | [WIP](specs/observability/tracing.md) |
+| ~~Tracing~~ | *(removed — see changelog)* | — |
 | | | |
 | **Transport Bindings:** | | |
 | [REST](specs/transports/rest.md) | [v0.3.15](https://github.com/openagentprotocol/spec/blob/v0.3.15/specs/transports/rest.md) | [WIP](specs/transports/rest.md) |

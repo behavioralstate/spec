@@ -1,6 +1,6 @@
 # OAP — Open Agent Protocol
 
-**OAP (Open Agent Protocol)** is an open protocol that makes **CQRS + Event Sourcing patterns discoverable and interoperable** — ready to be consumed by any caller, including AI agents.
+**OAP (Open Agent Protocol)** is an open protocol that makes **command-and-event service patterns discoverable and interoperable** — ready to be consumed by any caller, including AI agents.
 
 Any runtime, platform, language, or UI can implement OAP independently. OAP describes the **interaction surface** of a domain service: what commands it accepts, what events it publishes, and how to discover it. It says nothing about what is behind it.
 
@@ -32,7 +32,6 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 - **Service** — an OAP-compliant domain service that accepts commands and publishes events
 - **Command** — an intent to change the system, sent to a service (CloudEvent wire format)
 - **Event** — an immutable domain fact published by a service as the result of processing a command (CloudEvent wire format)
-- **Execution Trace** — observable record of *what* happened (input, output, duration, success)
 - **Discovery** — `/.well-known/oap` manifest
 - **Capabilities** — what a service supports
 
@@ -40,8 +39,6 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 
 - Internal service architecture — how a service processes commands (rules, ML pipelines, human workflows, CQRS+ES, etc.)
 - Internal memory model — how a service stores state
-- Internal policies — how a service validates or arbitrates commands
-- Internal tracing annotations — how a service records step-level detail
 - Whether a caller is an AI agent, a Process Manager, a UI, or another service
 
 A developer working on the **OAP web UI** or any other OAP consumer should only need this document and the JSON Schema files. They should never need to read any specific runtime's source code.
@@ -88,12 +85,12 @@ OAP follows the same philosophy for the agent domain.
 
 ### What OAP Owns
 
-- **Interaction primitives** — Agent, Event, Command, Execution Trace
+- **Interaction primitives** — Service, Event, Command
 - **Message shapes** — JSON Schema definitions for every protocol message
 - **Discovery mechanism** — `/.well-known/oap` manifest structure
-- **Service taxonomy** — `io.oap.agents`, `io.oap.observability`
+- **Service taxonomy** — `io.oap.agents`
 - **Capability model** — composable capabilities with extensions
-- **REST API surface** — HTTP endpoints for agent management, event delivery, observability
+- **REST API surface** — HTTP endpoints for service management and event/command delivery
 - **Transport bindings** — how services map to REST, MCP, and A2A
 - **Conformance requirements** — what it means to be OAP-compliant
 
@@ -114,7 +111,7 @@ OAP follows the same philosophy for the agent domain.
 
 ```
 Layer 4: OAP Agent Semantics (what the protocol uniquely defines)
-         - Agent, Event, Command, Execution Trace
+         - Service, Event, Command
          - Defined as JSON Schema
          - The canonical spec that all bindings derive from
 
@@ -249,83 +246,6 @@ A **command** is an intent to change the system. It is sent **to** an OAP-compli
 }
 ```
 
-### Execution Trace
-
-An **execution trace** is the observable record of what happened when a service processed a command. It captures the **input, output, timing, and outcome** — but NOT how the service worked internally.
-
-| Field | Type | Required | Description |
-|---|---|---| ---|
-| `traceId` | string | yes | Unique trace identifier |
-| `serviceId` | string | yes | Which service processed the command |
-| `inputCommand` | Command | yes | The command that was processed |
-| `outputEvents` | Event[] | yes | Events the service published (may be empty) |
-| `outputEvents` | Event[] | yes | Events the service published (may be empty) |
-| `startedAt` | datetime | yes | ISO 8601 timestamp |
-| `completedAt` | datetime | yes | ISO 8601 timestamp |
-| `duration` | duration | yes | ISO 8601 duration |
-| `succeeded` | boolean | yes | Whether processing completed without error |
-| `error` | string | no | Error message if failed |
-| `steps` | TraceStep[] | no | Optional named steps (implementation-specific detail) |
-
-The `steps` field is the **extension point** for implementations. Any runtime can include implementation-specific execution detail here. A simple webhook service can omit it entirely. The protocol does not prescribe the structure of steps — they are opaque.
-
-#### TraceStep (optional, implementation-specific)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | yes | Step name (e.g. `"salary-reasoning"`, `"validate-input"`) |
-| `duration` | duration | no | How long this step took |
-| `succeeded` | boolean | no | Whether this step succeeded |
-| `detail` | object | no | Opaque, implementation-specific detail |
-
-**Example — full execution trace:**
-
-```json
-{
-  "traceId": "trace-001",
-  "serviceId": "negotiation",
-  "inputCommand": {
-    "specversion": "1.0",
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "source": "https://pm.example.com/negotiation-agent",
-    "type": "ProposeCounter",
-    "datacontenttype": "application/json",
-    "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
-    "time": "2025-07-01T10:30:00Z",
-    "data": { "salary": 100000 }
-  },
-  "outputEvents": [
-    {
-      "specversion": "1.0",
-      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-      "source": "https://api.example.com/negotiation",
-      "type": "CounterProposed",
-      "datacontenttype": "application/json",
-      "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
-      "time": "2025-07-01T10:30:01Z",
-      "data": { "salary": 100000, "contractId": "contract-42" }
-    }
-  ],
-  "startedAt": "2025-07-01T10:30:00Z",
-  "completedAt": "2025-07-01T10:30:01.234Z",
-  "duration": "PT1.234S",
-  "succeeded": true,
-  "steps": [
-    {
-      "name": "salary-reasoning",
-      "duration": "PT0.800S",
-      "succeeded": true,
-      "detail": { "note": "Proposed salary is 12% below market median" }
-    },
-    {
-      "name": "start-date-validation",
-      "duration": "PT0.050S",
-      "succeeded": true
-    }
-  ]
-}
-```
-
 ---
 
 ## Discovery — `/.well-known/oap`
@@ -403,15 +323,6 @@ This returns a JSON manifest describing the available services, capabilities, an
             "docs": "https://docs.example.com/authentication"
           }
         }
-      },
-      "io.oap.observability": {
-        "version": "2025-07-01",
-        "description": "Execution traces and audit trail",
-        "spec": "https://openagentprotocol.io/specs/observability",
-        "rest": {
-          "openapi": "https://openagentprotocol.io/services/observability/openapi.json",
-          "endpoint": "https://your.compliant.oap.endpoint/"
-        }
       }
     },
     "capabilities": [
@@ -478,18 +389,6 @@ This returns a JSON manifest describing the available services, capabilities, an
         "endpoints": [
           { "method": "GET", "path": "/services/{id}/memory", "description": "View service memory state" }
         ]
-      },
-      {
-        "name": "io.oap.observability.tracing",
-        "version": "2025-07-01",
-        "service": "io.oap.observability",
-        "description": "Execution traces — what happened when an agent processed an event",
-        "spec": "https://openagentprotocol.io/specs/observability/tracing",
-        "schema": "https://openagentprotocol.io/schemas/observability/tracing.json",
-        "endpoints": [
-          { "method": "GET", "path": "/traces",            "description": "List execution traces" },
-          { "method": "GET", "path": "/traces/{traceId}", "description": "Get a specific execution trace" }
-        ]
       }
     ],
     "agents": [
@@ -532,16 +431,6 @@ The core agent service — agent management, event delivery, command observation
 | Description | Agent management, event delivery, command observation |
 | Spec | `https://openagentprotocol.io/specs/agents` |
 
-### io.oap.observability
-
-Execution traces and audit trail.
-
-| Field | Value |
-|---|---|
-| Namespace | `io.oap.observability` |
-| Description | Execution traces and audit trail |
-| Spec | `https://openagentprotocol.io/specs/observability` |
-
 ---
 
 ## Capabilities
@@ -569,7 +458,6 @@ Capabilities are the building blocks of OAP. They define specific actions within
 | `io.oap.agents.registry` | Register, remove, list, get agents |
 | `io.oap.agents.events` | Send events to agents, list recent events |
 | `io.oap.agents.commands` | Discover command types this service accepts and send commands |
-| `io.oap.observability.tracing` | Execution traces — what happened when an agent processed an event |
 
 ### Extension Capabilities
 
@@ -585,7 +473,7 @@ Capabilities are the building blocks of OAP. They define specific actions within
 | `io.oap.agents.planning` | `agents.events` | Goal reasoning, plan generation, plan revision |
 | `io.oap.agents.tools` | `agents.registry` | Tool registry, discovery, and invocation |
 
-An OAP endpoint **selectively exposes** only the capabilities it supports. A minimal deployment might only support `agents.registry` and `agents.events`. A full deployment adds lifecycle, memory, tracing, planning, and tools. Consumers discover what's available by reading the manifest.
+An OAP endpoint **selectively exposes** only the capabilities it supports. A minimal deployment might only support `agents.registry` and `agents.events`. A full deployment adds lifecycle, memory, planning, and tools. Consumers discover what's available by reading the manifest.
 
 ### Implementation-Specific Capabilities
 
@@ -658,9 +546,8 @@ Agents can expose themselves as **A2A agents** (Google Agent-to-Agent protocol) 
 | A2A Concept | OAP Mapping |
 |---|---|
 | **Agent Card** | Agent descriptor |
-| **Task** | An execution trace (agent processed an event) |
+| **Task** | A command being processed |
 | **Message** | Event or Command |
-| **Artifact** | Execution Trace |
 
 ---
 
@@ -804,19 +691,6 @@ Returns the JSON Schema document for a specific command type and version. This i
 
 The memory response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats. A key-value runtime returns a JSON object. The web UI renders it as raw JSON.
 
-### Execution Traces (`io.oap.observability.tracing`)
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/traces` | List recent execution traces (with optional `?serviceId=` filter) |
-| GET | `/traces/{traceId}` | Get a specific execution trace |
-| GET | `/services/{id}/traces` | Convenience: list traces for a specific service |
-| GET | `/services/{id}/traces/latest` | Convenience: get the latest trace for a service |
-
-#### GET /traces/{traceId} — Trace detail
-
-Response: an Execution Trace object (see Core Protocol Primitives above).
-
 ---
 
 ## Error Responses
@@ -840,7 +714,7 @@ All OAP REST endpoints use standard HTTP status codes with a consistent error bo
 | 202 | Accepted (async processing, e.g. event injection) |
 | 204 | Success with no body (pause, resume, delete) |
 | 400 | Invalid request body (schema validation failure) |
-| 404 | Resource not found (service, trace) |
+| 404 | Resource not found (service) |
 | 409 | Conflict (service already registered) |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |
@@ -911,7 +785,6 @@ All OAP identifiers use reverse domain notation: `io.oap.{service}.{capability}`
 Examples:
 - `io.oap.agents.registry`
 - `io.oap.agents.events`
-- `io.oap.observability.tracing`
 
 Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).
 
@@ -941,7 +814,6 @@ For each capability an endpoint claims to support:
 | `agents.events` | GET /events, POST /events |
 | `agents.commands` | GET /commands, POST /commands, GET /commands/{schema}/{version} |
 | `agents.memory` | GET /services/{id}/memory |
-| `observability.tracing` | GET /traces, GET /traces/{traceId} |
 
 ### What Compliance Does NOT Require
 
@@ -968,9 +840,8 @@ A runtime exposes OAP core capabilities plus its own extensions:
     "capabilities": [
       { "name": "io.oap.agents.registry", "version": "2025-07-01", "..." : "..." },
       { "name": "io.oap.agents.events", "version": "2025-07-01", "..." : "..." },
-      { "name": "io.oap.observability.tracing", "version": "2025-07-01", "..." : "..." },
 
-      { "name": "com.example.custom-processing", "version": "2025-07-01",
+      { "name": "com.example.custom-processing","version": "2025-07-01",
         "description": "Custom agent processing pipeline management",
         "spec": "https://example.com/specs/custom-processing",
         "schema": "https://example.com/schemas/custom-processing.json",
@@ -1006,8 +877,6 @@ All schemas live in `protocol/v1/` relative to the repository root.
 | `agent-descriptor.schema.json` | Agent descriptor (id, name, accepts, produces, status) |
 | `event.schema.json` | Event (type, data, metadata) |
 | `command.schema.json` | Command (type, data, metadata) |
-| `execution-trace.schema.json` | Execution Trace (traceId, agentId, input, output, duration, steps) |
-| `trace-step.schema.json` | Trace Step (name, duration, succeeded, detail) |
 
 ### Discovery and Capabilities
 
@@ -1022,7 +891,6 @@ All schemas live in `protocol/v1/` relative to the repository root.
 | File | Defines |
 |---|---|
 | `openapi/agents.openapi.json` | OpenAPI 3.1 spec for the agents service REST API |
-| `openapi/observability.openapi.json` | OpenAPI 3.1 spec for the observability service REST API |
 | `error.schema.json` | Standard OAP error response format |
 
 ---
@@ -1042,9 +910,7 @@ Tasks:
 1. Create `agent-descriptor.schema.json`
 2. Create `event.schema.json`
 3. Create `command.schema.json`
-4. Create `execution-trace.schema.json`
-5. Create `trace-step.schema.json`
-6. Create `error.schema.json`
+4. Create `error.schema.json`
 
 **Validation:** Each schema must be valid JSON Schema Draft 2020-12.
 
@@ -1069,8 +935,6 @@ Tasks:
 Tasks:
 
 1. Create `agents.openapi.json` — all endpoints for agent registry, lifecycle, events, commands, memory
-2. Create `observability.openapi.json` — all endpoints for tracing
-3. Ensure all request/response bodies reference the schemas from Phase 0A/0B
 
 **Validation:** Use an OpenAPI linter (e.g. Spectral) to verify spec correctness.
 
@@ -1126,7 +990,6 @@ An OAP web UI is a **REST consumer** that:
 | Event stream viewer | `agents.events` | GET /events |
 | Command log | `agents.commands` | GET /commands |
 | Memory inspector | `agents.memory` | GET /agents/{id}/memory |
-| Execution trace viewer | `observability.tracing` | GET /traces, GET /traces/{traceId} |
 
 ### Capability-Adaptive UI Pattern
 
@@ -1431,15 +1294,20 @@ Added a "Quick Start for Implementers" section with 3 steps:
 
 Includes a `> **Tip:**` callout demonstrating the auto-classified blockquote system.
 
+### `specs/design-decisions.md`
+
+A design decisions page at `/docs/design-decisions` covering:
+- **Command result retrieval** — why `POST /commands` returns 201 (not a sync result); the CQRS write/read side separation; why Event Sourcing is an internal server pattern and clients do NOT get ES semantics from `GET /events` (which returns a server snapshot, not a replayable log); the correlation pattern (`GET /events?correlationId={id}`); polling vs push (webhook/MCP/A2A) and why push is the reliable path; and timeout/silent failure guidance
+- **Observability and distributed tracing** — why OAP has no built-in trace capability, how to use OpenTelemetry + W3C TraceContext for distributed tracing across OAP boundaries, the CloudEvents `traceparent` extension for propagating trace context on events, and a summary table of what OAP owns vs what OpenTelemetry owns
+
 ### Sidebar nav groups
 
 | Group | Items |
 |---|---|
 | Getting Started | Overview, Discovery |
 | Agents | Registry, Lifecycle, Events, Commands, Memory |
-| Observability | Tracing |
 | Transports | REST, MCP, A2A |
-| Reference | Versioning, Conformance |
+| Reference | Versioning, Conformance, Design Decisions |
 | Comparisons | OAP vs UCP |
 
 ---

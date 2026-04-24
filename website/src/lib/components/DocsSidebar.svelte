@@ -24,10 +24,6 @@
 			]
 		},
 		{
-			label: 'Observability',
-			items: [{ label: 'Tracing', href: '/docs/observability/tracing' }]
-		},
-		{
 			label: 'Transports',
 			items: [
 				{ label: 'REST', href: '/docs/transports/rest' },
@@ -39,7 +35,8 @@
 			label: 'Reference',
 			items: [
 				{ label: 'Versioning', href: '/docs/versioning' },
-				{ label: 'Conformance', href: '/docs/conformance' }
+				{ label: 'Conformance', href: '/docs/conformance' },
+				{ label: 'Design Decisions', href: '/docs/design-decisions' }
 			]
 		},
 		{

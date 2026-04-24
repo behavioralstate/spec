@@ -247,7 +247,7 @@ All phases below have been implemented. This section serves as a record of what 
 1. **`agents/registry.json`** — renamed `agentDescriptor/agentRegistration/agentList` → `serviceDescriptor/serviceRegistration/serviceList`; `accepts` = commands ingested, `produces` = events published
 2. **`agents/commands.json`** — replaced custom shape with CloudEvent 1.0; replaced `commandList` with `commandCatalogue` (entries: `{schema, version, dataschema, description}`); `command` and `event` defs now `$ref` the shared `cloudEvent.json` envelope
 3. **`agents/events.json`** — replaced custom shape with CloudEvent 1.0
-4. **`observability/tracing.json`** — `agentId/inputEvent/outputCommands` → `serviceId/inputCommand/outputEvents`
+4. **`observability/tracing.json`** — *(removed in subsequent refactor — tracing is not a protocol primitive)*
 
 ### Phase 2 — OpenAPI (`protocol/v1/services/agents/openapi.json`)
 
@@ -260,13 +260,13 @@ All phases below have been implemented. This section serves as a record of what 
 ### Phase 3 — Examples (`protocol/v1/examples/`)
 
 10. `agent-descriptor.json` renamed → `service-descriptor.json`
-11. `command.json`, `event.json`, `execution-trace.json` rewritten to CloudEvent format
+11. `command.json`, `event.json` rewritten to CloudEvent format
 12. `well-known-oap.json` — `agents` array → `services`, descriptor fields corrected
 
 ### Phase 4 — Spec docs (`specs/`)
 
 13. `agents/registry.md`, `agents/commands.md`, `agents/events.md`, `agents/lifecycle.md`, `agents/memory.md` — all updated
-14. `overview.md`, `discovery.md`, `conformance.md`, `observability/tracing.md` — updated
+14. `overview.md`, `discovery.md`, `conformance.md` — updated
 
 ### Phase 5 — Instructions (`general.instructions.md`)
 

@@ -7,9 +7,8 @@ A2A (Google Agent-to-Agent) enables multi-agent coordination. Agents can expose 
 | A2A Concept | OAP Mapping |
 |---|---|
 | **Agent Card** | Agent descriptor |
-| **Task** | An execution trace (agent processed an event) |
+| **Task** | A command being processed |
 | **Message** | Event or Command |
-| **Artifact** | Execution Trace |
 
 ## Transport Configuration
 

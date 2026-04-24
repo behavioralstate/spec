@@ -16,7 +16,6 @@ All OAP identifiers use reverse domain notation: `io.oap.{service}.{capability}`
 Examples:
 - `io.oap.agents.registry`
 - `io.oap.agents.events`
-- `io.oap.observability.tracing`
 
 Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).
 

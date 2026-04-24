@@ -24,7 +24,7 @@
 			Agent Interoperability.<br /><span class="hero-title-muted">By Design.</span>
 		</h1>
 		<p class="hero-subtitle">
-			The open standard for exposing CQRS + Event Sourcing services — making commands and events discoverable by any caller, including AI agents.
+			The open standard for service interoperability — any service that accepts commands and publishes events, discoverable by any caller, on any transport.
 		</p>
 		<div class="hero-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>

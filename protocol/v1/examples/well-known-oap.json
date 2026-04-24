@@ -29,15 +29,6 @@
             "docs": "https://docs.example.com/authentication"
           }
         }
-      },
-      "io.oap.observability": {
-        "version": "2026-04-10",
-        "description": "Execution traces and audit trail",
-        "spec": "https://openagentprotocol.io/specs/observability",
-        "rest": {
-          "openapi": "https://openagentprotocol.io/v1/services/observability/openapi.json",
-          "endpoint": "https://your.compliant.oap.endpoint/"
-        }
       }
     },
     "capabilities": [
@@ -103,18 +94,6 @@
         "extends": "io.oap.agents.registry",
         "endpoints": [
           { "method": "GET", "path": "/services/{id}/memory", "description": "View service memory state" }
-        ]
-      },
-      {
-        "name": "io.oap.observability.tracing",
-        "version": "2026-04-10",
-        "service": "io.oap.observability",
-        "description": "Execution traces — what happened when an agent processed an event",
-        "spec": "https://openagentprotocol.io/specs/observability/tracing",
-        "schema": "https://openagentprotocol.io/v1/schemas/observability/tracing.json",
-        "endpoints": [
-          { "method": "GET", "path": "/traces",            "description": "List execution traces" },
-          { "method": "GET", "path": "/traces/{traceId}", "description": "Get a specific execution trace" }
         ]
       }
     ],

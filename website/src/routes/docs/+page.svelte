@@ -85,13 +85,6 @@
 		</section>
 
 		<section class="index-group">
-			<h2>Observability</h2>
-			<ul>
-				<li><a href="/docs/observability/tracing">Tracing</a><span>Execution traces and audit trail</span></li>
-			</ul>
-		</section>
-
-		<section class="index-group">
 			<h2>Transports</h2>
 			<ul>
 				<li><a href="/docs/transports/rest">REST</a><span>HTTP/JSON API reference</span></li>
@@ -105,6 +98,7 @@
 			<ul>
 				<li><a href="/docs/versioning">Versioning</a><span>How versions work</span></li>
 				<li><a href="/docs/conformance">Conformance</a><span>What it means to be OAP-compliant</span></li>
+				<li><a href="/docs/design-decisions">Design Decisions</a><span>Why OAP is shaped the way it is</span></li>
 			</ul>
 		</section>
 

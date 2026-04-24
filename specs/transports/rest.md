@@ -93,4 +93,3 @@ All endpoints use standard HTTP status codes with a consistent error body:
 ## OpenAPI Specs
 
 - [Agent Service OpenAPI](../../protocol/v1/services/agents/openapi.json)
-- [Observability Service OpenAPI](../../protocol/v1/services/observability/openapi.json)
