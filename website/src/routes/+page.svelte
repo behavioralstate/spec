@@ -24,8 +24,8 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			<FeatureCard
 				icon="🌐"
-				title="Discovery"
-				description="/.well-known/oap — any consumer hits one URL and learns everything."
+				title="Agent Discoverable by Default"
+				description="Expose /.well-known/oap and your service becomes automatically discoverable and usable by any AI agent — no custom integration, no bespoke connector, no docs to read."
 			/>
 			<FeatureCard
 				icon="⚡"
@@ -45,7 +45,7 @@
 			<FeatureCard
 				icon="🌡️"
 				title="IoT & Edge"
-				description="A fridge, a sensor, a smart building controller. An OAP edge gateway exposes any connected device as a discoverable service — any agent commands it, any caller reads its events."
+				description="A fridge, a sensor, a smart building controller. Expose any connected device as an OAP service — commands and events over standard HTTP, however the hardware is wired up underneath."
 			/>
 			<FeatureCard
 				icon="🤝"

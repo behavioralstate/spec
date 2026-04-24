@@ -24,7 +24,7 @@
 			Agent Interoperability.<br /><span class="hero-title-muted">By Design.</span>
 		</h1>
 		<p class="hero-subtitle">
-			The open standard for service interoperability — any service that accepts commands and publishes events, discoverable by any caller, on any transport.
+			Expose a manifest. Any AI agent discovers your service, reads what commands it accepts and what events it produces, and starts interacting — no custom integration required.
 		</p>
 		<div class="hero-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>
