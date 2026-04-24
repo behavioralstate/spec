@@ -6,6 +6,8 @@ Commands are **intents to change** a domain service. They are sent **to** the se
 
 Commands use the **CloudEvent 1.0 specification** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition. The `data` property is validated by the ingestion API against the JSON Schema at the `dataschema` URI before the command is queued.
 
+> **Warning:** Servers MUST NOT dereference the caller-supplied `dataschema` URI. The schema for validation must be selected from the server's own catalogue. A caller-controlled `dataschema` pointing to an internal URL is an SSRF vector. See [Security Considerations](/docs/security#command-ingestion-dataschema-validation).
+
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `specversion` | string | yes | Always `"1.0"` |
@@ -93,9 +95,12 @@ Single entry point for all commands. The `type` field on the CloudEvent determin
 
 Processing steps:
 1. Validate required CloudEvent attributes are present
-2. Dereference `dataschema` URI and validate `data` against the schema
-3. If valid: queue the command and return `201`
-4. If invalid: return `400` with error detail
+2. Look up the schema for this command type from the **server's own catalogue** — do not fetch the `dataschema` URI from the request
+3. Validate `data` against the catalogue schema
+4. If valid: queue the command and return `201`
+5. If invalid: return `400` with error detail
+
+> **Security:** The CloudEvent `id` field **MUST** be treated as an idempotency key. Servers MUST detect and reject duplicate command submissions (same `id` + authenticated source) within a defined retention window. A duplicate with a different payload **MUST** return `409`. See [Security Considerations](/docs/security#command-replay-protection).
 
 Response: `201 Created` — the command has been accepted and queued.
 

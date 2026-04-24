@@ -4,6 +4,24 @@
   "title": "OAP Service Registry",
   "description": "Schema for service descriptors and the service registry capability (io.oap.agents.registry).",
   "$defs": {
+    "webhook": {
+      "type": "object",
+      "description": "Callback configuration for push event delivery over REST.",
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS endpoint to receive events as CloudEvents (HTTP binding)."
+        },
+        "secret": {
+          "type": "string",
+          "writeOnly": true,
+          "description": "HMAC secret for payload signing. Write-only — accepted on registration, never returned in read responses."
+        }
+      },
+      "additionalProperties": false
+    },
     "serviceDescriptor": {
       "type": "object",
       "description": "The identity card for an OAP-compliant service — what it does, what commands it accepts, what events it produces.",
@@ -39,6 +57,9 @@
           "type": "string",
           "enum": ["running", "paused", "stopped", "error"],
           "description": "Current service status."
+        },
+        "webhook": {
+          "$ref": "#/$defs/webhook"
         }
       },
       "additionalProperties": false
@@ -73,6 +94,9 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Event types this service produces."
+        },
+        "webhook": {
+          "$ref": "#/$defs/webhook"
         }
       },
       "additionalProperties": false

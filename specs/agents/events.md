@@ -73,7 +73,11 @@ Returns `404` if not found.
 
 ### POST /events (optional)
 
-Allows injecting a domain event directly into the published event feed. Intended for testing and simulation only. Implementations that do not support this **must** declare the `events` capability with `status: "partial"` in the manifest.
+Allows injecting a domain event directly into the published event feed. Intended for testing and simulation only.
+
+> **Security:** `POST /events` **MUST** be disabled by default and **MUST NOT** be enabled in production without explicit operator configuration. If implemented, it **MUST** require a distinct administrative scope — general client credentials are not sufficient. Injected events **SHOULD** be marked as synthetic and isolatable from production streams. See [Security Considerations](/docs/security#event-injection-post-events).
+
+Implementations that do not support this **must** declare the `events` capability with `status: "partial"` in the manifest.
 
 Response: `202 Accepted`.
 
