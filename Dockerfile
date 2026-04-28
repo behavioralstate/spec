@@ -4,6 +4,7 @@ FROM node:20-alpine AS build
 WORKDIR /repo/website
 
 # Copy the full repo (specs + protocol needed at build time)
+COPY version.json /repo/version.json
 COPY specs/ /repo/specs/
 COPY protocol/ /repo/protocol/
 COPY website/ /repo/website/
