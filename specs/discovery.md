@@ -57,10 +57,9 @@ If an endpoint requires authentication, it declares this in the `authentication`
 
 ```json
 "authentication": {
-  "type": "bearer",
-  "scheme": "Bearer",
-  "scopes": ["oap:read", "oap:write"],
-  "tokenUrl": "https://auth.example.com/oauth2/token",
+  "type": "apiKey",
+  "scheme": "X-Api-Key",
+  "in": "header",
   "docs": "https://docs.example.com/authentication"
 }
 ```
