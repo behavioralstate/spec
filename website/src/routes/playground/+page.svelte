@@ -340,7 +340,9 @@
 					spellcheck="false"
 				/>
 				{#if auth.docs}
-					<a class="auth-docs-link" href={auth.docs} target="_blank" rel="noopener">How to get a key ↗</a>
+					<a class="auth-docs-link" href={auth.docs} target="_blank" rel="noopener">
+						{auth.type === 'bearer' || auth.type === 'oauth2' ? 'How to get a token' : 'How to get a key'} ↗
+					</a>
 				{/if}
 				{#if !credential}
 					<span class="auth-warning">Requests will return 401 until a credential is provided.</span>
