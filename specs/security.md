@@ -22,13 +22,14 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 
 ## Command Ingestion — `dataschema` Validation
 
-> **Warning:** Servers MUST NOT dereference arbitrary caller-supplied `dataschema` URIs.
+The `dataschema` field in an inbound command is informational metadata — it documents which schema the client used when constructing the payload. It is not an instruction to the server. Servers select the validation schema using the `type` field, by looking up the command type in their own catalogue.
 
-The `dataschema` field in an inbound command envelope is caller-controlled. If a server fetches this URI to retrieve the JSON Schema for validation, a caller can direct the server to internal endpoints, cloud metadata services (`http://169.254.169.254`), or any internal host — a Server-Side Request Forgery (SSRF) attack.
+A server that fetches the caller-supplied `dataschema` URI to perform validation is architecturally incorrect: the server owns its schema catalogue and does not need the client to point it to a schema. It is also a security risk: a caller can supply an internal URI — a cloud metadata service (`http://169.254.169.254`), an internal database, or a private host — and the server becomes an unwitting proxy. This is a Server-Side Request Forgery (SSRF) attack.
 
 **Requirements:**
-- The schema used to validate `data` **MUST** be selected from a server-maintained catalogue, not from the caller-supplied `dataschema` URI.
-- Servers **SHOULD** verify that `dataschema` matches a known entry in `GET /commands` and reject commands whose `dataschema` does not resolve to a server-owned schema.
+- Servers **MUST** select the schema for validation from their own catalogue, keyed by the command `type` field.
+- Servers **MUST NOT** fetch the caller-supplied `dataschema` URI for any purpose.
+- Servers **SHOULD** verify that `dataschema` matches a known entry in `GET /commands` and reject commands whose `dataschema` does not match a server-owned catalogue URI.
 - If a server does support fetching remote schemas (for example, for cross-service federation), it **MUST** restrict URI schemes to HTTPS, apply a strict allowlist, disable redirects, and enforce fetch size, depth, and timeout limits.
 
 ## Command Replay Protection

@@ -106,10 +106,10 @@ Return a JSON manifest describing your agent:
 GET /.well-known/oap
 {
   "oap": {
-    "version": "0.4.0",
+    "version": "{{OAP_VERSION}}",
     "services": {
       "io.oap.agents": {
-        "version": "0.4.0",
+        "version": "{{OAP_VERSION}}",
         "rest": {
           "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://your-service.example.com/"
@@ -117,9 +117,9 @@ GET /.well-known/oap
       }
     },
     "capabilities": [
-      { "name": "io.oap.agents.registry", "version": "0.4.0" },
-      { "name": "io.oap.agents.events",   "version": "0.4.0" },
-      { "name": "io.oap.agents.commands", "version": "0.4.0" }
+      { "name": "io.oap.agents.registry", "version": "{{OAP_VERSION}}" },
+      { "name": "io.oap.agents.events",   "version": "{{OAP_VERSION}}" },
+      { "name": "io.oap.agents.commands", "version": "{{OAP_VERSION}}" }
     ]
   }
 }

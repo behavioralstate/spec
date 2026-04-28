@@ -730,14 +730,29 @@ OAP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](ht
 - Each service definition — `services["io.oap.*"].version`
 - Each capability definition — `capabilities[*].version`
 
-The version string is a **single source of truth that lives in the files themselves**. There is no separate config file or environment variable. When a release is cut, `scripts/release.sh` stamps the new semver version atomically across all files.
+The **single source of truth** for the protocol version is **`version.json`** at the repo root:
+
+```json
+{ "version": "0.4.8" }
+```
+
+Source files use the placeholder `{{OAP_VERSION}}` instead of a hardcoded version string. The build pipeline stamps the real version at build time — nothing else ever needs to be edited when cutting a release.
+
+**Files that contain `{{OAP_VERSION}}`** (never hardcode a version here):
+- `protocol/v1/examples/well-known-oap.json`
+- `protocol/v1/services/agents/openapi.json`
+- `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md` (inside fenced code blocks)
+
+**How stamping works at build time:**
+- `website/scripts/copy-protocol.mjs` reads `version.json` and replaces `{{OAP_VERSION}}` when copying `protocol/v1/` → `website/static/v1/`
+- `website/src/routes/docs/[...slug]/+page.server.ts` reads `version.json` and replaces `{{OAP_VERSION}}` in every Markdown file before rendering
 
 ### How the Version Gets Bumped — Release Script
 
-The release script (`scripts/release.sh`) handles all version stamping. Never manually edit version strings across files.
+The release script (`scripts/release.sh`) only updates `version.json`. Never manually edit version strings in protocol or spec files.
 
 ```sh
-# Cut a stable release, stamp protocol version to match the tag
+# Cut a stable release
 ./scripts/release.sh 1.0.0
 
 # Pre-release with an explicit protocol version
@@ -746,28 +761,10 @@ The release script (`scripts/release.sh`) handles all version stamping. Never ma
 
 **What `--protocol-version` does:**
 
-1. Auto-detects the current version string already in the files (e.g. `0.4.0`)
-2. Replaces it with the new semver in three passes:
-   - `"version": "OLD"` → `"version": "NEW"` in all `.json` and `.svelte` files under `protocol/`, `specs/`, `website/src/`
-   - `**Version:** OLD` → `**Version:** NEW` in all Markdown spec pages (`specs/**/*.md`)
-   - `` `"OLD"` `` → `` `"NEW"` `` for inline backtick references in Markdown body text
-3. Shows `git diff --stat` and asks for confirmation before committing
-4. Commits as `chore: stamp protocol version to X.Y.Z for release vX.Y.Z` and pushes to main
-5. Then creates the git tag and GitHub release
-
-**What it deliberately does NOT touch:**
-
-- `time`, `startedAt`, `completedAt` fields in CloudEvent examples — those are illustrative timestamps, not version signals
-- `scripts/release.sh` itself
-
-### Website Version Display
-
-The website hero and every docs page footer display the same version string. It is injected at build time via the `VITE_GIT_TAG` environment variable, which CI sets by running `git describe --tags --always`. This produces:
-
-- **On a tagged release** (e.g. after `release.sh 0.4.0`) → `v0.4.0`, linking to the GitHub release
-- **Between releases** (e.g. commits after a tag) → `v0.4.0-14-gabcdef1`, linking to the specific commit
-
-This keeps the version on the website identical to the tag shown in the README. Never reintroduce separate `VITE_GIT_SHA` or `VITE_BUILD_TIME` variables for version display purposes.
+1. Reads the current version from `version.json`
+2. Writes the new semver into `version.json`
+3. Commits as `chore: bump protocol version to X.Y.Z for release vX.Y.Z` and pushes to main
+4. Then creates the git tag and GitHub release
 
 **Default behaviour:** if `--protocol-version` is omitted, it defaults to the release version argument.
 

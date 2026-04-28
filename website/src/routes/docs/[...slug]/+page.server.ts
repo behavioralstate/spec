@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from 'fs/promises';
 import { join, relative, dirname } from 'path';
 
 const SPECS_DIR = join(process.cwd(), '..', 'specs');
+const VERSION_FILE = join(process.cwd(), '..', 'version.json');
 
 export interface TocHeading {
 	id: string;
@@ -156,8 +157,9 @@ export async function load({ params }) {
 	}
 
 	const markdown = await readFile(filePath, 'utf-8');
+	const { version } = JSON.parse(await readFile(VERSION_FILE, 'utf-8'));
 	const { marked } = await import('marked');
-	let html = await marked(markdown);
+	let html = await marked(markdown.replaceAll('{{OAP_VERSION}}', version));
 	html = rewriteLinks(html, slug);
 	html = classifyBlockquotes(html);
 	const { html: processedHtml, headings } = processHeadings(html);
