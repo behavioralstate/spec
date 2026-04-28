@@ -4,9 +4,11 @@ Commands are **intents to change** a domain service. They are sent **to** the se
 
 ## Command Wire Format
 
-Commands use the **CloudEvent 1.0 specification** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition. The `data` property is validated by the ingestion API against the JSON Schema at the `dataschema` URI before the command is queued.
+Commands use the **CloudEvent 1.0 specification** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
 
-> **Warning:** Servers MUST NOT dereference the caller-supplied `dataschema` URI. The schema for validation must be selected from the server's own catalogue. A caller-controlled `dataschema` pointing to an internal URL is an SSRF vector. See [Security Considerations](/docs/security#command-ingestion-dataschema-validation).
+The `dataschema` field in an **incoming command** is informational metadata — it documents which schema the client used when constructing the payload. It is **not** an instruction to the server. The server selects the schema to validate against using the `type` field, by looking up that type in its own command catalogue. A well-formed client will have fetched the schema from `GET /commands` and its `dataschema` value will match what the server holds — but the server never needs to fetch it.
+
+> **Note:** A server that fetches the caller-supplied `dataschema` URI to perform validation would be both architecturally wrong (the server owns its schema catalogue) and a security risk (caller-controlled URI fetch is an SSRF vector). See [Security Considerations](/docs/security#command-ingestion-dataschema-validation).
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -95,7 +97,7 @@ Single entry point for all commands. The `type` field on the CloudEvent determin
 
 Processing steps:
 1. Validate required CloudEvent attributes are present
-2. Look up the schema for this command type from the **server's own catalogue** — do not fetch the `dataschema` URI from the request
+2. Use `type` to look up the schema from the server's own catalogue
 3. Validate `data` against the catalogue schema
 4. If valid: queue the command and return `201`
 5. If invalid: return `400` with error detail

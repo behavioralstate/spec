@@ -32,7 +32,7 @@ This returns a JSON manifest describing the available agents, services, capabili
 ```json
 {
   "oap": {
-    "version": "0.4.0",
+    "version": "{{OAP_VERSION}}",
     "authentication": { ... },
     "tenants": { ... },
     "services": { ... },
@@ -118,7 +118,7 @@ The `io.oap.agents.events` capability **may** include a `push` object declaring 
 ```json
 {
   "name": "io.oap.agents.events",
-  "version": "0.4.0",
+  "version": "{{OAP_VERSION}}",
   "endpoints": [
     { "method": "GET", "path": "/events" },
     { "method": "GET", "path": "/events/{schema}/{version}" }
@@ -213,6 +213,21 @@ POST https://api.example.com/{tenantId}/events
 
 ### `tenants.manifest` — URI Template for Tenant Discovery
 
+#### What is a tenant?
+
+OAP does not define what a tenant *is* — that is the implementer's domain model. A tenant ID in OAP is simply an opaque string that scopes a manifest to a particular context. What that context represents depends entirely on the platform:
+
+| Platform model | Tenant maps to |
+|---|---|
+| B2B SaaS serving multiple companies | The company / customer account |
+| Developer platform with per-user isolation | The individual user account |
+| Enterprise platform with sub-organisations | The organisation or workspace |
+| API gateway serving multiple products | The product or project |
+
+**When to use multi-tenancy:** Use `tenants.manifest` when different callers have different capability surfaces, different command schemas, or different endpoint bases, and a single root manifest cannot describe all of them. If all callers share the same commands and endpoints, a single manifest without `tenants` is simpler and preferred.
+
+**When to skip it:** A single-tenant deployment, a self-hosted service with one user, or any implementation where all callers share the same capability surface should omit the `tenants` block entirely. The `tenants.manifest` pattern adds a required onboarding step — only use it when the per-caller scoping genuinely requires it.
+
 To make tenant manifest discovery machine-actionable, the root manifest may declare a `tenants` block with a `manifest` URI template (RFC 6570):
 
 ```json
@@ -241,7 +256,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 ```json
 {
   "oap": {
-    "version": "0.4.0",
+    "version": "{{OAP_VERSION}}",
     "tenants": {
       "manifest": "https://api.example.com/.well-known/oap/{tenantId}"
     },
@@ -270,7 +285,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 ```json
 {
   "oap": {
-    "version": "0.4.0",
+    "version": "{{OAP_VERSION}}",
     "services": {
       "io.dotquant.trading": {
         "rest": {

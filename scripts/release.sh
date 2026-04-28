@@ -4,12 +4,11 @@ set -euo pipefail
 # OAP Release Script
 # Usage: ./scripts/release.sh <version> [--prerelease] [--protocol-version <MAJOR.MINOR.PATCH>]
 #
-# --protocol-version  Semver string to stamp into all spec files as the OAP protocol version.
+# --protocol-version  Semver string to write to version.json as the OAP protocol version.
 #                     Defaults to the release version argument.
-#                     This updates every "version": "X.Y.Z" field in JSON examples
-#                     and OpenAPI specs.
-#                     It does NOT touch example timestamps (CloudEvent "time", "startedAt",
-#                     "completedAt" fields) — those are illustrative and left unchanged.
+#                     version.json is the single source of truth — the build pipeline
+#                     stamps {{OAP_VERSION}} placeholders at build time, so no other
+#                     files need to be edited.
 #
 # Examples:
 #   ./scripts/release.sh 0.4.0 --prerelease
@@ -97,49 +96,21 @@ if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
   exit 0
 fi
 
-# Step 1: Stamp protocol version into spec files
-# Detects the current version string already in the files and replaces it.
-# Touches only:
-#   - "version": "X.Y.Z"  in JSON (examples, openapi, well-known)
-#   - **Version:** X.Y.Z  in Markdown spec pages
-#   - version: "X.Y.Z"    in Svelte/JS source
-# Does NOT touch CloudEvent timestamp fields (time, startedAt, completedAt).
-CURRENT_PROTO_VERSION=$(grep -r --include="*.json" --include="*.svelte" \
-  -hP '"version":\s*"\d+\.\d+\.\d+"' protocol/ website/src/ \
-  | grep -oP '\d+\.\d+\.\d+' | sort | uniq | head -1 || true)
+# Step 1: Update version.json — the single source of truth for the protocol version.
+# The build pipeline (copy-protocol.mjs, +page.server.ts) reads this at build time
+# and stamps {{OAP_VERSION}} placeholders in protocol files and spec pages.
+CURRENT_PROTO_VERSION=$(node -e "process.stdout.write(require('./version.json').version)")
 
-if [ -z "$CURRENT_PROTO_VERSION" ]; then
-  echo "Warning: Could not auto-detect current protocol version. Skipping version stamp."
-elif [ "$CURRENT_PROTO_VERSION" = "$PROTOCOL_VERSION" ]; then
-  echo "Protocol version is already $PROTOCOL_VERSION — no stamp needed."
+if [ "$CURRENT_PROTO_VERSION" = "$PROTOCOL_VERSION" ]; then
+  echo "Protocol version is already $PROTOCOL_VERSION — no update needed."
 else
-  echo "Stamping protocol version: $CURRENT_PROTO_VERSION → $PROTOCOL_VERSION"
-
-  # JSON/Svelte files: replace "version": "X.Y.Z"
-  find protocol/ specs/ website/src/ -type f \( -name "*.json" -o -name "*.svelte" \) | while read -r f; do
-    sed -i "s/\"version\": \"${CURRENT_PROTO_VERSION}\"/\"version\": \"${PROTOCOL_VERSION}\"/g" "$f"
-  done
-
-  # Markdown body references: replace bare version string inside backticks or quotes
-  find specs/ -type f -name "*.md" | while read -r f; do
-    sed -i "s/\`\"${CURRENT_PROTO_VERSION}\"\`/\`\"${PROTOCOL_VERSION}\"\`/g" "$f"
-  done
-
-  echo "Protocol version stamp complete."
-  echo ""
-  echo "Verify the changes look correct:"
-  git diff --stat
-  echo ""
-  read -p "Commit version stamp and continue? (y/N) " STAMP_CONFIRM
-  if [ "$STAMP_CONFIRM" != "y" ] && [ "$STAMP_CONFIRM" != "Y" ]; then
-    echo "Aborted. Run 'git checkout .' to revert the stamp."
-    exit 0
-  fi
-  git add -A
+  echo "Updating version.json: $CURRENT_PROTO_VERSION → $PROTOCOL_VERSION"
+  echo "{ \"version\": \"${PROTOCOL_VERSION}\" }" > version.json
+  git add version.json
   if git diff --cached --quiet; then
-    echo "No file changes after stamp (already at $PROTOCOL_VERSION) — skipping commit."
+    echo "No version.json change to commit."
   else
-    git commit -m "chore: stamp protocol version to ${PROTOCOL_VERSION} for release ${TAG}"
+    git commit -m "chore: bump protocol version to ${PROTOCOL_VERSION} for release ${TAG}"
     git push origin main
   fi
 fi

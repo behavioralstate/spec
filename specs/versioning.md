@@ -4,7 +4,7 @@ OAP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](ht
 
 ## Release Version
 
-The release version is the git tag — `v0.4.0`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
+The release version is the git tag — `v{{OAP_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
 
 The version string (without the `v` prefix) appears in:
 - The `/.well-known/oap` manifest root — `oap.version`
@@ -14,12 +14,12 @@ The version string (without the `v` prefix) appears in:
 ```json
 {
   "oap": {
-    "version": "0.4.0",
+    "version": "{{OAP_VERSION}}",
     "services": {
-      "io.oap.agents": { "version": "0.4.0", "..." : "..." }
+      "io.oap.agents": { "version": "{{OAP_VERSION}}", "..." : "..." }
     },
     "capabilities": [
-      { "name": "io.oap.agents.commands", "version": "0.4.0", "..." : "..." }
+      { "name": "io.oap.agents.commands", "version": "{{OAP_VERSION}}", "..." : "..." }
     ]
   }
 }
