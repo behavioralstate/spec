@@ -20,8 +20,7 @@
         },
         "source": {
           "type": "string",
-          "format": "uri",
-          "description": "URI identifying the origin of the message. For commands: the sender (a Process Manager, a UI, another service). For events: the service that published the event."
+          "description": "String identifying the origin of the message. A URI is recommended for interoperability but any string is valid — callers may use it as a routing key, a label, or any identifier meaningful to their system. For commands: set by the sender. For events: set by the publishing service."
         },
         "type": {
           "type": "string",

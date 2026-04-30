@@ -6,7 +6,7 @@
   "$defs": {
     "event": {
       "$ref": "../cloudEvent.json#/$defs/cloudEvent",
-      "description": "An immutable domain event published by an OAP-compliant service as the result of processing a command. CloudEvent 1.0 envelope — the type field identifies the domain fact (e.g. CounterProposed, OrderSubmitted), and source is the URI of the service that published it."
+      "description": "An immutable domain event published by an OAP-compliant service as the result of processing a command. CloudEvent 1.0 envelope — the type field identifies the domain fact (e.g. CounterProposed, OrderSubmitted), and source identifies the service that published it."
     },
     "eventList": {
       "type": "object",

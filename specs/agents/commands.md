@@ -14,7 +14,7 @@ The `dataschema` field in an **incoming command** is informational metadata — 
 |---|---|---|---|
 | `specversion` | string | yes | Always `"1.0"` |
 | `id` | string | yes | Unique message ID (UUID recommended) |
-| `source` | string (URI) | yes | URI identifying the sender — set by the caller to any URI they control (e.g. `https://pm.example.com/negotiation-agent`). This field identifies **who sent the command** for observability and audit. It must not be set to a fixed service-specific constant — doing so destroys caller identity and violates CloudEvent semantics (the `source + id` pair is the globally unique event identifier). Implementations that need to route commands to a backend queue or handler must derive the routing key from `type`, not `source`. |
+| `source` | string | yes | String identifying the origin of the command. A URI is recommended for interoperability (e.g. `https://pm.example.com/negotiation-agent`) but any string is valid — callers may use it as a routing key, a label, or any identifier meaningful to their system. The `source + id` pair serves as a globally unique message identifier. Servers **MUST NOT** use `source` as the sole routing key for backend handlers — use `type` for routing instead. |
 | `type` | string | yes | Command type identifier in PascalCase (e.g. `ProposeCounter`, `SubmitOrder`). This is the natural routing key — implementations should use `type` to determine which backend handler, queue, or processor receives the command. |
 | `datacontenttype` | string | yes | Always `"application/json"` |
 | `dataschema` | string (URI) | yes | URI to the JSON Schema for `data` — hosted by the ingestion API at `GET /commands/{schema}/{version}` |
