@@ -10,7 +10,7 @@ Events use the **CloudEvent 1.0 specification** as wire format.
 |---|---|---|---|
 | `specversion` | string | yes | Always `"1.0"` |
 | `id` | string | yes | Unique message ID (UUID recommended) |
-| `source` | string (URI) | yes | URI identifying the service that published this event |
+| `source` | string | yes | String identifying the service that published this event. A URI is recommended for interoperability but any string is valid. |
 | `type` | string | yes | Event type identifier (e.g. `CounterProposed`, `OrderSubmitted`) |
 | `datacontenttype` | string | yes | Always `"application/json"` |
 | `dataschema` | string (URI) | **no** | URI to the JSON Schema for `data` — present for typed events, omitted for untyped |
