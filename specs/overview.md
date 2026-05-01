@@ -135,6 +135,7 @@ The minimum set for a functional agent service:
 | `GET` | `/agents` | List registered agents |
 | `POST` | `/events` | Inject a domain event (simulation only) |
 | `GET` | `/commands` | Browse accepted command types |
+| `GET` | `/queries` | Browse available query types |
 
 **Step 3 — Validate**
 
