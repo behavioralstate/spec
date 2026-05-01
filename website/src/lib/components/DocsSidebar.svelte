@@ -20,6 +20,7 @@
 				{ label: 'Lifecycle', href: '/docs/agents/lifecycle' },
 				{ label: 'Commands', href: '/docs/agents/commands' },
 				{ label: 'Events', href: '/docs/agents/events' },
+				{ label: 'Queries', href: '/docs/agents/queries' },
 				{ label: 'Memory', href: '/docs/agents/memory' }
 			]
 		},

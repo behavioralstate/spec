@@ -22,6 +22,7 @@ For each capability an endpoint claims to support:
 | `agents.lifecycle` | POST /services/{id}/pause, POST /services/{id}/resume |
 | `agents.events` | GET /events |
 | `agents.commands` | GET /commands, POST /commands |
+| `agents.queries` | GET /queries, GET /queries/{schema}/{version}, GET /queries/{schema} |
 | `agents.memory` | GET /services/{id}/memory |
 
 > **Path resolution:** All paths above are relative to the `rest.endpoint` base URL declared in the discovery manifest. For example, if `rest.endpoint` is `https://app.example.com/oap/`, then `GET /services` resolves to `https://app.example.com/oap/services`. The paths are never relative to the domain root unless `rest.endpoint` itself is the domain root.
