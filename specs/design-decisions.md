@@ -114,3 +114,32 @@ This is optional and orthogonal to OAP. A service that includes `traceparent` on
 | Distributed trace tree | Platform | OpenTelemetry collector + backend (Jaeger, Tempo, etc.) |
 
 OAP tells you *what* happened. OpenTelemetry tells you *how* and *when* it happened across a distributed system. They are complementary, not competing.
+
+---
+
+## CloudEvent Deviations
+
+### The decision
+
+OAP uses the CloudEvent 1.0 envelope as its wire format for commands and events, but **does not conform to the CloudEvent 1.0 specification**. OAP borrows the shape — eight well-known fields that LLMs and tooling already understand — without committing to full spec compliance.
+
+### Why
+
+CloudEvent 1.0 is a widely understood, well-structured envelope that LLM clients can read, reason about, and generate natively. Using it means OAP messages are immediately recognisable and usable by existing tooling without custom parsing. However, some CloudEvent rules conflict with OAP's design goals — particularly around `source` routing, relative `dataschema` URIs, and the extension attribute model. Rather than bending OAP's design to fit the spec, we adopt the shape and document the deviations explicitly.
+
+### Deviations
+
+| Field / Rule | CloudEvent 1.0 | OAP behaviour | Reason |
+|---|---|---|---|
+| `dataschema` format | Must be an absolute URI | OAP uses a relative URI: `{schema}/{version}` (e.g. `configure-broker/1.0`). Absolute URIs appear in catalogue entries but not necessarily on the wire. | Relative URIs are portable across environments (dev, staging, prod) without requiring callers to know the host. The server resolves to its own catalogue — a caller-supplied absolute URI would create an SSRF risk. |
+| `source` semantics | Should be a URI identifying the origin | OAP allows any string — URI, routing key, label, or any identifier meaningful to the implementation | `source` has proven useful as a lightweight routing key in multi-tenant backends. Forcing URI format adds no protocol value. |
+| `type` casing | No casing requirement | OAP mandates PascalCase (e.g. `ProposeCounter`) | Consistency for LLM tooling; catalogue `schema` names are kebab-case, `type` is PascalCase — they are distinct fields with distinct purposes. |
+| `datacontenttype` values | Any MIME type | OAP restricts to `"application/json"` | OAP is JSON-only. Allowing other content types would require out-of-band schema negotiation the protocol does not define. |
+| Extension attributes | Allowed (open `additionalProperties`) | OAP schemas use `additionalProperties: false` — extensions are blocked | Extensions would silently pass through servers that don't understand them, making it impossible to reason about what a conformant OAP message contains. Explicit fields only. |
+
+### Implication for implementers
+
+- Do not validate OAP messages against a CloudEvent 1.0 schema validator — they will fail on `dataschema` format and `additionalProperties`.
+- Do not use CloudEvent SDK libraries that enforce spec compliance for constructing OAP messages.
+- `oap-mcp` and OAP tooling construct the envelope as documented here — not as per the CloudEvent spec.
+- If you need genuine CloudEvent 1.0 compliance (e.g. for integration with a CloudEvents broker), adapt the envelope at the boundary.

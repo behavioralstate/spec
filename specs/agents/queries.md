@@ -16,6 +16,32 @@ Queries fill this gap:
 
 Queries are **not** a replacement for OpenAPI or a general REST query language. They are a minimal, catalogue-driven read surface that follows exactly the same discovery pattern as commands — discoverable, schema-described, and consistent.
 
+<div class="oap-diagram">
+  <div class="oap-node">
+    <div class="oap-node-title">Caller</div>
+    <div class="oap-node-box">Any Caller</div>
+    <div class="oap-node-sub">app · agent · LLM</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">GET /queries/{schema}</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">OAP Endpoint</div>
+    <div class="oap-node-box accent">Query Handler</div>
+    <div class="oap-node-sub">reads current state</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">Sync response</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Result</div>
+    <div class="oap-node-box">Current State</div>
+    <div class="oap-node-sub">JSON in HTTP body</div>
+  </div>
+</div>
+
 ## REST API
 
 | Method | Path | Description |

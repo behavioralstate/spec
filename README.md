@@ -23,6 +23,7 @@ If you are new to OAP, start with the [Overview](specs/overview.md) for the prot
 | [Lifecycle](specs/agents/lifecycle.md) | [v0.4.13](https://github.com/openagentprotocol/spec/blob/v0.4.13/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
 | [Events](specs/agents/events.md) | [v0.4.13](https://github.com/openagentprotocol/spec/blob/v0.4.13/specs/agents/events.md) | [WIP](specs/agents/events.md) |
 | [Commands](specs/agents/commands.md) | [v0.4.13](https://github.com/openagentprotocol/spec/blob/v0.4.13/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
+| [Queries](specs/agents/queries.md) | — | [WIP](specs/agents/queries.md) |
 | [Memory](specs/agents/memory.md) | [v0.4.13](https://github.com/openagentprotocol/spec/blob/v0.4.13/specs/agents/memory.md) | [WIP](specs/agents/memory.md) |
 | | | |
 | **Observability:** | | |
@@ -57,6 +58,50 @@ node scripts/validate-examples.mjs
 # Run the website locally
 cd website && npm install && npm run dev
 ```
+
+## oap-mcp — MCP Server
+
+`oap-mcp` is the reference MCP server for OAP. Point it at any OAP-compliant endpoint and any LLM client can discover and interact with it immediately.
+
+```bash
+# Install globally
+npm install -g oap-mcp
+
+# Or run without installing
+npx oap-mcp
+```
+
+**Required environment variables:**
+
+```bash
+OAP_ENDPOINT=https://api.example.com/oap   # base URL of the OAP REST surface
+OAP_API_KEY=<your-api-key>                 # sent as Authorization: Bearer <key>
+```
+
+**stdio config** (VS Code Copilot, Cursor, Claude Desktop):
+
+```json
+{
+  "mcpServers": {
+    "my-service": {
+      "command": "npx",
+      "args": ["oap-mcp"],
+      "env": {
+        "OAP_ENDPOINT": "https://api.example.com/oap",
+        "OAP_API_KEY": "<your-api-key>"
+      }
+    }
+  }
+}
+```
+
+**HTTP mode** (ChatGPT Desktop — requires HTTPS, use ngrok or Cloudflare Tunnel locally):
+
+```bash
+MCP_TRANSPORT=http MCP_HTTP_PORT=3001 OAP_ENDPOINT=https://api.example.com/oap OAP_API_KEY=<key> npx oap-mcp
+```
+
+See [`mcp-server/README.md`](mcp-server/README.md) and [`specs/transports/mcp.md`](specs/transports/mcp.md) for full documentation.
 
 ## Cutting a Release
 
