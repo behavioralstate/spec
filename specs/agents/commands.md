@@ -2,9 +2,37 @@
 
 Commands are **intents to change** a domain service. They are sent **to** the service by any caller — a Process Manager, an AI agent, a UI, or another service. The service validates, queues, and processes them asynchronously.
 
+<div class="oap-diagram">
+  <div class="oap-node">
+    <div class="oap-node-title">Caller</div>
+    <div class="oap-node-box">Any Caller</div>
+    <div class="oap-node-sub">app · agent · LLM</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">POST /commands</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">OAP Endpoint</div>
+    <div class="oap-node-box accent">Validates &amp; Queues</div>
+    <div class="oap-node-sub">201 Accepted (async)</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">Async processing</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Service</div>
+    <div class="oap-node-box">Domain Handler</div>
+    <div class="oap-node-sub">processes · emits event</div>
+  </div>
+</div>
+
 ## Command Wire Format
 
-Commands use the **CloudEvent 1.0 specification** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
+Commands use the **CloudEvent 1.0 envelope shape** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
+
+> **OAP is not a conformant CloudEvent implementation.** OAP borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/docs/design-decisions#cloudevent-deviations) for the full list. Callers should treat OAP messages as *OAP-shaped envelopes*, not as spec-compliant CloudEvents.
 
 The `dataschema` field in an **incoming command** is informational metadata — it documents which schema the client used when constructing the payload. It is **not** an instruction to the server. The server selects the schema to validate against using the `type` field, by looking up that type in its own command catalogue. A well-formed client will have fetched the schema from `GET /commands` and its `dataschema` value will match what the server holds — but the server never needs to fetch it.
 

@@ -13,6 +13,32 @@ This returns a JSON manifest describing the available agents, services, capabili
 
 ## Discovery Flow
 
+<div class="oap-diagram">
+  <div class="oap-node">
+    <div class="oap-node-title">Consumer</div>
+    <div class="oap-node-box">Any Client</div>
+    <div class="oap-node-sub">LLM · agent · app</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">GET /.well-known/oap</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Manifest</div>
+    <div class="oap-node-box accent">OAP Endpoint</div>
+    <div class="oap-node-sub">capabilities · auth · schemas</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">Start interacting</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">APIs</div>
+    <div class="oap-node-box">Commands &amp; Queries</div>
+    <div class="oap-node-sub">no config required</div>
+  </div>
+</div>
+
 1. Consumer hits `/.well-known/oap`
 2. Reads the structured manifest
 3. Discovers available services, capabilities, transport bindings, and authentication requirements

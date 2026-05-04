@@ -1,20 +1,116 @@
 # MCP Transport
 
-MCP (Model Context Protocol) allows any LLM client to manage agents directly.
+MCP (Model Context Protocol) allows any LLM client to interact with an OAP-compliant service directly — discovering commands and queries, reading state, and sending commands — without any bespoke integration.
+
+<div class="oap-diagram">
+  <div class="oap-node">
+    <div class="oap-node-title">LLM Client</div>
+    <div class="oap-node-box">Copilot / Claude / ChatGPT</div>
+    <div class="oap-node-sub">any MCP-capable client</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">MCP tools</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">oap-mcp</div>
+    <div class="oap-node-box accent">MCP Server</div>
+    <div class="oap-node-sub">stdio or http transport</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">OAP REST</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Service</div>
+    <div class="oap-node-box">OAP Endpoint</div>
+    <div class="oap-node-sub">any compliant API</div>
+  </div>
+</div>
 
 ## Mapping
 
 | OAP Concept | MCP Concept |
 |---|---|
-| Agent descriptors | MCP resources (list, read state) |
-| Agent management | MCP tools (register, remove, pause, resume) |
-| Event delivery | MCP tools or server-to-client notifications (push) |
-| Command observation | MCP tools |
-| Execution traces | MCP resources |
+| Command catalogue (`GET /commands`) | MCP tool: `get_command_catalogue` |
+| Command schema (`GET /commands/{schema}/{version}`) | MCP tool: `get_command_schema` |
+| Command ingestion (`POST /commands`) | MCP tool: `send_command` |
+| Query catalogue (`GET /queries`) | MCP tool: `get_query_catalogue` |
+| Query schema (`GET /queries/{schema}/{version}`) | MCP tool: `get_query_schema` |
+| Query execution (`GET /queries/{schema}`) | MCP tool: `execute_query` |
+| Push event delivery | MCP server-to-client notifications |
 
 ## Result
 
-Any LLM client (ChatGPT, Copilot, Gemini, Claude, Ollama) becomes a management UI for OAP agents.
+Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes a capable caller of any OAP-compliant service — with full command and query discovery, no hardcoded integration.
+
+## Reference Implementation — `oap-mcp`
+
+`oap-mcp` is the reference MCP server for OAP. It is generic — it works with any OAP-compliant endpoint. Point it at any OAP REST surface and it exposes the full command and query surface as MCP tools.
+
+```bash
+npx oap-mcp
+```
+
+### Configuration
+
+| Variable | Required | Description |
+|---|---|---|
+| `OAP_ENDPOINT` | yes | Base URL of the OAP REST surface (e.g. `https://api.example.com/oap`) |
+| `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
+| `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
+| `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
+
+### stdio — VS Code Copilot, Cursor, Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "my-service": {
+      "command": "npx",
+      "args": ["oap-mcp"],
+      "env": {
+        "OAP_ENDPOINT": "https://api.example.com/oap",
+        "OAP_API_KEY": "<your-api-key>"
+      }
+    }
+  }
+}
+```
+
+### HTTP — ChatGPT Desktop
+
+Start in HTTP mode and expose via a tunnel:
+
+```bash
+MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
+  OAP_ENDPOINT=https://api.example.com/oap \
+  OAP_API_KEY=<key> \
+  npx oap-mcp
+
+ngrok http 3001
+```
+
+Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app/mcp`
+
+### Intended LLM flow
+
+```
+get_command_catalogue          → discover what commands this service accepts
+get_command_schema             → learn the exact fields and the required source value
+send_command                   → send the command (CloudEvent envelope built automatically)
+
+get_query_catalogue            → discover available read queries
+get_query_schema               → learn parameters and response shape
+execute_query                  → read current state synchronously
+```
+
+### CloudEvent construction
+
+`send_command` builds the CloudEvent 1.0 envelope automatically:
+- `type` is derived from the schema name via PascalCase conversion (`configure-broker → ConfigureBroker`)
+- `dataschema` is set to the relative URI `{schema}/{version}` (e.g. `configure-broker/1.0`)
+- `source` must be supplied by the caller — the required value is documented in the schema `description` returned by `get_command_schema`; never invent or default it
 
 ## Transport Configuration
 

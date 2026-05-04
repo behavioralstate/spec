@@ -80,6 +80,7 @@
 				<li><a href="/docs/agents/lifecycle">Lifecycle</a><span>Pause and resume agents</span></li>
 				<li><a href="/docs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/docs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
+				<li><a href="/docs/agents/queries">Queries</a><span>Synchronous reads of current state</span></li>
 				<li><a href="/docs/agents/memory">Memory</a><span>View agent memory state</span></li>
 			</ul>
 		</section>
