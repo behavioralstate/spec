@@ -1,6 +1,6 @@
 {
   "name": "oap-mcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MCP server for any OAP-compliant endpoint — exposes commands and queries as tools for LLM clients",
   "type": "module",
   "bin": {
