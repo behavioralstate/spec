@@ -6,7 +6,7 @@ OAP is a specification for service interoperability — how domain services expo
 
 OAP doesn't care how a service works internally. It only cares about the interaction surface: what commands go in, what events come out, and how to discover the service.
 
-If you are new to OAP, start with the [Overview](specs/overview.md) for the protocol's goals and design, then explore [Discovery](specs/discovery.md) and the [Agent capabilities](specs/agents/registry.md).
+If you are new to OAP, start with the [Overview](specs/overview.md) for the protocol's goals and design, then explore [Discovery](specs/discovery.md) and the [Agent capabilities](specs/agents/commands.md).
 
 ## OAP Documents
 
@@ -19,7 +19,7 @@ If you are new to OAP, start with the [Overview](specs/overview.md) for the prot
 | [Conformance](specs/conformance.md) | [v0.4.14](https://github.com/openagentprotocol/spec/blob/v0.4.14/specs/conformance.md) | [WIP](specs/conformance.md) |
 | | | |
 | **Agent Capabilities:** | | |
-| [Registry](specs/agents/registry.md) | [v0.4.14](https://github.com/openagentprotocol/spec/blob/v0.4.14/specs/agents/registry.md) | [WIP](specs/agents/registry.md) |
+| ~~[Registry](specs/agents/registry.md)~~ | *(removed — see [future concept](specs/agents/registry.md))* | — |
 | [Lifecycle](specs/agents/lifecycle.md) | [v0.4.14](https://github.com/openagentprotocol/spec/blob/v0.4.14/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
 | [Events](specs/agents/events.md) | [v0.4.14](https://github.com/openagentprotocol/spec/blob/v0.4.14/specs/agents/events.md) | [WIP](specs/agents/events.md) |
 | [Commands](specs/agents/commands.md) | [v0.4.14](https://github.com/openagentprotocol/spec/blob/v0.4.14/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |

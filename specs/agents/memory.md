@@ -1,8 +1,6 @@
 # Service Memory — `io.oap.agents.memory`
 
-**Extends:** `io.oap.agents.registry`
-
-The memory capability exposes service memory state. The response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats.
+The memory capability exposes service memory state. The `{id}` parameter is the service identifier as declared in the discovery manifest (`services[].id`). The response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats.
 
 ## REST API
 

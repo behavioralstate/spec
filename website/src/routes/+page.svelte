@@ -43,14 +43,14 @@
 				description="Commands and events both use the CloudEvents 1.0 spec — a CNCF standard for describing event data in a common way, with SDKs across every major language."
 			/>
 			<FeatureCard
-				icon="🌡️"
-				title="IoT & Edge"
-				description="A fridge, a sensor, a smart building controller. Expose any connected device as an OAP service — commands and events over standard HTTP, however the hardware is wired up underneath."
+				icon="🤖"
+				title="Instant LLM Integration"
+				description="Implement OAP and get MCP for free. Point oap-mcp at any OAP-compliant API and every LLM client — Copilot, Claude, ChatGPT — immediately discovers commands, reads state, and sends requests."
 			/>
 			<FeatureCard
-				icon="🤝"
-				title="Human-in-the-Loop"
-				description="A freelance translator, a legal review, an approval workflow. If it accepts a request and produces a result, it's an OAP service — no AI required behind the curtain."
+				icon="🌍"
+				title="Any Agent. Any Context."
+				description="A temperature sensor, a smart building controller, a freelance translator, a legal review, an approval workflow — if it accepts commands and produces results, it is an OAP service. No AI required behind the curtain."
 			/>
 		</div>
 	</div>

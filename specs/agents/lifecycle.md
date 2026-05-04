@@ -1,8 +1,6 @@
 # Service Lifecycle — `io.oap.agents.lifecycle`
 
-**Extends:** `io.oap.agents.registry`
-
-The lifecycle capability adds pause and resume operations to the service registry.
+The lifecycle capability adds pause and resume operations on a named service. The `{id}` parameter is the service identifier as declared in the discovery manifest (`services[].id`).
 
 ## REST API
 

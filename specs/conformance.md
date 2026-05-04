@@ -18,7 +18,6 @@ For each capability an endpoint claims to support:
 
 | Capability | Required Endpoints |
 |---|---|
-| `agents.registry` | GET/POST /services, GET/DELETE /services/{id} |
 | `agents.lifecycle` | POST /services/{id}/pause, POST /services/{id}/resume |
 | `agents.events` | GET /events |
 | `agents.commands` | GET /commands, POST /commands |

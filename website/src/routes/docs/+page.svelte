@@ -76,7 +76,7 @@
 		<section class="index-group">
 			<h2>Agents</h2>
 			<ul>
-				<li><a href="/docs/agents/registry">Registry</a><span>Register, list, and remove agents</span></li>
+				<li><a href="/docs/agents/registry">Global Registry</a><span>Future concept — public OAP directory</span></li>
 				<li><a href="/docs/agents/lifecycle">Lifecycle</a><span>Pause and resume agents</span></li>
 				<li><a href="/docs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/docs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>

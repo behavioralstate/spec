@@ -78,6 +78,8 @@ This pattern suits services that emit dynamic, loosely-structured payloads (e.g.
 | GET | `/events?correlationId={id}` | List events matching a correlation identifier |
 | GET | `/events/{schema}/{version}` | Return the JSON Schema document for a specific event type and version |
 | POST | `/events` | Inject a domain event — for testing and simulation only (optional capability) |
+| POST | `/subscriptions` | Register a webhook for push event delivery (optional) |
+| DELETE | `/subscriptions/{id}` | Remove a webhook subscription |
 
 ### GET /events
 
@@ -165,9 +167,29 @@ When a caller is connected via A2A, domain events produced by the service are de
 
 ### Webhook — REST HTTP Clients (optional)
 
-For callers using the REST binding only, a webhook callback URL may be registered at service registration time via `POST /services`. When present, the server POSTs events matching the caller's `accepts` list to the registered URL using the CloudEvents HTTP binding.
+For callers using the REST binding, a webhook callback URL can be registered to receive events as they are produced:
 
-See [Service Registry](registry.md) for the `webhook` field on the service descriptor.
+**POST /subscriptions** request:
+
+```json
+{
+  "webhook": {
+    "url": "https://my-agent.example.com/oap/events",
+    "secret": "hmac-signing-secret"
+  },
+  "filter": {
+    "types": ["CounterProposed", "ContractAccepted"]
+  }
+}
+```
+
+The `secret` field is write-only — never returned in read responses. When present, the server signs delivery payloads using HMAC. The `filter.types` array limits delivery to specific event types; omit it to receive all events.
+
+Response: `201 Created` with the subscription descriptor (`secret` omitted, plus a generated `id`).
+
+**DELETE /subscriptions/{id}** — Remove a subscription. Returns `204 No Content`.
+
+> **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/docs/security#webhook-ssrf-protection).
 
 ## Mapping Domain Records to OAP Events
 
