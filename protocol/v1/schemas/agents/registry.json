@@ -39,19 +39,36 @@
           "type": "string",
           "description": "What this service does."
         },
+        "version": {
+          "type": "string",
+          "description": "Semver version of the service implementation currently running (e.g. '1.2.0'). Allows consumers to know which version is live and supports gradual rollouts."
+        },
         "type": {
           "type": "string",
           "description": "Service type classification (e.g. negotiation-service, pricing-engine, sensor)."
         },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL of this service's OAP surface. Consumers append /.well-known/oap to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
+        },
         "accepts": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Command types this service ingests."
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "description": "CloudEvent type string in PascalCase (e.g. 'ProposeCounter', 'SubmitOrder')."
+          },
+          "description": "CloudEvent type strings (PascalCase) identifying the command types this service ingests."
         },
         "produces": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Event types this service publishes as a result of processing."
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "description": "CloudEvent type string in PascalCase (e.g. 'CounterProposed', 'OrderSubmitted')."
+          },
+          "description": "CloudEvent type strings (PascalCase) identifying the event types this service publishes as a result of processing."
         },
         "status": {
           "type": "string",
@@ -81,19 +98,36 @@
           "type": "string",
           "description": "What this service does."
         },
+        "version": {
+          "type": "string",
+          "description": "Semver version of the service implementation (e.g. '1.2.0')."
+        },
         "type": {
           "type": "string",
           "description": "Service type classification."
         },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL of this service's OAP surface. Consumers append /.well-known/oap to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
+        },
         "accepts": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Command types this service accepts."
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "description": "CloudEvent type string in PascalCase (e.g. 'ProposeCounter', 'SubmitOrder')."
+          },
+          "description": "CloudEvent type strings (PascalCase) identifying the command types this service accepts."
         },
         "produces": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Event types this service produces."
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "description": "CloudEvent type string in PascalCase (e.g. 'CounterProposed', 'OrderSubmitted')."
+          },
+          "description": "CloudEvent type strings (PascalCase) identifying the event types this service produces."
         },
         "webhook": {
           "$ref": "#/$defs/webhook"

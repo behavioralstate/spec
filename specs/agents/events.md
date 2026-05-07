@@ -173,6 +173,7 @@ For callers using the REST binding, a webhook callback URL can be registered to 
 
 ```json
 {
+  "serviceId": "invoice-comparison-agent",
   "webhook": {
     "url": "https://my-agent.example.com/oap/events",
     "secret": "hmac-signing-secret"
@@ -183,7 +184,9 @@ For callers using the REST binding, a webhook callback URL can be registered to 
 }
 ```
 
-The `secret` field is write-only — never returned in read responses. When present, the server signs delivery payloads using HMAC. The `filter.types` array limits delivery to specific event types; omit it to receive all events.
+The `secret` field is write-only — never returned in read responses. When present, the server signs delivery payloads using HMAC. The `filter.types` array limits delivery to specific event types; omit it to receive all events. Both `filter.types` entries and the `accepts`/`produces` fields on service descriptors use CloudEvent `type` strings — PascalCase (e.g. `CounterProposed`).
+
+The optional `serviceId` field links this subscription to a registered service. When the service is removed via `DELETE /services/{id}`, all subscriptions with that `serviceId` are automatically deleted — no orphaned webhooks remain. Omit `serviceId` for standalone subscriptions that are not tied to a specific registered service.
 
 Response: `201 Created` with the subscription descriptor (`secret` omitted, plus a generated `id`).
 

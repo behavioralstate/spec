@@ -2,7 +2,9 @@
   "id": "negotiation",
   "name": "Contract Negotiation",
   "description": "Ingests negotiation commands and publishes negotiation events",
+  "version": "2.1.0",
   "type": "negotiation-service",
+  "endpoint": "https://api.example.com/negotiation",
   "accepts": ["ProposeCounter", "AcceptContract", "RejectContract", "RequestClarification"],
   "produces": ["CounterProposed", "ContractAccepted", "ContractRejected", "ClarificationRequested"],
   "status": "running"
