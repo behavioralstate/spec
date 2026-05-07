@@ -19,6 +19,90 @@
         }
       },
       "additionalProperties": false
+    },
+    "subscriptionRegistration": {
+      "type": "object",
+      "description": "Request body for POST /subscriptions. Registers a webhook to receive push event delivery.",
+      "required": ["webhook"],
+      "properties": {
+        "serviceId": {
+          "type": "string",
+          "description": "Identifier of a registered service (from POST /services) that owns this subscription. When present, the subscription is lifecycle-coupled to the service — deleting the service via DELETE /services/{id} will also remove this subscription."
+        },
+        "webhook": {
+          "type": "object",
+          "description": "Callback configuration for push event delivery.",
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "HTTPS endpoint to receive events as CloudEvents (HTTP binding)."
+            },
+            "secret": {
+              "type": "string",
+              "writeOnly": true,
+              "description": "HMAC secret for payload signing. Write-only — accepted on registration, never returned in read responses."
+            }
+          },
+          "additionalProperties": false
+        },
+        "filter": {
+          "type": "object",
+          "description": "Optional filter to limit delivery to specific event types. Omit to receive all events.",
+          "properties": {
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z][a-zA-Z0-9]*$",
+                "description": "CloudEvent type string in PascalCase (e.g. 'CounterProposed')."
+              },
+              "description": "CloudEvent type strings (PascalCase) to filter delivery by."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "subscriptionDescriptor": {
+      "type": "object",
+      "description": "Response body for POST /subscriptions and GET /subscriptions/{id}. The secret field is omitted.",
+      "required": ["id", "webhook"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Generated unique subscription identifier."
+        },
+        "serviceId": {
+          "type": "string",
+          "description": "Identifier of the owning service, if this subscription is service-linked."
+        },
+        "webhook": {
+          "type": "object",
+          "description": "Callback configuration — secret omitted.",
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "additionalProperties": false
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "types": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

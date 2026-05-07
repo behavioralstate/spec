@@ -232,6 +232,45 @@
         }
       }
     },
+    "/services/{id}/heartbeat": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Service identifier"
+        }
+      ],
+      "post": {
+        "operationId": "heartbeatService",
+        "summary": "Signal that a service is still alive",
+        "description": "Agents must call this endpoint periodically to confirm they are still running. Servers use the absence of heartbeats to detect stale registrations and transition the service status to 'error'. The required heartbeat interval is server-defined and should be documented by the implementation.",
+        "tags": [
+          "Service Lifecycle"
+        ],
+        "responses": {
+          "204": {
+            "description": "Heartbeat recorded"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/services/{id}/resume": {
       "parameters": [
         {
@@ -259,6 +298,89 @@
           },
           "404": {
             "description": "Service not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/subscriptions": {
+      "post": {
+        "operationId": "createSubscription",
+        "summary": "Register a webhook subscription for push event delivery",
+        "description": "Registers a webhook callback URL to receive events as they are published. An optional serviceId links the subscription to a registered service — when that service is deleted via DELETE /services/{id}, this subscription is automatically removed.",
+        "tags": [
+          "Events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../../schemas/agents/events.json#/$defs/subscriptionRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subscription created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/events.json#/$defs/subscriptionDescriptor"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Subscription identifier"
+        }
+      ],
+      "delete": {
+        "operationId": "deleteSubscription",
+        "summary": "Remove a webhook subscription",
+        "tags": [
+          "Events"
+        ],
+        "responses": {
+          "204": {
+            "description": "Subscription removed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Subscription not found",
             "content": {
               "application/json": {
                 "schema": {
