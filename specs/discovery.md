@@ -219,7 +219,7 @@ Each service declares how it can be reached:
 
 | Transport | Primary consumer | Protocol |
 |---|---|---|
-| **REST** | Web UIs, traditional services, monitoring tools | HTTP/JSON |
+| **HTTP** | Web UIs, traditional services, monitoring tools | HTTP/JSON |
 | **MCP** | LLM clients (ChatGPT, Copilot, Gemini, Claude) | JSON-RPC over stdio/SSE |
 | **A2A** | Other agents (Google Agent-to-Agent protocol) | HTTP/JSON |
 | **gRPC** | Internal native runtime (optional) | Protocol Buffers |
@@ -273,7 +273,7 @@ Rules:
 - The tenant manifest does not include a `tenants` block itself — it is already fully scoped.
 - The `tenants.manifest` template is distinct from `dataschema`. URI templates are only valid in `tenants.manifest`; everywhere else in the manifest URIs must be fully resolved.
 
-For how `{tenantId}` maps to path parameters in the HTTP transport, see [Multi-Tenant Routing in the REST spec](transports/http.md#multi-tenant-routing).
+For how `{tenantId}` maps to path parameters in the HTTP transport, see [Multi-Tenant Routing in the HTTP transport spec](transports/http.md#multi-tenant-routing).
 
 **Root manifest (multi-tenant host):**
 
@@ -416,7 +416,7 @@ This returns the list of command types the service accepts, each with a `schema`
 
 > **Do not fall back to external OpenAPI/Swagger documents.** The OAP manifest is the canonical discovery surface. Any Swagger or OpenAPI URL in an implementer's response describes their application API — it is not the OAP command catalogue and may expose internal, non-OAP endpoints.
 
-### `rest` Transport Fields
+### `http` Transport Fields
 
 | Field | Description |
 |---|---|
@@ -426,7 +426,7 @@ The `http.endpoint` value is the **consumer-facing base URL**. All HTTP API path
 
 > **`http.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If the implementation sits behind a proxy or API gateway, `http.endpoint` is the outermost address consumers hit.
 
-> **Multiple transports describe the same capability surface.** When both `rest` and `mcp` (or `a2a`) are declared, they each provide access to the same logical capabilities — they are alternative access methods, not separate operation sets. Consumers choose one transport; they do not infer separate capabilities from the presence of multiple transports.
+> **Multiple transports describe the same capability surface.** When both `http` and `mcp` (or `a2a`) are declared, they each provide access to the same logical capabilities — they are alternative access methods, not separate operation sets. Consumers choose one transport; they do not infer separate capabilities from the presence of multiple transports.
 
 ## Schema
 
