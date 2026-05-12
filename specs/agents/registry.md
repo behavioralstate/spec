@@ -24,7 +24,7 @@ This is conceptually similar to npm (packages), Docker Hub (images), or the WebF
 
 ## Webhook Subscriptions
 
-Webhook subscription (push event delivery) is part of the `agents.events` capability — see [`POST /subscriptions`](events.md#webhook--http-clients-optional).
+Webhook subscription (push event delivery) is part of the `agents.events` capability — see [`POST /subscriptions`](events.md#webhook-http-clients-optional).
 
 ## Local Service Registry — `io.oap.agents.registry`
 
