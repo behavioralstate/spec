@@ -177,4 +177,4 @@ This is the canonical flow for an AI agent that needs to read state before issui
 
 ## Schema
 
-See [queries.json](../../protocol/v1/schemas/agents/queries.json) *(to be added)*.
+See [queries.json](../../protocol/v1/schemas/agents/queries.json).
