@@ -1,8 +1,8 @@
-{
+
   "openapi": "3.1.0",
   "info": {
     "title": "OAP Agent Service",
-    "description": "REST API for the io.oap.agents service â€” service registry, command ingestion, command discovery, event log, and service memory.",
+    "description": "HTTP API for the io.oap.agents service â€” service registry, command ingestion, command discovery, event log, and service memory.",
     "version": "{{OAP_VERSION}}",
     "license": {
       "name": "Apache-2.0",
@@ -12,7 +12,7 @@
   "servers": [
     {
       "url": "{endpoint}",
-      "description": "OAP-compliant endpoint base URL (from the rest.endpoint field in the /.well-known/oap manifest). All API paths below are appended to this base URL. For example, if rest.endpoint is https://app.example.com/oap/, then GET /services resolves to https://app.example.com/oap/services.",
+      "description": "OAP-compliant endpoint base URL (from the http.endpoint field in the /.well-known/oap manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/oap/, then GET /services resolves to https://app.example.com/oap/services.",
       "variables": {
         "endpoint": {
           "default": "https://your.compliant.oap.endpoint"
@@ -73,7 +73,8 @@
       },
       "post": {
         "operationId": "registerService",
-        "summary": "Register a new service",
+        "summary": "Register or update a service (upsert)",
+        "description": "Creates the service if it does not exist, or fully replaces its descriptor if it does. Re-registering an existing service does not remove its subscriptions — only DELETE /services/{id} does that.",
         "tags": [
           "Service Registry"
         ],
@@ -88,8 +89,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Service registered",
+          "200": {
+            "description": "Service registered or updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -110,16 +111,6 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
-          },
-          "409": {
-            "description": "Service already registered",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
           }
         }
       }
@@ -456,8 +447,8 @@
     "/events": {
       "get": {
         "operationId": "listEvents",
-        "summary": "List published domain events",
-        "description": "Returns the log of domain events published by this service as results of command processing. Optional filter by event type.",
+        "summary": "Query published domain events",
+        "description": "Returns the queryable log of domain events published by this service. Supports filtering by event type, correlation ID, source, and time range, plus cursor-based pagination. All parameters are optional and combinable.",
         "tags": [
           "Events"
         ],
@@ -465,15 +456,49 @@
           {
             "name": "type",
             "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "description": "Filter by event type"
+            "schema": { "type": "string" },
+            "description": "Filter by CloudEvent type (PascalCase, e.g. ChatKitMessageRememberedV1). Returns all events of this type across all interactions."
+          },
+          {
+            "name": "correlationId",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by correlation identifier — the command id returned by POST /commands. Returns only events produced in response to that specific command submission."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by event source — the string identifying the service that published the event (matches the CloudEvent source field)."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Return only events published at or after this ISO 8601 timestamp (e.g. 2025-07-01T00:00:00Z)."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Return only events published at or before this ISO 8601 timestamp."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1 },
+            "description": "Maximum number of events to return. Server may apply a lower ceiling. Defaults to a server-defined value."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Pagination cursor. Pass the nextCursor value from a previous response to retrieve the next page. Opaque — do not construct manually."
           }
         ],
         "responses": {
           "200": {
-            "description": "List of published domain events",
+            "description": "List of published domain events, with optional pagination cursor",
             "content": {
               "application/json": {
                 "schema": {
@@ -484,88 +509,6 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "post": {
-        "operationId": "injectEvent",
-        "summary": "Inject a domain event (simulation/testing only)",
-        "description": "Optional capability. Allows injecting a domain event directly into the event log â€” intended for testing and simulation only. Implementers may declare this capability with status 'partial' if unsupported.",
-        "tags": [
-          "Events"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "../../schemas/agents/events.json#/$defs/event"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Event accepted"
-          },
-          "400": {
-            "description": "Invalid event",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/services/{id}/memory": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Service identifier"
-        }
-      ],
-      "get": {
-        "operationId": "getServiceMemory",
-        "summary": "Get current memory state for a service",
-        "description": "The memory response body is opaque â€” different runtimes return different formats.",
-        "tags": [
-          "Service Memory"
-        ],
-        "responses": {
-          "200": {
-            "description": "Service memory state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/agents/memory.json#/$defs/agentMemory"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Service not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
           }
         }
       }
@@ -645,11 +588,7 @@
     },
     {
       "name": "Events",
-      "description": "io.oap.agents.events â€” List published domain events, inject events for testing"
-    },
-    {
-      "name": "Service Memory",
-      "description": "io.oap.agents.memory â€” View service memory state"
+      "description": "io.oap.agents.events — List and query published domain events"
     }
   ],
   "components": {

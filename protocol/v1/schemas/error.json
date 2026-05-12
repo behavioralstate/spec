@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openagentprotocol.io/v1/schemas/error.json",
   "title": "OAP Error Response",
-  "description": "Standard error response format for all OAP REST endpoints.",
+  "description": "Standard error response format for all OAP HTTP endpoints.",
   "type": "object",
   "required": ["error"],
   "properties": {

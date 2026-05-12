@@ -1,4 +1,4 @@
-# OAP Protocol Overview
+﻿# OAP Protocol Overview
 
 ## What is OAP?
 
@@ -26,7 +26,7 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 1. **Protocol-first** — define the spec before the implementation; derive code from the protocol, not the other way around
 2. **Compose, don't invent** — build on existing standards (MCP, A2A, JSON Schema) rather than creating proprietary wire formats
 3. **Discoverable by default** — every OAP endpoint exposes a `/.well-known/oap` manifest so consumers can dynamically discover capabilities
-4. **Transport-agnostic** — the same agent semantics work over REST, MCP, A2A, or gRPC
+4. **Transport-agnostic** — the same agent semantics work over HTTP, MCP, A2A, or gRPC
 5. **Modular capabilities** — implementers choose which capabilities to support; consumers discover what's available at runtime
 6. **LLM-readable** — JSON Schema is the canonical format because LLMs can read, generate, and reason about JSON natively
 7. **Implementation-agnostic** — OAP defines the interaction surface (commands in, events out); it never prescribes how a service processes commands internally
@@ -45,7 +45,7 @@ Layer 2: LLM / Tool Interface
          MCP (Model Context Protocol) for LLM access
 
 Layer 1: Transport
-         JSON-RPC over stdio/SSE | HTTP/REST | gRPC
+         JSON-RPC over stdio/SSE | HTTP | gRPC
 ```
 
 ## Core Primitives
@@ -65,8 +65,8 @@ Layer 1: Transport
 - Discovery mechanism — `/.well-known/oap` manifest structure
 - Service taxonomy — `io.oap.agents`
 - Capability model — composable capabilities with extensions
-- REST API surface — HTTP endpoints for service management and event/command delivery
-- Transport bindings — how services map to REST, MCP, and A2A
+- HTTP API surface — HTTP endpoints for service management and event/command delivery
+- Transport bindings — how services map to HTTP, MCP, and A2A
 - Conformance requirements — what it means to be OAP-compliant
 
 ### What OAP Does NOT Own
@@ -87,7 +87,7 @@ Layer 1: Transport
 | **Domain** | Commerce | Agent interoperability |
 | **Discovery** | `/.well-known/ucp` | `/.well-known/oap` |
 | **Canonical format** | JSON Schema | JSON Schema |
-| **Transports** | REST, MCP, A2A | REST, MCP, A2A |
+| **Transports** | HTTP, MCP, A2A | HTTP, MCP, A2A |
 | **Namespace convention** | `dev.ucp.*` | `io.oap.*` |
 
 ## Versioning
@@ -110,7 +110,7 @@ GET /.well-known/oap
     "services": {
       "io.oap.agents": {
         "version": "{{OAP_VERSION}}",
-        "rest": {
+        "http": {
           "openapi": "https://openagentprotocol.io/v1/services/agents/openapi.json",
           "endpoint": "https://your-service.example.com/"
         }
@@ -125,15 +125,15 @@ GET /.well-known/oap
 }
 ```
 
-**Step 2 — Implement the REST endpoints**
+**Step 2 — Implement the HTTP endpoints**
 
 The minimum set for a functional agent service:
 
 | Method | Path | What it does |
 |---|---|---|
-| `POST` | `/agents` | Register an agent |
-| `GET` | `/agents` | List registered agents |
-| `POST` | `/events` | Inject a domain event (simulation only) |
+| `POST` | `/services` | Register a service |
+| `GET` | `/services` | List registered services |
+| `GET` | `/events` | Query published domain events |
 | `GET` | `/commands` | Browse accepted command types |
 | `GET` | `/queries` | Browse available query types |
 
@@ -155,5 +155,5 @@ node scripts/validate-examples.mjs
 - [Events](./agents/events.md) — How events are published
 - [Commands](./agents/commands.md) — How commands are accepted
 - [Design Decisions](./design-decisions.md) — Why OAP is shaped the way it is
-- [Transports](./transports/rest.md) — REST, MCP, and A2A bindings
+- [Transports](./transports/http.md) — HTTP, MCP, and A2A bindings
 - [Conformance](./conformance.md) — What it means to be OAP-compliant

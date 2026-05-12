@@ -1,4 +1,4 @@
-<script>
+﻿<script>
 	let baseUrl = $state('');
 	let discovering = $state(false);
 	let discoverError = $state('');
@@ -80,12 +80,12 @@
 	}
 
 	// Resolve the REST base URL for a capability.
-	// Use cap.service to look up the service's rest.endpoint.
+	// Use cap.service to look up the service's http.endpoint.
 	// Fall back to the URL-bar value if the field is absent or the service is not found.
 	function resolveEndpointBase(cap) {
 		if (cap?.service) {
 			const svcEntry = manifest?.services?.[cap.service];
-			const endpoint = svcEntry?.rest?.endpoint;
+			const endpoint = svcEntry?.http?.endpoint;
 			if (endpoint) return endpoint.replace(/\/+$/, '');
 		}
 		return normalizedBase;

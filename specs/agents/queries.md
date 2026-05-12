@@ -42,7 +42,7 @@ Queries are **not** a replacement for OpenAPI or a general REST query language. 
   </div>
 </div>
 
-## REST API
+## HTTP API
 
 | Method | Path | Description |
 |---|---|---|

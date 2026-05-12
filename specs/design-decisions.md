@@ -1,4 +1,4 @@
-# Design Decisions
+﻿# Design Decisions
 
 This page documents the reasoning behind key OAP design choices. It is aimed at implementers who want to understand *why* the protocol is shaped the way it is, and at contributors evaluating future changes.
 
@@ -37,7 +37,7 @@ Polling `GET /events?correlationId=...` is the fallback and the simplest path. F
 
 | Channel | How declared | Best for |
 |---|---|---|
-| **Webhook** | `webhook.url` on service descriptor at `POST /services` | REST clients running their own HTTP server |
+| **Webhook** | `webhook.url` on service descriptor at `POST /services` | HTTP clients running their own HTTP server |
 | **MCP notification** | `"push": true` on `mcp` transport block | LLM tooling with an active MCP session |
 | **A2A message** | implicit when A2A transport is active | Agent-to-agent coordination |
 
@@ -117,7 +117,73 @@ OAP tells you *what* happened. OpenTelemetry tells you *how* and *when* it happe
 
 ---
 
-## CloudEvent Deviations
+## Service Metadata vs. Memory
+
+### The decision
+
+The service descriptor carries an optional `metadata` field — an opaque JSON object holding service-defined configuration (e.g. model name, system prompt, provider settings). The `io.oap.agents.memory` capability has been **removed** from the protocol. The `GET /events` endpoint covers the remaining use case for accumulated historical state.
+
+`POST /services` uses **upsert semantics**: submitting a registration for an existing `id` fully replaces the descriptor. There is no separate `PATCH` or `PUT` endpoint for the service descriptor.
+
+### Why metadata on the descriptor
+
+Agent services — particularly AI-backed ones — need to expose static operational configuration as part of their identity: which model they run, what system prompt they use, what context window size applies. This is configuration the service *is*, not state the service *has* accumulated. It belongs on the thing that describes the service: the service descriptor.
+
+### Why memory was removed
+
+The `io.oap.agents.memory` capability had a single endpoint — `GET /services/{id}/memory` — returning a fully opaque blob with no prescribed structure. Two problems:
+
+1. **Static config** (model, prompt, provider settings) belongs on the service descriptor as `metadata`. It is known at deployment time and changes only when the service is deliberately reconfigured.
+2. **Dynamic/accumulated state** (conversation history, audit trail, event log) is already served by `GET /events` — a queryable log that filters by type, source, time range, and correlation ID.
+
+There was no remaining use case that `memory` covered that one of these two didn't cover better. The capability was removed rather than deprecated because no implementation had shipped against it.
+
+### Why `GET /events` is the right home for event history
+
+`GET /events` with `?type=ChatKitMessageRememberedV1` returns all events of that type across all interactions — ordered, filterable by time range and source, paginated. This is a proper queryable log, not a memory endpoint. The distinction matters: callers can reconstruct any historical view they need without a bespoke memory API.
+
+### Why upsert and not a separate update endpoint
+
+A `PATCH /services/{id}` endpoint would be functionally equivalent to re-registering with the same `id`. Services re-register on restart anyway; making `POST /services` idempotent aligns with reality and eliminates a separate write path. Re-registering preserves existing subscriptions; `DELETE /services/{id}` is the only operation that removes them.
+
+### Why not `config`, `settings`, or `properties`
+
+- `config` and `settings` imply a narrower, application-specific scope.
+- `properties` conflicts visually with the JSON Schema keyword of the same name.
+- `metadata` is the established term in REST APIs, Kubernetes, and the broader cloud-native ecosystem for opaque, non-structural attributes attached to a resource.
+
+---
+
+## HTTP API vs REST
+
+### The decision
+
+OAP describes its transport binding as an **HTTP API**, not a HTTP API. The spec uses "HTTP" throughout when referring to the transport layer.
+
+### Why OAP is not REST
+
+REST (Representational State Transfer) is a specific architectural style defined by Roy Fielding in his 2000 dissertation. A fully REST-compliant system requires:
+
+- **HATEOAS** (Hypermedia as the Engine of Application State) — responses carry hypermedia links to next available actions; clients never construct URLs from prior knowledge
+- **Uniform resource interface** — the API is modelled around resources identified by URIs, manipulated through their representations
+- **Stateless interactions** — no server-side session state between requests
+
+OAP fails on HATEOAS immediately. Callers construct URLs like `GET /events?type=X&from=Y` from prior knowledge. The `/.well-known/oap` manifest is a URL directory, not a hypermedia document. OAP is semantically a **message-passing system** — commands flow in, events flow out — not a resource manipulation system.
+
+### What OAP actually is
+
+OAP is an **HTTP API**: it uses HTTP verbs, HTTP status codes, and JSON payloads over HTTPS. It is not REST. It is not RPC. It is a message-passing protocol with an HTTP transport binding.
+
+The distinction matters for implementers:
+- Do not design OAP endpoints as resource hierarchies — `GET /events/{id}` is not an OAP primitive
+- Do not add hypermedia links to OAP responses
+- Do design around the command/event message flow: `POST /commands` → `GET /events`
+
+### Why the schema field is named `http`
+
+The transport binding block in the discovery manifest is named `"http"` — consistent with OAP's HTTP API terminology throughout. The field was previously named `"rest"` and was renamed as part of the major version bump that removed the REST label from the spec.
+
+---
 
 ### The decision
 

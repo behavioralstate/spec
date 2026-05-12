@@ -65,8 +65,7 @@
           "format": "uri",
           "description": "URL to the service specification."
         },
-        "rest": {
-          "$ref": "#/$defs/restTransport"
+        "http": { "$ref": "#/$defs/httpTransport"
         },
         "mcp": {
           "$ref": "#/$defs/mcpTransport"
@@ -115,7 +114,7 @@
         },
         "service": {
           "type": "string",
-          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard OAP capability (io.oap.agents.commands). Consumers use this field to resolve which rest.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.oap.agents.* capabilities under the io.oap.agents service)."
+          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard OAP capability (io.oap.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.oap.agents.* capabilities under the io.oap.agents service)."
         },
         "status": {
           "type": "string",
@@ -124,7 +123,7 @@
         },
         "endpoints": {
           "type": "array",
-          "description": "Machine-readable list of HTTP endpoints exposed by this capability. Paths are relative to rest.endpoint. The HTTP method signals whether each operation is a read (GET) or a write (POST/PUT/PATCH/DELETE). Consumers can use this to discover the catalogue URL, determine mutability, and self-bootstrap without reading the spec.",
+          "description": "Machine-readable list of HTTP endpoints exposed by this capability. Paths are relative to http.endpoint. The HTTP method signals whether each operation is a read (GET) or a write (POST/PUT/PATCH/DELETE). Consumers can use this to discover the catalogue URL, determine mutability, and self-bootstrap without reading the spec.",
           "items": {
             "type": "object",
             "required": ["method", "path"],
@@ -136,7 +135,7 @@
               },
               "path": {
                 "type": "string",
-                "description": "Path relative to rest.endpoint (e.g. /commands, /services/{id})."
+                "description": "Path relative to http.endpoint (e.g. /commands, /services/{id})."
               },
               "description": {
                 "type": "string",
@@ -149,14 +148,14 @@
       },
       "additionalProperties": false
     },
-    "restTransport": {
+    "httpTransport": {
       "type": "object",
       "required": ["endpoint"],
       "properties": {
         "endpoint": {
           "type": "string",
           "format": "uri",
-          "description": "Consumer-facing base URL for all REST operations. This must be the public or proxy-facing address reachable by consumers — never an internal backend address. All capability endpoint paths are appended to this URL."
+          "description": "Consumer-facing base URL for all HTTP operations. This must be the public or proxy-facing address reachable by consumers — never an internal backend address. All capability endpoint paths are appended to this URL."
         }
       },
       "additionalProperties": false

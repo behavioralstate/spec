@@ -7,5 +7,11 @@
   "endpoint": "https://api.example.com/negotiation",
   "accepts": ["ProposeCounter", "AcceptContract", "RejectContract", "RequestClarification"],
   "produces": ["CounterProposed", "ContractAccepted", "ContractRejected", "ClarificationRequested"],
-  "status": "running"
+  "status": "running",
+  "metadata": {
+    "model": "gpt-4o",
+    "provider": "openai",
+    "systemPrompt": "You are a contract negotiation assistant. Be concise and professional.",
+    "maxTokens": 2048
+  }
 }

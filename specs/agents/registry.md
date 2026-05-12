@@ -33,7 +33,7 @@ While a global OAP registry is a future concept, the protocol defines a **local 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/services` | List registered services |
-| POST | `/services` | Register a service |
+| POST | `/services` | Register or update a service (**upsert** — if a service with the given `id` already exists its descriptor is fully replaced) |
 | GET | `/services/{id}` | Get service detail |
 | DELETE | `/services/{id}` | Deregister a service — also removes all subscriptions with a matching `serviceId` |
 
@@ -51,6 +51,7 @@ While a global OAP registry is a future concept, the protocol defines a **local 
 | `produces` | string[] | yes | CloudEvent `type` strings (PascalCase) this service publishes — e.g. `["CounterProposed", "ContractAccepted"]` |
 | `status` | enum | yes (response only) | `running` \| `paused` \| `stopped` \| `error` |
 | `webhook` | object | no | Inline webhook for push delivery — alternative to registering a separate subscription |
+| `metadata` | object | no | Opaque, service-defined configuration object. The protocol does not prescribe its structure. Intended for operational settings such as AI model name, system prompt, provider configuration, or any other key/value pair the service needs to expose. Must not be used for command routing or event filtering — those are served by `accepts` and `produces`. |
 
 > **`accepts` and `produces` string format**: both arrays contain CloudEvent `type` strings — PascalCase identifiers (e.g. `ProposeCounter`). The schema enforces the pattern `^[A-Z][a-zA-Z0-9]*$`. These are the same strings that appear in the `type` field on the CloudEvent wire format.
 

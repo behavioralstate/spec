@@ -103,7 +103,7 @@ The consumer reads this block, acquires a token from `tokenUrl`, and includes it
 | Primary actor | Merchant / virtual sales associate | Any agent (human, AI, IoT, service) |
 | Payment | Built-in (AP2) | Domain convention (events + commands) |
 | Product catalogue | Core primitive | Not in scope |
-| Transport | REST, MCP, A2A | REST (baseline), MCP, A2A |
+| Transport | HTTP, MCP, A2A | REST (baseline), MCP, A2A |
 | Discovery | `/.well-known/ucp` | `/.well-known/oap` |
 | Schema format | Protobuf / JSON | JSON Schema |
 

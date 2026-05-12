@@ -9,7 +9,7 @@ Read `specs/` to understand the protocol. These instructions cover only repo con
 |---|---|
 | `specs/` | Canonical spec documents (Markdown) — the source of truth |
 | `protocol/v1/schemas/` | JSON Schema files for all capabilities |
-| `protocol/v1/services/` | OpenAPI specs for the REST transport |
+| `protocol/v1/services/` | OpenAPI specs for the HTTP transport |
 | `protocol/v1/examples/` | Example manifests and payloads |
 | `website/` | SvelteKit documentation site |
 | `scripts/` | Release and validation scripts |
@@ -53,7 +53,7 @@ Generic MCP server for any OAP-compliant endpoint. Published to npm as `oap-mcp`
 
 | Variable | Required | Description |
 |---|---|---|
-| `OAP_ENDPOINT` | yes | Base URL of the OAP REST surface |
+| `OAP_ENDPOINT` | yes | Base URL of the OAP HTTP surface |
 | `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |

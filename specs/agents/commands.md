@@ -77,7 +77,7 @@ The ingestion API owns and hosts the schemas via `GET /commands/{schema}/{versio
 }
 ```
 
-## REST API
+## HTTP API
 
 | Method | Path | Description |
 |---|---|---|

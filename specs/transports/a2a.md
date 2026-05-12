@@ -18,4 +18,4 @@ A2A (Google Agent-to-Agent) enables multi-agent coordination. Agents can expose 
 }
 ```
 
-A2A transport is **optional** — REST is the baseline. A2A is declared in the `/.well-known/oap` manifest only if the endpoint supports it.
+A2A transport is **optional** — HTTP is the baseline. A2A is declared in the `/.well-known/oap` manifest only if the endpoint supports it.

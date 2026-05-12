@@ -1,10 +1,10 @@
-# Security Considerations
+﻿# Security Considerations
 
 OAP is an open protocol with a broad attack surface. This page catalogues the security requirements that every conformant implementation must observe.
 
 ## TLS
 
-All OAP REST endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying OAP traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
+All OAP HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying OAP traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
 
 ## Authentication and Authorisation
 
@@ -16,7 +16,7 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 |---|---|
 | Read | `GET /services`, `GET /events`, `GET /commands`, `GET /commands/{schema}/{version}` |
 | Write | `POST /commands`, `POST /services`, `DELETE /services/{id}` |
-| Admin | `POST /events`, `POST /services/{id}/pause`, `POST /services/{id}/resume` |
+| Admin | `POST /services/{id}/pause`, `POST /services/{id}/resume` |
 
 `GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read domain events.
 
@@ -49,15 +49,6 @@ The `source` field in a command is **caller-declared** and **MUST NOT** be treat
 - Servers **MUST NOT** grant elevated permissions, apply authorisation policies, or make security decisions based on a caller-supplied `source` value.
 - If `source` is used for audit or observability, the server **SHOULD** either overwrite it with the verified principal identity (derived from the authenticated session) or record both the declared and verified values.
 - If a mismatch between `source` and the authenticated principal is a policy violation, the server **MUST** reject the command.
-
-## Event Injection — `POST /events`
-
-`POST /events` is an optional capability intended only for testing and simulation. It bypasses the command pipeline and directly inserts events into the published stream — making it a high-impact administrative operation.
-
-**Requirements:**
-- `POST /events` **MUST** be disabled by default and **MUST NOT** be enabled in production environments without explicit operator configuration.
-- If implemented, `POST /events` **MUST** require a distinct administrative scope and **MUST NOT** accept general client credentials.
-- Injected events **SHOULD** be explicitly marked as synthetic (for example, via a CloudEvents extension attribute `synthetic: true`) and **MUST** be isolatable from production event streams in audit and downstream processing.
 
 ## Webhook SSRF Protection
 
@@ -93,4 +84,4 @@ The `/.well-known/oap` manifest is publicly accessible by design. Its content **
 - Service descriptions, capability names, and transport endpoints — yes
 - Internal-only endpoint addresses, tenant metadata, credential hints, or sensitive integration names — **MUST NOT** appear
 
-The `rest.endpoint` value **MUST** be a consumer-facing public URL. Internal service mesh addresses, private VPC hostnames, and backend-only paths **MUST NOT** appear in the manifest.
+The `http.endpoint` value **MUST** be a consumer-facing public URL. Internal service mesh addresses, private VPC hostnames, and backend-only paths **MUST NOT** appear in the manifest.

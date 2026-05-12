@@ -52,7 +52,7 @@
 			<span class="step-num">2</span>
 			<div class="step-body">
 				<strong>Accept commands, produce events</strong>
-				<p>Callers POST commands to your service. Your service processes them (any way it likes) and the events it produces are observable via the REST or MCP API.</p>
+				<p>Callers POST commands to your service. Your service processes them (any way it likes) and the events it produces are observable via the HTTP or MCP API.</p>
 			</div>
 		</div>
 		<div class="step">
@@ -81,14 +81,13 @@
 				<li><a href="/docs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/docs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
 				<li><a href="/docs/agents/queries">Queries</a><span>Synchronous reads of current state</span></li>
-				<li><a href="/docs/agents/memory">Memory</a><span>View agent memory state</span></li>
 			</ul>
 		</section>
 
 		<section class="index-group">
 			<h2>Transports</h2>
 			<ul>
-				<li><a href="/docs/transports/rest">REST</a><span>HTTP/JSON API reference</span></li>
+				<li><a href="/docs/transports/http">HTTP</a><span>HTTP/JSON API reference</span></li>
 				<li><a href="/docs/transports/mcp">MCP</a><span>Model Context Protocol binding</span></li>
 				<li><a href="/docs/transports/a2a">A2A</a><span>Agent-to-Agent protocol binding</span></li>
 			</ul>

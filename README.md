@@ -24,13 +24,13 @@ If you are new to OAP, start with the [Overview](specs/overview.md) for the prot
 | [Events](specs/agents/events.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/agents/events.md) | [WIP](specs/agents/events.md) |
 | [Commands](specs/agents/commands.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
 | [Queries](specs/agents/queries.md) | — | [WIP](specs/agents/queries.md) |
-| [Memory](specs/agents/memory.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/agents/memory.md) | [WIP](specs/agents/memory.md) |
+| [Memory](specs/agents/memory.md) | *(removed — see [design decisions](specs/design-decisions.md#service-metadata-vs-memory))* | — |
 | | | |
 | **Observability:** | | |
 | ~~Tracing~~ | *(removed — see changelog)* | — |
 | | | |
 | **Transport Bindings:** | | |
-| [REST](specs/transports/rest.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/transports/rest.md) | [WIP](specs/transports/rest.md) |
+| [HTTP](specs/transports/http.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/transports/http.md) | [WIP](specs/transports/http.md) |
 | [MCP](specs/transports/mcp.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/transports/mcp.md) | [WIP](specs/transports/mcp.md) |
 | [A2A](specs/transports/a2a.md) | [v0.4.16](https://github.com/openagentprotocol/spec/blob/v0.4.16/specs/transports/a2a.md) | [WIP](specs/transports/a2a.md) |
 
@@ -43,7 +43,7 @@ The machine-readable protocol definitions live under [`protocol/v1/`](protocol/v
 | Path | Contents |
 |---|---|
 | [`protocol/v1/schemas/`](protocol/v1/schemas/) | JSON Schema files for all capabilities |
-| [`protocol/v1/services/`](protocol/v1/services/) | OpenAPI specs for REST transport |
+| [`protocol/v1/services/`](protocol/v1/services/) | OpenAPI specs for HTTP transport |
 | [`protocol/v1/examples/`](protocol/v1/examples/) | Example manifests and payloads |
 
 ## Quick Start
@@ -74,7 +74,7 @@ npx oap-mcp
 **Required environment variables:**
 
 ```bash
-OAP_ENDPOINT=https://api.example.com/oap   # base URL of the OAP REST surface
+OAP_ENDPOINT=https://api.example.com/oap   # base URL of the OAP HTTP surface
 OAP_API_KEY=<your-api-key>                 # sent as Authorization: Bearer <key>
 ```
 

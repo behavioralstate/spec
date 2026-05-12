@@ -1,4 +1,4 @@
-<script>
+﻿<script>
 	import Hero from '$lib/components/Hero.svelte';
 	import FeatureCard from '$lib/components/FeatureCard.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
@@ -19,7 +19,7 @@
 		<p class="section-eyebrow">Capabilities</p>
 		<h2 class="section-title">Built for agent interoperability</h2>
 		<p class="section-subtitle">
-			OAP defines composable capabilities that any agent can expose and any consumer can discover — over REST, MCP, or A2A.
+			OAP defines composable capabilities that any agent can expose and any consumer can discover — over HTTP, MCP, or A2A.
 		</p>
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			<FeatureCard
@@ -71,7 +71,7 @@
       "io.oap.agents": {
         "version": "0.4.8",
         "description": "Service registry, command ingestion, published events",
-        "rest": {
+        "http": {
           "endpoint": "https://api.example.com/"
         }
       }
@@ -115,7 +115,7 @@
 			</div>
 			<div class="audience-card">
 				<h3>For AI Platforms</h3>
-				<p>Discover and interact with any OAP-compliant agent using MCP, A2A, or simple REST. Compatible with existing agent frameworks.</p>
+				<p>Discover and interact with any OAP-compliant agent using MCP, A2A, or simple HTTP. Compatible with existing agent frameworks.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For IoT &amp; Sensors</h3>

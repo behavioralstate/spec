@@ -1,4 +1,4 @@
-# Conformance
+﻿# Conformance
 
 ## Minimal OAP Compliance
 
@@ -7,7 +7,7 @@ A OAP-compliant endpoint **must**:
 1. Expose `GET /.well-known/oap` returning a valid manifest
 2. Include at least one service in the manifest
 3. List all supported capabilities with valid schema URLs
-4. Implement the REST API for every listed capability
+4. Implement the HTTP API for every listed capability
 5. Return valid JSON conforming to the referenced schemas
 6. Use standard HTTP status codes and the OAP error response format
 7. Declare authentication requirements in the manifest `authentication` block (or omit it for public endpoints); never silently reject requests with an undocumented 401
@@ -22,9 +22,8 @@ For each capability an endpoint claims to support:
 | `agents.events` | GET /events |
 | `agents.commands` | GET /commands, POST /commands |
 | `agents.queries` | GET /queries, GET /queries/{schema}/{version}, GET /queries/{schema} |
-| `agents.memory` | GET /services/{id}/memory |
 
-> **Path resolution:** All paths above are relative to the `rest.endpoint` base URL declared in the discovery manifest. For example, if `rest.endpoint` is `https://app.example.com/oap/`, then `GET /services` resolves to `https://app.example.com/oap/services`. The paths are never relative to the domain root unless `rest.endpoint` itself is the domain root.
+> **Path resolution:** All paths above are relative to the `http.endpoint` base URL declared in the discovery manifest. For example, if `http.endpoint` is `https://app.example.com/oap/`, then `GET /services` resolves to `https://app.example.com/oap/services`. The paths are never relative to the domain root unless `http.endpoint` itself is the domain root.
 
 ### Partial Capabilities
 
@@ -47,18 +46,18 @@ When a host serves multiple tenants and uses the `tenants.manifest` pattern, the
 
 
 
-All OAP REST endpoints must use standard HTTP status codes. The following are required:
+All OAP HTTP endpoints must use standard HTTP status codes. The following are required:
 
 | Status | When |
 |---|---|
 | 200 | Success with body |
-| 201 | Created (agent registration) |
+| 201 | Created (subscription registration) |
 | 202 | Accepted (async processing, e.g. event delivery) |
 | 204 | Success with no body (pause, resume, delete) |
 | 400 | Invalid request body (schema validation failure) |
 | 401 | Authentication required or credentials invalid (only when `authentication.type` is not `none`) |
 | 404 | Resource not found |
-| 409 | Conflict (agent already registered) |
+| 409 | Conflict (e.g. duplicate subscription) |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |
 
@@ -69,5 +68,5 @@ A `401` response **must** be returned when a request lacks valid credentials and
 - A specific programming language or framework
 - A specific internal architecture
 - A specific event transport (Kafka, RabbitMQ, etc.)
-- MCP or A2A support (REST is the baseline)
+- MCP or A2A support (HTTP is the baseline)
 - AI/LLM capabilities (agents can be purely deterministic, human-operated, or anything else)

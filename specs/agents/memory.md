@@ -1,15 +1,13 @@
-# Service Memory — `io.oap.agents.memory`
+# Service Memory — `io.oap.agents.memory` *(removed)*
 
-The memory capability exposes service memory state. The `{id}` parameter is the service identifier as declared in the discovery manifest (`services[].id`). The response body is **opaque** — the protocol does not prescribe its structure. Different runtimes return different formats.
+> **This capability has been removed from the OAP specification.**
 
-## REST API
+The `io.oap.agents.memory` capability has been removed. The use cases it was intended to cover are now better served by two existing parts of the protocol:
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/services/{id}/memory` | Get current memory state for a service |
+- **Static operational configuration** (model name, system prompt, provider settings): use the `metadata` field on the service descriptor — available on any registered service via `GET /services/{id}`.
 
-The web UI renders memory as raw JSON.
+- **Historical event log** (conversation history, audit trails, accumulated facts): use `GET /events` with the full filter set — `?type=`, `?source=`, `?from=`, `?to=`, `?correlationId=`, plus cursor-based pagination.
 
-## Schema
+See [Service Descriptor Fields](registry.md#service-descriptor-fields) and [Events — GET /events](events.md#get-events) for the current specification.
 
-See [memory.json](../../protocol/v1/schemas/agents/memory.json).
+See [Design Decisions — Service Metadata vs. Memory](../design-decisions.md#service-metadata-vs-memory) for the rationale.

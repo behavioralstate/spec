@@ -10,12 +10,16 @@
     },
     "eventList": {
       "type": "object",
-      "description": "Response body for GET /events. Lists domain events published by this service.",
+      "description": "Response body for GET /events. Lists domain events published by this service, with optional cursor for pagination.",
       "required": ["events"],
       "properties": {
         "events": {
           "type": "array",
           "items": { "$ref": "#/$defs/event" }
+        },
+        "nextCursor": {
+          "type": "string",
+          "description": "Opaque pagination cursor. Present when more results exist beyond the current page. Pass as ?after= in the next request. Absent when this is the last page."
         }
       },
       "additionalProperties": false
