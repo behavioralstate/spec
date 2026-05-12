@@ -1,4 +1,4 @@
-# Discovery — `/.well-known/oap`
+﻿# Discovery — `/.well-known/oap`
 
 Every OAP-compliant endpoint exposes a standard discovery URL:
 
@@ -119,7 +119,6 @@ Capabilities are composable building blocks within a service.
 | `io.oap.agents.lifecycle` | Pause and resume services | `agents.registry` |
 | `io.oap.agents.events` | List and query domain events, event catalogue, event schema discovery | — |
 | `io.oap.agents.commands` | Discover available commands (catalogue), send commands (ingestion) | — |
-| `io.oap.agents.memory` | View service memory state | `agents.registry` |
 
 Each capability object has these fields:
 
@@ -130,10 +129,10 @@ Each capability object has these fields:
 | `description` | Human-readable summary |
 | `spec` | URL to the capability specification page |
 | `schema` | URL to the **JSON Schema** for this capability's data structures — e.g. `registry.json`, `events.json`. This is a JSON Schema file, not an OpenAPI spec. |
-| `service` | Key of the implementing service in the manifest's `services` object (e.g. `"io.oap.agents"`, `"io.dotquant.trading"`). Required when the capability's name prefix does not match the service key — for example, a custom service implementing a standard OAP capability. Consumers use this to resolve which `rest.endpoint` to call for the capability's endpoints. |
+| `service` | Key of the implementing service in the manifest's `services` object (e.g. `"io.oap.agents"`, `"io.dotquant.trading"`). Required when the capability's name prefix does not match the service key — for example, a custom service implementing a standard OAP capability. Consumers use this to resolve which `http.endpoint` to call for the capability's endpoints. |
 | `status` | `active`, `partial`, or `planned` (omitted means active) |
 | `extends` | Parent capability name, if this extends another |
-| `endpoints` | Machine-readable list of HTTP endpoints exposed by this capability. Paths are relative to `rest.endpoint`. Each entry has a `method` (GET/POST/DELETE/etc.) and a `path`. The HTTP method signals whether the operation is a read (GET) or a write (POST/DELETE/etc.). Consumers use this to discover catalogue URLs and determine mutability without reading the spec page. |
+| `endpoints` | Machine-readable list of HTTP endpoints exposed by this capability. Paths are relative to `http.endpoint`. Each entry has a `method` (GET/POST/DELETE/etc.) and a `path`. The HTTP method signals whether the operation is a read (GET) or a write (POST/DELETE/etc.). Consumers use this to discover catalogue URLs and determine mutability without reading the spec page. |
 | `push` | Optional object declaring which push channels this capability supports (see [Push Channel Declaration](#push-channel-declaration)). |
 
 ### Push Channel Declaration
@@ -199,14 +198,14 @@ The optional `services` array in the manifest is a **snapshot at manifest-build 
 | **Required** | No | Yes, if `agents.registry` capability is declared |
 | **Dynamic services** | May be absent or partial | Always complete |
 
-For systems where services are created dynamically at runtime (e.g. per-account, per-tenant), the `services` array **should be omitted** or contain only representative examples. Consumers that need the real-time list must call `GET /services` on the REST endpoint.
+For systems where services are created dynamically at runtime (e.g. per-account, per-tenant), the `services` array **should be omitted** or contain only representative examples. Consumers that need the real-time list must call `GET /services` on the HTTP endpoint.
 
 ## Transport Bindings
 
 Each service declares how it can be reached:
 
 ```json
-"rest": {
+"http": {
   "endpoint": "https://your.compliant.oap.endpoint/"
 },
 "mcp": {
@@ -234,7 +233,7 @@ GET  https://api.example.com/{tenantId}/agents
 POST https://api.example.com/{tenantId}/events
 ```
 
-`rest.endpoint` remains the root consumer-facing URL (e.g. `https://api.example.com/`). The `{tenantId}` segment is declared as a path parameter on every tenant-scoped route. Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant's surface to target. Both are required on every request.
+`http.endpoint` remains the root consumer-facing URL (e.g. `https://api.example.com/`). The `{tenantId}` segment is declared as a path parameter on every tenant-scoped route. Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies which tenant's surface to target. Both are required on every request.
 
 ### `tenants.manifest` — URI Template for Tenant Discovery
 
@@ -274,7 +273,7 @@ Rules:
 - The tenant manifest does not include a `tenants` block itself — it is already fully scoped.
 - The `tenants.manifest` template is distinct from `dataschema`. URI templates are only valid in `tenants.manifest`; everywhere else in the manifest URIs must be fully resolved.
 
-For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-Tenant Routing in the REST spec](transports/rest.md#multi-tenant-routing).
+For how `{tenantId}` maps to path parameters in the HTTP transport, see [Multi-Tenant Routing in the REST spec](transports/http.md#multi-tenant-routing).
 
 **Root manifest (multi-tenant host):**
 
@@ -287,7 +286,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
     },
     "services": {
       "io.oap.agents": {
-        "rest": { "endpoint": "https://api.example.com/" }
+        "http": { "endpoint": "https://api.example.com/" }
       }
     },
     "capabilities": [
@@ -313,7 +312,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
     "version": "{{OAP_VERSION}}",
     "services": {
       "io.dotquant.trading": {
-        "rest": {
+        "http": {
           "endpoint": "https://api.example.com/api/oap/tenants/be9e0176"
         }
       }
@@ -335,7 +334,7 @@ For how `{tenantId}` maps to path parameters in the REST transport, see [Multi-T
 
 > **`dataschema` URIs must be fully resolvable.** The `dataschema` field in a command catalogue entry is a URI that a consumer dereferences directly. It must not contain placeholder segments (e.g. `{tenantId}`) that require caller-side substitution — OAP defines no URI templating convention. For multi-tenant implementations where command schemas are tenant-scoped, serve a distinct `/.well-known/oap` manifest per tenant — via subdomain (`https://{tenantId}.api.example.com/.well-known/oap`) or the canonical trailing-segment pattern (`https://api.example.com/.well-known/oap/{tenantId}`) — so that every manifest contains fully-resolved `dataschema` URIs. Tenant context is established at the manifest level, not inside nested URI values.
 
-See [REST Transport](./transports/rest.md) for the full multi-tenant routing reference.
+See [HTTP transport](./transports/http.md) for the full multi-tenant routing reference.
 
 ## Agent Navigation Guide
 
@@ -382,7 +381,7 @@ Resolved:  GET https://api.example.com/.well-known/oap/acme
 
 ### Step 4 — Read the capability endpoints
 
-Find the `io.oap.agents.commands` capability in `oap.capabilities`. Its `endpoints` array lists the available REST operations:
+Find the `io.oap.agents.commands` capability in `oap.capabilities`. Its `endpoints` array lists the available HTTP operations:
 
 ```json
 {
@@ -395,12 +394,12 @@ Find the `io.oap.agents.commands` capability in `oap.capabilities`. Its `endpoin
 }
 ```
 
-Resolve each path against the `rest.endpoint` of the service named in `service` (or the default `io.oap.agents` service if `service` is absent).
+Resolve each path against the `http.endpoint` of the service named in `service` (or the default `io.oap.agents` service if `service` is absent).
 
 ### Step 5 — Fetch the command catalogue
 
 ```
-GET {rest.endpoint}/commands
+GET {http.endpoint}/commands
 X-Api-Key: <credentials>
 ```
 
@@ -421,11 +420,11 @@ This returns the list of command types the service accepts, each with a `schema`
 
 | Field | Description |
 |---|---|
-| `rest.endpoint` | **Consumer-facing base URL.** Must be publicly reachable by the consumer — never an internal backend address or private service-mesh URL. All REST API paths are appended to this value. |
+| `http.endpoint` | **Consumer-facing base URL.** Must be publicly reachable by the consumer — never an internal backend address or private service-mesh URL. All HTTP API paths are appended to this value. |
 
-The `rest.endpoint` value is the **consumer-facing base URL**. All REST API paths are appended to it. For example, if `rest.endpoint` is `https://app.agenthost.example/`, then the services registry is at `https://app.agenthost.example/services`.
+The `http.endpoint` value is the **consumer-facing base URL**. All HTTP API paths are appended to it. For example, if `http.endpoint` is `https://app.agenthost.example/`, then the services registry is at `https://app.agenthost.example/services`.
 
-> **`rest.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If the implementation sits behind a proxy or API gateway, `rest.endpoint` is the outermost address consumers hit.
+> **`http.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If the implementation sits behind a proxy or API gateway, `http.endpoint` is the outermost address consumers hit.
 
 > **Multiple transports describe the same capability surface.** When both `rest` and `mcp` (or `a2a`) are declared, they each provide access to the same logical capabilities — they are alternative access methods, not separate operation sets. Consumers choose one transport; they do not infer separate capabilities from the presence of multiple transports.
 

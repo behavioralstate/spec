@@ -18,7 +18,7 @@ MCP (Model Context Protocol) allows any LLM client to interact with an OAP-compl
     <div class="oap-node-sub">stdio or http transport</div>
   </div>
   <div class="oap-arrow">
-    <div class="oap-arrow-label">OAP REST</div>
+    <div class="oap-arrow-label">OAP HTTP</div>
     <div class="oap-arrow-track">→</div>
   </div>
   <div class="oap-node">
@@ -46,7 +46,7 @@ Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes
 
 ## Reference Implementation — `oap-mcp`
 
-`oap-mcp` is the reference MCP server for OAP. It is generic — it works with any OAP-compliant endpoint. Point it at any OAP REST surface and it exposes the full command and query surface as MCP tools.
+`oap-mcp` is the reference MCP server for OAP. It is generic — it works with any OAP-compliant endpoint. Point it at any OAP HTTP surface and it exposes the full command and query surface as MCP tools.
 
 ```bash
 npx oap-mcp
@@ -56,7 +56,7 @@ npx oap-mcp
 
 | Variable | Required | Description |
 |---|---|---|
-| `OAP_ENDPOINT` | yes | Base URL of the OAP REST surface (e.g. `https://api.example.com/oap`) |
+| `OAP_ENDPOINT` | yes | Base URL of the OAP HTTP surface (e.g. `https://api.example.com/oap`) |
 | `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
@@ -130,7 +130,7 @@ The `mcp` block in the service definition declares how to reach the MCP server:
 | `push` | boolean | no | When `true`, the server supports server-to-client push notifications for domain events. Callers should prefer this channel over polling `GET /events`. |
 | `authentication` | object | no | Authentication requirements for connecting to this MCP server |
 
-MCP transport is **optional** — REST is the baseline. MCP is declared in the `/.well-known/oap` manifest only if the endpoint supports it.
+MCP transport is **optional** — HTTP is the baseline. MCP is declared in the `/.well-known/oap` manifest only if the endpoint supports it.
 
 ## Authentication
 
@@ -222,7 +222,7 @@ Each entry in `headers` describes one required HTTP header:
 
 > **Tooling hint:** The `example` field on a header is intended for IDE tooling (e.g. VS Code Copilot's MCP server config). When consuming a per-tenant manifest, `example` values may be pre-filled so tooling can generate a ready-to-use MCP server config with no manual entry required.
 
-> **MCP authentication vs. root authentication.** The root `authentication` block in the manifest describes credentials for the REST API. The `mcp.authentication` block describes credentials for the MCP server specifically. These may use the same mechanism or different ones — each transport declares its own requirements independently.
+> **MCP authentication vs. root authentication.** The root `authentication` block in the manifest describes credentials for the HTTP API. The `mcp.authentication` block describes credentials for the MCP server specifically. These may use the same mechanism or different ones — each transport declares its own requirements independently.
 
 ## Push Event Delivery
 

@@ -33,12 +33,12 @@ Set two environment variables:
 
 | Variable | Required | Description |
 |---|---|---|
-| `OAP_ENDPOINT` | yes | Base URL of the OAP REST surface (see below) |
+| `OAP_ENDPOINT` | yes | Base URL of the OAP HTTP surface (see below) |
 | `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
 
-**`OAP_ENDPOINT`** should point at the root of the OAP REST surface — the base path from which `/commands`, `/queries`, etc. are resolved. Examples:
+**`OAP_ENDPOINT`** should point at the root of the OAP HTTP surface — the base path from which `/commands`, `/queries`, etc. are resolved. Examples:
 
 ```
 # Generic OAP service

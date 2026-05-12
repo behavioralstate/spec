@@ -2,7 +2,7 @@
 
 The lifecycle capability adds operational controls on a named service. The `{id}` parameter is the service identifier as declared in the discovery manifest (`services[].id`).
 
-## REST API
+## HTTP API
 
 | Method | Path | Description |
 |---|---|---|

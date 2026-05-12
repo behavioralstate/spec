@@ -6,7 +6,7 @@
  * can discover, read, and send commands to an OAP-compliant service.
  *
  * Configuration (environment variables):
- *   OAP_ENDPOINT   — Base URL of the OAP REST endpoint (required)
+ *   OAP_ENDPOINT   — Base URL of the OAP HTTP endpoint (required)
  *                    Point this at the root of the OAP surface, e.g.:
  *                      https://api.example.com/oap
  *                      https://dotquant.io/api/oap/tenants/<tenantId>

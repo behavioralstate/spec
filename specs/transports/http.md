@@ -1,6 +1,6 @@
-# REST Transport
+# HTTP Transport
 
-REST is the primary transport for web-based consumers including the OAP web UI. The REST API surface is fully described by the capability `endpoints` arrays in the discovery manifest — no separate OpenAPI document is required from implementers.
+HTTP is the primary transport for web-based consumers including the OAP web UI. The HTTP API surface is fully described by the capability `endpoints` arrays in the discovery manifest — no separate OpenAPI document is required from implementers.
 
 ## Content Type
 
@@ -8,41 +8,41 @@ All requests and responses use `application/json`.
 
 ## Base URL and Path Resolution
 
-The `rest.endpoint` field in the discovery manifest is the **consumer-facing base URL** for all REST operations. All paths in the OpenAPI spec are appended to this base URL. For example:
+The `http.endpoint` field in the discovery manifest is the **consumer-facing base URL** for all HTTP operations. All paths in the OpenAPI spec are appended to this base URL. For example:
 
-| `rest.endpoint` | Path | Resolved URL |
+| `http.endpoint` | Path | Resolved URL |
 |---|---|---|
 | `https://app.example.com/` | `/services` | `https://app.example.com/services` |
 | `https://app.agenthost.example/oap/` | `/services` | `https://app.agenthost.example/oap/services` |
 | `https://your.compliant.oap.endpoint` | `/services` | `https://your.compliant.oap.endpoint/services` |
 
-Paths are **never** resolved relative to the domain root unless `rest.endpoint` is at the domain root.
+Paths are **never** resolved relative to the domain root unless `http.endpoint` is at the domain root.
 
-> **`rest.endpoint` is always the consumer-facing URL.** It must be the public or proxy address reachable by external consumers, not an internal backend address. If the implementer routes traffic internally, `rest.endpoint` is the _outermost_ address consumers hit.
+> **`http.endpoint` is always the consumer-facing URL.** It must be the public or proxy address reachable by external consumers, not an internal backend address. If the implementer routes traffic internally, `http.endpoint` is the _outermost_ address consumers hit.
 
 ## Multiple Transports, One Capability Surface
 
-A service may declare multiple transport bindings (`rest`, `mcp`, `a2a`) for the same capability surface. All transports expose the same logical operations — the transports are alternative access methods, not separate operation sets.
+A service may declare multiple transport bindings (`http`, `mcp`, `a2a`) for the same capability surface. All transports expose the same logical operations — the transports are alternative access methods, not separate operation sets.
 
 ```json
-"rest": { "endpoint": "https://api.example.com/" },
+"http": { "endpoint": "https://api.example.com/" },
 "mcp": { "transport": "stdio", "server": "oap-mcp" }
 ```
 
-Both REST and MCP above provide access to the same services registry, event delivery, and command ingestion. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
+Both HTTP and MCP above provide access to the same services registry, event delivery, and command ingestion. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
 
 ## Multi-Tenant Routing
 
 Many production OAP endpoints are multi-tenant — they serve multiple tenants under one host. The standard pattern is to include a `{tenantId}` segment in the path:
 
 ```
-POST https://api.example.com/{tenantId}/events
+GET  https://api.example.com/{tenantId}/events
 GET  https://api.example.com/{tenantId}/agents
 ```
 
 When this pattern is used:
 
-- `rest.endpoint` is still the root consumer-facing URL (e.g. `https://api.example.com/`).
+- `http.endpoint` is still the root consumer-facing URL (e.g. `https://api.example.com/`).
 - The `{tenantId}` path segment is declared in capability `endpoints` entries on every tenant-scoped route.
 - Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies _which_ tenant's surface to target. Both are required on every request.
 
@@ -50,7 +50,7 @@ For machine-actionable tenant discovery (letting consumers resolve a tenant mani
 
 ## Authentication
 
-When the discovery manifest declares an `authentication` block, consumers must include credentials on all REST requests (except `GET /.well-known/oap`):
+When the discovery manifest declares an `authentication` block, consumers must include credentials on all HTTP requests (except `GET /.well-known/oap`):
 
 | Type | How to send |
 |---|---|
@@ -84,7 +84,7 @@ All endpoints use standard HTTP status codes with a consistent error body:
 | 400 | Invalid request body (schema validation failure) |
 | 401 | Authentication required or credentials invalid |
 | 404 | Resource not found (agent, trace) |
-| 409 | Conflict (agent already registered) |
+| 409 | Conflict (e.g. duplicate subscription) |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |
 

@@ -70,27 +70,44 @@ This pattern suits services that emit dynamic, loosely-structured payloads (e.g.
 }
 ```
 
-## REST API
+## HTTP API
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/events` | List domain events published by this service (optional `?type=` filter) |
-| GET | `/events?correlationId={id}` | List events matching a correlation identifier |
+| GET | `/events` | Query domain events — filterable by type, source, time range, correlation ID; paginated |
 | GET | `/events/{schema}/{version}` | Return the JSON Schema document for a specific event type and version |
-| POST | `/events` | Inject a domain event — for testing and simulation only (optional capability) |
 | POST | `/subscriptions` | Register a webhook for push event delivery (optional) |
 | DELETE | `/subscriptions/{id}` | Remove a webhook subscription |
 
 ### GET /events
 
-Returns the log of domain events published by this service as results of command processing.
+Returns the queryable log of domain events published by this service. All query parameters are optional and combinable.
 
 Response: `200 OK` with an `eventList` body.
 
-**Filters:**
+**Query parameters:**
 
-- `?type=` — filter by event type (existing)
-- `?correlationId={id}` — filter by correlation identifier (the `id` returned by `POST /commands`). Returns the event(s) correlated to a specific command submission. Services that support this filter should declare it in the capability descriptor endpoints list.
+| Parameter | Type | Description |
+|---|---|---|
+| `type` | string | Filter by CloudEvent `type` (PascalCase). Returns all events of this type across all interactions — e.g. `?type=ChatKitMessageRememberedV1` returns the full conversation history log. |
+| `correlationId` | string | Filter by correlation identifier — the command `id` returned by `POST /commands`. Returns only events produced in response to that specific command submission. |
+| `source` | string | Filter by event source — matches the CloudEvent `source` field (the string identifying the publishing service). |
+| `from` | string (ISO 8601) | Return only events published at or after this timestamp (e.g. `2025-07-01T00:00:00Z`). |
+| `to` | string (ISO 8601) | Return only events published at or before this timestamp. |
+| `limit` | integer | Maximum number of events to return. Servers may apply a lower ceiling. Defaults to a server-defined value. |
+| `after` | string | Pagination cursor. Pass the `nextCursor` value from a previous response to retrieve the next page. Opaque — do not construct manually. |
+
+**Pagination:**
+
+When more results exist beyond the current page, the response includes a `nextCursor` field. Pass it as `?after=<value>` in the next request, preserving all other parameters. When `nextCursor` is absent, the current page is the last.
+
+```
+GET /events?type=ChatKitMessageRememberedV1&limit=50
+→ { "events": [...50 items...], "nextCursor": "eyJpZCI6..." }
+
+GET /events?type=ChatKitMessageRememberedV1&limit=50&after=eyJpZCI6...
+→ { "events": [...next page...] }   ← no nextCursor means last page
+```
 
 ### GET /events/{schema}/{version} — Versioned Event Schema Document
 
@@ -101,16 +118,6 @@ Returns the raw JSON Schema document (`application/schema+json`) for a specific 
 - `version` — version string (e.g. `1.0`)
 
 Returns `404` if not found.
-
-### POST /events (optional)
-
-Allows injecting a domain event directly into the published event feed. Intended for testing and simulation only.
-
-> **Security:** `POST /events` **MUST** be disabled by default and **MUST NOT** be enabled in production without explicit operator configuration. If implemented, it **MUST** require a distinct administrative scope — general client credentials are not sufficient. Injected events **SHOULD** be marked as synthetic and isolatable from production streams. See [Security Considerations](/docs/security#event-injection-post-events).
-
-Implementations that do not support this **must** declare the `events` capability with `status: "partial"` in the manifest.
-
-Response: `202 Accepted`.
 
 ## Event Catalogue
 
@@ -165,9 +172,9 @@ When `"push": true` is present, callers should prefer this channel over polling.
 
 When a caller is connected via A2A, domain events produced by the service are delivered as A2A Messages to the caller agent. The A2A task associated with a command submission receives the resulting event(s) as message artifacts. This is the natural push mechanism for A2A-connected agents.
 
-### Webhook — REST HTTP Clients (optional)
+### Webhook — HTTP Clients (optional)
 
-For callers using the REST binding, a webhook callback URL can be registered to receive events as they are produced:
+For callers using the HTTP binding, a webhook callback URL can be registered to receive events as they are produced:
 
 **POST /subscriptions** request:
 

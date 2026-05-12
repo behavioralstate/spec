@@ -6,7 +6,7 @@
   "$defs": {
     "webhook": {
       "type": "object",
-      "description": "Callback configuration for push event delivery over REST.",
+      "description": "Callback configuration for push event delivery over HTTP.",
       "required": ["url"],
       "properties": {
         "url": {
@@ -77,13 +77,18 @@
         },
         "webhook": {
           "$ref": "#/$defs/webhook"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Opaque, service-defined key-value configuration. Intended for operational settings such as AI model name, system prompt, or provider credentials. The protocol does not interpret or validate the contents. Clients may read this field; the service owns and manages it.",
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
     },
     "serviceRegistration": {
       "type": "object",
-      "description": "Request body for registering a new service. Status defaults to stopped.",
+      "description": "Request body for registering or updating a service (upsert). If a service with the given id already exists its descriptor is fully replaced. Status defaults to stopped on first registration; preserved on update.",
       "required": ["id", "name", "accepts", "produces"],
       "properties": {
         "id": {
@@ -131,6 +136,11 @@
         },
         "webhook": {
           "$ref": "#/$defs/webhook"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Opaque, service-defined key-value configuration — same semantics as the descriptor field. Provided on registration; returned on all read responses.",
+          "additionalProperties": true
         }
       },
       "additionalProperties": false

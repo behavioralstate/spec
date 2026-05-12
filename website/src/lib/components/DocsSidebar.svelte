@@ -20,14 +20,13 @@
 				{ label: 'Lifecycle', href: '/docs/agents/lifecycle' },
 				{ label: 'Commands', href: '/docs/agents/commands' },
 				{ label: 'Events', href: '/docs/agents/events' },
-				{ label: 'Queries', href: '/docs/agents/queries' },
-				{ label: 'Memory', href: '/docs/agents/memory' }
+				{ label: 'Queries', href: '/docs/agents/queries' }
 			]
 		},
 		{
 			label: 'Transports',
 			items: [
-				{ label: 'REST', href: '/docs/transports/rest' },
+				{ label: 'HTTP', href: '/docs/transports/http' },
 				{ label: 'MCP', href: '/docs/transports/mcp' },
 				{ label: 'A2A', href: '/docs/transports/a2a' }
 			]
@@ -43,7 +42,10 @@
 		},
 		{
 			label: 'Comparisons',
-			items: [{ label: 'OAP vs UCP', href: '/docs/comparisons/ucp' }]
+			items: [
+				{ label: 'OAP vs REST', href: '/docs/comparisons/rest' },
+				{ label: 'OAP vs UCP', href: '/docs/comparisons/ucp' }
+			]
 		}
 	];
 
