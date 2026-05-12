@@ -185,6 +185,8 @@ The transport binding block in the discovery manifest is named `"http"` — cons
 
 ---
 
+## CloudEvent Deviations
+
 ### The decision
 
 OAP uses the CloudEvent 1.0 envelope as its wire format for commands and events, but **does not conform to the CloudEvent 1.0 specification**. OAP borrows the shape — eight well-known fields that LLMs and tooling already understand — without committing to full spec compliance.
