@@ -8,6 +8,6 @@ The `io.oap.agents.memory` capability has been removed. The use cases it was int
 
 - **Historical event log** (conversation history, audit trails, accumulated facts): use `GET /events` with the full filter set — `?type=`, `?source=`, `?from=`, `?to=`, `?correlationId=`, plus cursor-based pagination.
 
-See [Service Descriptor Fields](registry.md#service-descriptor-fields) and [Events — GET /events](events.md#get-events) for the current specification.
+See [Service Descriptor Fields](registry.md#service-descriptor-fields) and [Events — Historical Query](events.md#get-events--historical-query) for the current specification.
 
 See [Design Decisions — Service Metadata vs. Memory](../design-decisions.md#service-metadata-vs-memory) for the rationale.
