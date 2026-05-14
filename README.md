@@ -13,16 +13,16 @@ If you are new to OAP, start with the [Overview](specs/overview.md) for the prot
 |  | Pre-release | WIP |
 |---|:---:|:---:|
 | **Core Specification:** | | |
-| [OAP Overview](specs/overview.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/overview.md) | [WIP](specs/overview.md) |
-| [Discovery](specs/discovery.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/discovery.md) | [WIP](specs/discovery.md) |
-| [Versioning](specs/versioning.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/versioning.md) | [WIP](specs/versioning.md) |
-| [Conformance](specs/conformance.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/conformance.md) | [WIP](specs/conformance.md) |
+| [OAP Overview](specs/overview.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/overview.md) | [WIP](specs/overview.md) |
+| [Discovery](specs/discovery.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/discovery.md) | [WIP](specs/discovery.md) |
+| [Versioning](specs/versioning.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/versioning.md) | [WIP](specs/versioning.md) |
+| [Conformance](specs/conformance.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/conformance.md) | [WIP](specs/conformance.md) |
 | | | |
 | **Agent Capabilities:** | | |
 | ~~[Registry](specs/agents/registry.md)~~ | *(removed — see [future concept](specs/agents/registry.md))* | — |
-| [Lifecycle](specs/agents/lifecycle.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
-| [Events](specs/agents/events.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/agents/events.md) | [WIP](specs/agents/events.md) |
-| [Commands](specs/agents/commands.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
+| [Lifecycle](specs/agents/lifecycle.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
+| [Events](specs/agents/events.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/agents/events.md) | [WIP](specs/agents/events.md) |
+| [Commands](specs/agents/commands.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
 | [Queries](specs/agents/queries.md) | — | [WIP](specs/agents/queries.md) |
 | [Memory](specs/agents/memory.md) | *(removed — see [design decisions](specs/design-decisions.md#service-metadata-vs-memory))* | — |
 | | | |
@@ -30,11 +30,11 @@ If you are new to OAP, start with the [Overview](specs/overview.md) for the prot
 | ~~Tracing~~ | *(removed — see changelog)* | — |
 | | | |
 | **Transport Bindings:** | | |
-| [HTTP](specs/transports/http.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/transports/http.md) | [WIP](specs/transports/http.md) |
-| [MCP](specs/transports/mcp.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/transports/mcp.md) | [WIP](specs/transports/mcp.md) |
-| [A2A](specs/transports/a2a.md) | [v0.5.2](https://github.com/openagentprotocol/spec/blob/v0.5.2/specs/transports/a2a.md) | [WIP](specs/transports/a2a.md) |
+| [HTTP](specs/transports/http.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/transports/http.md) | [WIP](specs/transports/http.md) |
+| [MCP](specs/transports/mcp.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/transports/mcp.md) | [WIP](specs/transports/mcp.md) |
+| [A2A](specs/transports/a2a.md) | [v0.5.3](https://github.com/openagentprotocol/spec/blob/v0.5.3/specs/transports/a2a.md) | [WIP](specs/transports/a2a.md) |
 
-> The most recent stable release is [v0.5.2](https://github.com/openagentprotocol/spec/releases/tag/v0.5.2).
+> The most recent stable release is [v0.5.3](https://github.com/openagentprotocol/spec/releases/tag/v0.5.3).
 
 ## Protocol Artifacts
 
