@@ -74,12 +74,85 @@ This pattern suits services that emit dynamic, loosely-structured payloads (e.g.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/events` | Query domain events — filterable by type, source, time range, correlation ID; paginated |
+| GET | `/events` | **Historical query** — paginated log of past events, filterable by type, source, time range, correlation ID |
+| GET | `/events/stream` | **Live stream** — SSE subscription; delivers events produced *after* the connection is opened |
 | GET | `/events/{schema}/{version}` | Return the JSON Schema document for a specific event type and version |
 | POST | `/subscriptions` | Register a webhook for push event delivery (optional) |
 | DELETE | `/subscriptions/{id}` | Remove a webhook subscription |
 
-### GET /events
+> **`GET /events` and `GET /events/stream` are complementary, not alternatives.** `GET /events` queries the historical log — events that have already happened. `GET /events/stream` subscribes to events produced from now forward. They are typically used together: load history first, then open the stream to receive new events.
+>
+> ```
+> GET /events?correlationId=abc123        → what has already happened
+> GET /events/stream?correlationId=abc123 → what happens next
+> ```
+
+### GET /events/stream — Live Event Stream (SSE)
+
+> **Live events only.** This endpoint delivers events produced *after* the connection is opened. It does not replay historical events. To query past events, use `GET /events`.
+
+Opens a persistent Server-Sent Events connection. The server pushes events as they are produced — no polling required. This is the recommended push channel for HTTP callers that cannot expose a public webhook endpoint (browsers, CLI tools, locally-running agents).
+
+**Request:**
+
+```
+GET /events/stream?correlationId=abc123
+Accept: text/event-stream
+X-Api-Key: <credentials>
+```
+
+**Response:** `200 OK` with `Content-Type: text/event-stream`. The connection stays open. Each event is delivered as an SSE `data` field containing the CloudEvent JSON payload, with the CloudEvent `id` echoed as the SSE event `id` for reconnection:
+
+```
+data: {"specversion":"1.0","id":"b2c3d4","type":"CounterProposed","source":"...","time":"...","data":{...}}
+id: b2c3d4
+
+data: {"specversion":"1.0","id":"c3d4e5","type":"ContractAccepted","source":"...","time":"...","data":{...}}
+id: c3d4e5
+```
+
+**Query parameters** (all optional, combinable):
+
+| Parameter | Type | Description |
+|---|---|---|
+| `correlationId` | string | Receive only events produced by a specific command submission. The most common use — pass the `id` returned by `POST /commands`. |
+| `type` | string | Filter by CloudEvent `type`. Receive only events of this type across all interactions. |
+| `source` | string | Filter by publishing service. |
+
+**Reconnection:**
+
+SSE clients reconnect automatically after a dropped connection. On reconnect, clients send `Last-Event-ID: <last-seen-id>` — the server replays any events produced after that point, preventing gaps.
+
+**Connection lifecycle:**
+
+- The server **may** close the stream after a period of inactivity or once a terminal event is delivered (e.g. a `*Failed` or `*Completed` event for the correlated command).
+- The server **should** send periodic SSE comment lines (`: keepalive`) to prevent proxy timeouts on long-lived connections.
+- Clients **must** handle reconnection via `Last-Event-ID` — do not assume the stream is lossless.
+
+**Declare SSE support** in the capability's `push` block in `/.well-known/oap`:
+
+```json
+"push": {
+  "sse": true,
+  "webhook": true,
+  "mcp": true,
+  "a2a": true
+}
+```
+
+> **When to use each push channel:**
+>
+> | Caller type | Recommended channel |
+> |---|---|
+> | Browser app, CLI tool, local agent | **SSE** — no public endpoint required |
+> | HTTP service with a reachable endpoint | **Webhook** — fire-and-forget delivery |
+> | LLM client with active MCP session | **MCP push** — native to the session |
+> | Agent connected via A2A | **A2A** — natural to the protocol |
+> | Any caller with no persistent connection | **Polling** (`GET /events`) — always available as fallback |
+
+### GET /events — Historical Query
+
+> **Past events only.** This endpoint queries events that have already been published. It does not deliver future events. To subscribe to events as they are produced, use `GET /events/stream`.
 
 Returns the queryable log of domain events published by this service. All query parameters are optional and combinable.
 
