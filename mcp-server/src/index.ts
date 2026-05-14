@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * oap-mcp — MCP server for any OAP-compliant endpoint
+ * bsp-mcp — MCP server for any BSP-compliant endpoint
  *
- * Exposes the OAP command and query surface as MCP tools so any LLM client
- * can discover, read, and send commands to an OAP-compliant service.
+ * Exposes the BSP command and query surface as MCP tools so any LLM client
+ * can discover, read, and send commands to an BSP-compliant service.
  *
  * Configuration (environment variables):
- *   OAP_ENDPOINT   — Base URL of the OAP HTTP endpoint (required)
- *                    Point this at the root of the OAP surface, e.g.:
- *                      https://api.example.com/oap
- *                      https://dotquant.io/api/oap/tenants/<tenantId>
- *   OAP_API_KEY    — API key sent as "Authorization: Bearer <key>" (required)
+ *   BSP_ENDPOINT   — Base URL of the BSP HTTP endpoint (required)
+ *                    Point this at the root of the BSP surface, e.g.:
+ *                      https://api.example.com/BSP
+ *                      https://dotquant.io/api/BSP/tenants/<tenantId>
+ *   BSP_API_KEY    — API key sent as "Authorization: Bearer <key>" (required)
  *   MCP_TRANSPORT  — "stdio" (default) or "http"
  *   MCP_HTTP_PORT  — HTTP port when MCP_TRANSPORT=http (default: 3000)
  *
@@ -33,23 +33,23 @@ import {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const ENDPOINT = (process.env.OAP_ENDPOINT ?? '').replace(/\/$/, '');
-const API_KEY  = process.env.OAP_API_KEY ?? '';
+const ENDPOINT = (process.env.BSP_ENDPOINT ?? '').replace(/\/$/, '');
+const API_KEY  = process.env.BSP_API_KEY ?? '';
 const TRANSPORT  = process.env.MCP_TRANSPORT ?? 'stdio';
 const HTTP_PORT  = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
 
 const missing: string[] = [];
-if (!ENDPOINT) missing.push('OAP_ENDPOINT');
-if (!API_KEY)  missing.push('OAP_API_KEY');
+if (!ENDPOINT) missing.push('BSP_ENDPOINT');
+if (!API_KEY)  missing.push('BSP_API_KEY');
 if (missing.length) {
-  process.stderr.write(`[oap-mcp] ERROR: missing required environment variables: ${missing.join(', ')}\n`);
+  process.stderr.write(`[bsp-mcp] ERROR: missing required environment variables: ${missing.join(', ')}\n`);
   process.exit(1);
 }
 
 // Disable TLS verification for localhost dev servers (e.g. self-signed Vite cert)
 if (/^https:\/\/localhost(:\d+)?/.test(ENDPOINT)) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-  process.stderr.write('[oap-mcp] WARNING: TLS verification disabled for localhost\n');
+  process.stderr.write('[bsp-mcp] WARNING: TLS verification disabled for localhost\n');
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_command_catalogue',
     description:
-      'List all commands this OAP endpoint accepts. ' +
+      'List all commands this BSP endpoint accepts. ' +
       'Returns the command catalogue: every command type with its schema name, version, dataschema URI, and description. ' +
       'Call this first to discover what you can send. ' +
       'Examples: configure-broker, configure-indicator-alert, submit-signal, archive-broker.',
@@ -131,7 +131,7 @@ const TOOLS: Tool[] = [
   {
     name: 'send_command',
     description:
-      'Send a command to the OAP endpoint. ' +
+      'Send a command to the BSP endpoint. ' +
       'Use get_command_catalogue to discover available commands, ' +
       'then get_command_schema to learn the required payload fields and the required source value, ' +
       'then call this with the schema name, version, source, and data payload. ' +
@@ -167,7 +167,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_query_catalogue',
     description:
-      'List all read queries available at this OAP endpoint. ' +
+      'List all read queries available at this BSP endpoint. ' +
       'Returns the query catalogue: every query type with its schema name, version, dataschema URI, and description. ' +
       'Call this to discover what current-state data you can read. ' +
       'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds).',
@@ -197,7 +197,7 @@ const TOOLS: Tool[] = [
   {
     name: 'execute_query',
     description:
-      'Execute a read query against the OAP endpoint and return current state data synchronously. ' +
+      'Execute a read query against the BSP endpoint and return current state data synchronously. ' +
       'Use get_query_catalogue to discover available queries, ' +
       'then get_query_schema to learn the accepted parameters and response shape, ' +
       'then call this with the schema name and any parameters. ' +
@@ -292,7 +292,7 @@ async function handleExecuteQuery(args: Record<string, unknown>): Promise<string
 // ── Server factory ────────────────────────────────────────────────────────────
 
 const SERVER_INSTRUCTIONS = `
-You are connected to an OAP-compliant service endpoint at ${ENDPOINT}.
+You are connected to an BSP-compliant service endpoint at ${ENDPOINT}.
 
 ## Reading current state (queries)
 
@@ -321,7 +321,7 @@ If a command fails, relay the error message verbatim to the user — it is actio
 
 function createMcpServer(): Server {
   const server = new Server(
-    { name: 'oap-mcp', version: '1.0.0' },
+    { name: 'bsp-mcp', version: '1.0.0' },
     { capabilities: { tools: {} } }
   );
 
@@ -381,9 +381,9 @@ if (TRANSPORT === 'http') {
   });
 
   httpServer.listen(HTTP_PORT, () => {
-    process.stderr.write(`[oap-mcp] HTTP server listening on port ${HTTP_PORT}\n`);
-    process.stderr.write(`[oap-mcp] MCP endpoint: http://localhost:${HTTP_PORT}/mcp\n`);
-    process.stderr.write(`[oap-mcp] OAP endpoint: ${ENDPOINT}\n`);
+    process.stderr.write(`[bsp-mcp] HTTP server listening on port ${HTTP_PORT}\n`);
+    process.stderr.write(`[bsp-mcp] MCP endpoint: http://localhost:${HTTP_PORT}/mcp\n`);
+    process.stderr.write(`[bsp-mcp] BSP endpoint: ${ENDPOINT}\n`);
   });
 } else {
   const transport = new StdioServerTransport();

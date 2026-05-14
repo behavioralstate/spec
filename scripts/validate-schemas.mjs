@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Validates all JSON Schema files in protocol/v1/schemas/ are valid JSON
  * and conform to JSON Schema draft 2020-12.
  *

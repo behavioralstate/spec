@@ -1,15 +1,15 @@
-﻿# Conformance
+# Conformance
 
-## Minimal OAP Compliance
+## Minimal BSP Compliance
 
-A OAP-compliant endpoint **must**:
+A BSP-compliant endpoint **must**:
 
-1. Expose `GET /.well-known/oap` returning a valid manifest
+1. Expose `GET /.well-known/bsp` returning a valid manifest
 2. Include at least one service in the manifest
 3. List all supported capabilities with valid schema URLs
 4. Implement the HTTP API for every listed capability
 5. Return valid JSON conforming to the referenced schemas
-6. Use standard HTTP status codes and the OAP error response format
+6. Use standard HTTP status codes and the BSP error response format
 7. Declare authentication requirements in the manifest `authentication` block (or omit it for public endpoints); never silently reject requests with an undocumented 401
 
 ## Capability-Level Compliance
@@ -23,7 +23,7 @@ For each capability an endpoint claims to support:
 | `agents.commands` | GET /commands, POST /commands |
 | `agents.queries` | GET /queries, GET /queries/{schema}/{version}, GET /queries/{schema} |
 
-> **Path resolution:** All paths above are relative to the `http.endpoint` base URL declared in the discovery manifest. For example, if `http.endpoint` is `https://app.example.com/oap/`, then `GET /services` resolves to `https://app.example.com/oap/services`. The paths are never relative to the domain root unless `http.endpoint` itself is the domain root.
+> **Path resolution:** All paths above are relative to the `http.endpoint` base URL declared in the discovery manifest. For example, if `http.endpoint` is `https://app.example.com/BSP/`, then `GET /services` resolves to `https://app.example.com/BSP/services`. The paths are never relative to the domain root unless `http.endpoint` itself is the domain root.
 
 ### Partial Capabilities
 
@@ -33,20 +33,20 @@ A capability declared with `status: "active"` (or with no `status` field) **must
 
 ## Root Manifest Rules (Multi-Tenant Hosts)
 
-When a host serves multiple tenants and uses the `tenants.manifest` pattern, the root manifest (at `/.well-known/oap`) has additional conformance requirements:
+When a host serves multiple tenants and uses the `tenants.manifest` pattern, the root manifest (at `/.well-known/bsp`) has additional conformance requirements:
 
 1. The root manifest **MUST** include a `tenants.manifest` URI template if tenant-scoped capabilities exist.
-2. The root manifest **MUST NOT** declare tenant-scoped capabilities (e.g. `io.oap.agents.commands`, `io.oap.agents.events`) — these belong only in tenant manifests.
+2. The root manifest **MUST NOT** declare tenant-scoped capabilities (e.g. `io.bsp.agents.commands`, `io.bsp.agents.events`) — these belong only in tenant manifests.
 3. The root manifest **MAY** declare root-level capabilities it can fulfill directly without a tenant context (e.g. a tenant listing endpoint).
 4. The root manifest **MUST** return `200` without authentication. Auth is not required to discover that a tenant ID is needed.
 5. The tenant manifest (returned at the expanded `tenants.manifest` URI) **MUST** be a self-contained, fully-resolved manifest with no `{tenantId}` placeholders in any URI field and no `tenants` block of its own.
-6. Tenant manifest endpoints (`/.well-known/oap/{tenantId}`) **MUST NOT** require a tenant ID header or query parameter — the tenant ID is already in the URL path. At most, the API key credential declared in the root `authentication` block is required.
+6. Tenant manifest endpoints (`/.well-known/bsp/{tenantId}`) **MUST NOT** require a tenant ID header or query parameter — the tenant ID is already in the URL path. At most, the API key credential declared in the root `authentication` block is required.
 
 **Why this matters for agents:** An AI agent hitting a root manifest that has an empty `capabilities` array but no `tenants.manifest` cannot proceed — it has no signal for what to do next. A root manifest that follows these rules gives any agent unambiguous guidance: check capabilities → if absent, check tenants.manifest → ask user for tenant ID → fetch tenant manifest.
 
 
 
-All OAP HTTP endpoints must use standard HTTP status codes. The following are required:
+All BSP HTTP endpoints must use standard HTTP status codes. The following are required:
 
 | Status | When |
 |---|---|
@@ -61,7 +61,7 @@ All OAP HTTP endpoints must use standard HTTP status codes. The following are re
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |
 
-A `401` response **must** be returned when a request lacks valid credentials and the endpoint declares a non-`none` authentication type. The `/.well-known/oap` endpoint is exempt and must always return `200` without requiring credentials.
+A `401` response **must** be returned when a request lacks valid credentials and the endpoint declares a non-`none` authentication type. The `/.well-known/bsp` endpoint is exempt and must always return `200` without requiring credentials.
 
 ## What Compliance Does NOT Require
 

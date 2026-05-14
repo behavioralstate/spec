@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/error.json",
-  "title": "OAP Error Response",
-  "description": "Standard error response format for all OAP HTTP endpoints.",
+  "$id": "https://behavioralstate.io/v1/schemas/error.json",
+  "title": "BSP Error Response",
+  "description": "Standard error response format for all BSP HTTP endpoints.",
   "type": "object",
   "required": ["error"],
   "properties": {

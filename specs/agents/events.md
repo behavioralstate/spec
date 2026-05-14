@@ -1,6 +1,6 @@
-# Events — `io.oap.agents.events`
+# Events — `io.bsp.agents.events`
 
-Domain events are **immutable facts** published by an OAP-compliant service as the result of processing a command. They are the **output** of the service. Callers (Process Managers, synchronisers, other services) subscribe to events to react and keep read models up to date.
+Domain events are **immutable facts** published by an BSP-compliant service as the result of processing a command. They are the **output** of the service. Callers (Process Managers, synchronisers, other services) subscribe to events to react and keep read models up to date.
 
 ## Event Wire Format
 
@@ -26,7 +26,7 @@ Events are:
 
 ## Typed vs Untyped Events
 
-OAP supports two event patterns. Services choose per event type; both can coexist in the same service.
+BSP supports two event patterns. Services choose per event type; both can coexist in the same service.
 
 ### Typed event — `dataschema` present
 
@@ -129,7 +129,7 @@ SSE clients reconnect automatically after a dropped connection. On reconnect, cl
 - The server **should** send periodic SSE comment lines (`: keepalive`) to prevent proxy timeouts on long-lived connections.
 - Clients **must** handle reconnection via `Last-Event-ID` — do not assume the stream is lossless.
 
-**Declare SSE support** in the capability's `push` block in `/.well-known/oap`:
+**Declare SSE support** in the capability's `push` block in `/.well-known/bsp`:
 
 ```json
 "push": {
@@ -223,7 +223,7 @@ Returns `404` if not found.
 
 ## Push Notification Channels
 
-Polling `GET /events` is a fallback. OAP defines push channels per transport binding so callers receive events as they are produced.
+Polling `GET /events` is a fallback. BSP defines push channels per transport binding so callers receive events as they are produced.
 
 ### MCP — Server-to-Client Notifications
 
@@ -255,7 +255,7 @@ For callers using the HTTP binding, a webhook callback URL can be registered to 
 {
   "serviceId": "invoice-comparison-agent",
   "webhook": {
-    "url": "https://my-agent.example.com/oap/events",
+    "url": "https://my-agent.example.com/BSP/events",
     "secret": "hmac-signing-secret"
   },
   "filter": {
@@ -274,9 +274,9 @@ Response: `201 Created` with the subscription descriptor (`secret` omitted, plus
 
 > **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/docs/security#webhook-ssrf-protection).
 
-## Mapping Domain Records to OAP Events
+## Mapping Domain Records to BSP Events
 
-Many implementations do not have a native OAP event store — they have domain-specific records (audit entries, trade history, sensor readings, etc.). Implementers may map these to the OAP event shape at query time.
+Many implementations do not have a native BSP event store — they have domain-specific records (audit entries, trade history, sensor readings, etc.). Implementers may map these to the BSP event shape at query time.
 
 The protocol only requires that the response conforms to the events schema — it does not prescribe how events are stored internally.
 

@@ -1,4 +1,4 @@
-# OAP — Open Agent Protocol (spec repo)
+﻿# BSP — Behavioural State Protocol (spec repo)
 
 The authoritative protocol documentation lives in `specs/`. Do not duplicate it here.
 Read `specs/` to understand the protocol. These instructions cover only repo conventions and tooling.
@@ -13,7 +13,7 @@ Read `specs/` to understand the protocol. These instructions cover only repo con
 | `protocol/v1/examples/` | Example manifests and payloads |
 | `website/` | SvelteKit documentation site |
 | `scripts/` | Release and validation scripts |
-| `mcp-server/` | Generic OAP MCP server (`oap-mcp`) |
+| `mcp-server/` | Generic BSP MCP server (`bsp-mcp`) |
 
 ## Commands
 
@@ -34,9 +34,9 @@ cd mcp-server && npm install && npm run build
 ## Version Stamping
 
 - **Single source of truth**: `version.json` at repo root
-- Spec and example files use the placeholder `{{OAP_VERSION}}` — never hardcode a version string
-- Files using the placeholder: `protocol/v1/examples/well-known-oap.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
-- Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{OAP_VERSION}}` when copying `protocol/v1/` → `website/static/v1/`
+- Spec and example files use the placeholder `{{BSP_VERSION}}` — never hardcode a version string
+- Files using the placeholder: `protocol/v1/examples/well-known-BSP.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
+- Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{BSP_VERSION}}` when copying `protocol/v1/` → `website/static/v1/`
 
 ## Cutting a Release
 
@@ -49,12 +49,12 @@ The script bumps `version.json`, commits, tags, and pushes. Never manually edit 
 
 ## MCP Server (`mcp-server/`)
 
-Generic MCP server for any OAP-compliant endpoint. Published to npm as `oap-mcp`.
+Generic MCP server for any BSP-compliant endpoint. Published to npm as `bsp-mcp`.
 
 | Variable | Required | Description |
 |---|---|---|
-| `OAP_ENDPOINT` | yes | Base URL of the OAP HTTP surface |
-| `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
+| `BSP_ENDPOINT` | yes | Base URL of the BSP HTTP surface |
+| `BSP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
 

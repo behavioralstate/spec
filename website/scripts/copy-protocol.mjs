@@ -5,7 +5,7 @@
  * Run before `vite build`: node scripts/copy-protocol.mjs
  *
  * Version stamping: reads version.json from the repo root and replaces every
- * occurrence of the literal string {{OAP_VERSION}} in the copied files with
+ * occurrence of the literal string {{BSP_VERSION}} in the copied files with
  * the real version. This keeps the source files version-agnostic — the single
  * source of truth is version.json.
  */
@@ -21,7 +21,7 @@ const staticDir = join(__dirname, '..', 'static');
 // Read the single source-of-truth version
 const { version } = JSON.parse(readFileSync(join(root, 'version.json'), 'utf-8'));
 
-/** Recursively copy src → dest, stamping {{OAP_VERSION}} in every text file. */
+/** Recursively copy src → dest, stamping {{BSP_VERSION}} in every text file. */
 function copyAndStamp(src, dest) {
   mkdirSync(dest, { recursive: true });
   for (const entry of readdirSync(src, { withFileTypes: true })) {
@@ -31,7 +31,7 @@ function copyAndStamp(src, dest) {
       copyAndStamp(srcPath, destPath);
     } else {
       const content = readFileSync(srcPath, 'utf-8');
-      const stamped = content.replaceAll('{{OAP_VERSION}}', version);
+      const stamped = content.replaceAll('{{BSP_VERSION}}', version);
       writeFileSync(destPath, stamped, 'utf-8');
     }
   }

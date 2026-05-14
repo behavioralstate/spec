@@ -1,8 +1,8 @@
-# Service Memory — `io.oap.agents.memory` *(removed)*
+# Service Memory — `io.bsp.agents.memory` *(removed)*
 
-> **This capability has been removed from the OAP specification.**
+> **This capability has been removed from the BSP specification.**
 
-The `io.oap.agents.memory` capability has been removed. The use cases it was intended to cover are now better served by two existing parts of the protocol:
+The `io.bsp.agents.memory` capability has been removed. The use cases it was intended to cover are now better served by two existing parts of the protocol:
 
 - **Static operational configuration** (model name, system prompt, provider settings): use the `metadata` field on the service descriptor — available on any registered service via `GET /services/{id}`.
 

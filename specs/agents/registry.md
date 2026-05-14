@@ -1,24 +1,24 @@
-# Global OAP Registry *(future)*
+# Global BSP Registry *(future)*
 
-> **Note:** This document describes a future concept — a public global directory of OAP-compliant endpoints. It is **not** a protocol capability that implementations need to support. No endpoints are defined here.
+> **Note:** This document describes a future concept — a public global directory of BSP-compliant endpoints. It is **not** a protocol capability that implementations need to support. No endpoints are defined here.
 
-A recurring question is: "I've implemented OAP — how do people find me?"
+A recurring question is: "I've implemented BSP — how do people find me?"
 
-OAP's self-describing discovery mechanism (`/.well-known/oap`) solves the *interaction* problem — once a caller knows your endpoint URL, they can discover everything. But it does not solve the *discoverability* problem — how does a caller find your URL in the first place?
+BSP's self-describing discovery mechanism (`/.well-known/bsp`) solves the *interaction* problem — once a caller knows your endpoint URL, they can discover everything. But it does not solve the *discoverability* problem — how does a caller find your URL in the first place?
 
 ## The Problem
 
-A global OAP registry would be a public, community-operated directory where anyone who has implemented OAP can list their endpoint:
+A global BSP registry would be a public, community-operated directory where anyone who has implemented BSP can list their endpoint:
 
-- **Implementer** publishes their OAP endpoint URL to the registry
+- **Implementer** publishes their BSP endpoint URL to the registry
 - **Caller** searches the registry by capability, domain, or name
-- **Registry** returns the endpoint URL(s) — the caller then hits `/.well-known/oap` and proceeds normally
+- **Registry** returns the endpoint URL(s) — the caller then hits `/.well-known/bsp` and proceeds normally
 
 This is conceptually similar to npm (packages), Docker Hub (images), or the WebFinger protocol — a well-known public listing, not part of the core protocol itself.
 
 ## Why It Is Not Part of the Core Spec
 
-- **Not required for compliance** — two OAP-compliant services can interoperate perfectly without any registry
+- **Not required for compliance** — two BSP-compliant services can interoperate perfectly without any registry
 - **Governance concerns** — a public registry requires moderation, abuse prevention, availability guarantees, and funding — none of which belong in a protocol spec
 - **Out-of-band discovery is common** — callers typically know their target service URLs via configuration, environment variables, or manual setup; a registry is a convenience layer
 
@@ -26,11 +26,11 @@ This is conceptually similar to npm (packages), Docker Hub (images), or the WebF
 
 Webhook subscription (push event delivery) is part of the `agents.events` capability — see [`POST /subscriptions`](events.md#webhook-http-clients-optional).
 
-## Local Service Registry — `io.oap.agents.registry`
+## Local Service Registry — `io.bsp.agents.registry`
 
-> **When to implement this:** Only if your OAP endpoint hosts multiple independent agent services that consumers need to enumerate at runtime. For a single-service endpoint, `/.well-known/oap` is sufficient — the manifest already describes what the service accepts and produces. If you are exposing one service, skip this capability entirely.
+> **When to implement this:** Only if your BSP endpoint hosts multiple independent agent services that consumers need to enumerate at runtime. For a single-service endpoint, `/.well-known/bsp` is sufficient — the manifest already describes what the service accepts and produces. If you are exposing one service, skip this capability entirely.
 
-While a global OAP registry is a future concept, the protocol defines a **local service registry** as a first-class capability (`io.oap.agents.registry`). An OAP endpoint implementing this capability exposes:
+While a global BSP registry is a future concept, the protocol defines a **local service registry** as a first-class capability (`io.bsp.agents.registry`). An BSP endpoint implementing this capability exposes:
 
 | Method | Path | Description |
 |---|---|---|
@@ -48,7 +48,7 @@ While a global OAP registry is a future concept, the protocol defines a **local 
 | `description` | string | no | What this service does |
 | `version` | string | no | Semver version of the running implementation (e.g. `"1.2.0"`). Allows consumers to know which version is live and supports gradual rollouts. |
 | `type` | string | no | Service type classification (e.g. `negotiation-service`, `pricing-engine`) |
-| `endpoint` | string (URI) | no | Base URL of the service's OAP surface. Consumers append `/.well-known/oap` to discover transport bindings and then send commands via `POST /commands`. Omit if the service is not directly addressable. |
+| `endpoint` | string (URI) | no | Base URL of the service's BSP surface. Consumers append `/.well-known/bsp` to discover transport bindings and then send commands via `POST /commands`. Omit if the service is not directly addressable. |
 | `accepts` | string[] | yes | CloudEvent `type` strings (PascalCase) this service ingests — e.g. `["ProposeCounter", "AcceptContract"]` |
 | `produces` | string[] | yes | CloudEvent `type` strings (PascalCase) this service publishes — e.g. `["CounterProposed", "ContractAccepted"]` |
 | `status` | enum | yes (response only) | `running` \| `paused` \| `stopped` \| `error` |
@@ -57,10 +57,10 @@ While a global OAP registry is a future concept, the protocol defines a **local 
 
 > **`accepts` and `produces` string format**: both arrays contain CloudEvent `type` strings — PascalCase identifiers (e.g. `ProposeCounter`). The schema enforces the pattern `^[A-Z][a-zA-Z0-9]*$`. These are the same strings that appear in the `type` field on the CloudEvent wire format.
 
-> **`endpoint` and invocation**: OAP does not define a special invocation model for registered services. Once a consumer has the `endpoint`, they interact with the service using the standard OAP command flow: fetch `{endpoint}/.well-known/oap` → call `GET /commands` to browse the catalogue → send `POST /commands` with a CloudEvent.
+> **`endpoint` and invocation**: BSP does not define a special invocation model for registered services. Once a consumer has the `endpoint`, they interact with the service using the standard BSP command flow: fetch `{endpoint}/.well-known/bsp` → call `GET /commands` to browse the catalogue → send `POST /commands` with a CloudEvent.
 
 See [registry.json](../../protocol/v1/schemas/agents/registry.json) for the full JSON Schema.
 
 ## Global Registry *(future)*
 
-If and when a public OAP registry is operated, it will be described here with its own endpoint URL, submission process, and discovery API. The registry itself would expose a standard OAP manifest and comply with the protocol — making it self-describing and agent-navigable.
+If and when a public BSP registry is operated, it will be described here with its own endpoint URL, submission process, and discovery API. The registry itself would expose a standard BSP manifest and comply with the protocol — making it self-describing and agent-navigable.

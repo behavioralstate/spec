@@ -5,9 +5,9 @@
 	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
 	const shaMatch = gitTag ? gitTag.match(/-g([0-9a-f]+)$/) : null;
 	const tagUrl = isCleanTag
-		? `https://github.com/openagentprotocol/spec/releases/tag/${gitTag}`
+		? `https://github.com/behaviouralstate/spec/releases/tag/${gitTag}`
 		: shaMatch
-			? `https://github.com/openagentprotocol/spec/commit/${shaMatch[1]}`
+			? `https://github.com/behaviouralstate/spec/commit/${shaMatch[1]}`
 			: null;
 </script>
 
@@ -18,7 +18,7 @@
 	<div class="hero-inner">
 		<div class="hero-brand">
 			<Logo size={40} />
-			<span class="hero-brand-text">Open Agent Protocol</span>
+			<span class="hero-brand-text">Behavioural State Protocol</span>
 		</div>
 		<h1 class="hero-title">
 			Agentic Behaviours.<br /><span class="hero-title-muted">By Design.</span>
@@ -35,9 +35,9 @@
 				<span class="hd-arrow-sym">→</span>
 			</div>
 			<div class="hd-node">
-				<div class="hd-label">OAP Endpoint</div>
+				<div class="hd-label">BSP Endpoint</div>
 				<div class="hd-box hd-box--brand">Your Implementation</div>
-				<div class="hd-sub">/.well-known/oap</div>
+				<div class="hd-sub">/.well-known/bsp</div>
 			</div>
 			<div class="hd-arrow">
 				<span class="hd-arrow-lbl">Event</span>
@@ -55,7 +55,7 @@
 		</p>
 		<div class="hero-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>
-			<a href="https://github.com/openagentprotocol/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
+			<a href="https://github.com/behaviouralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
 		</div>
 		{#if gitTag}
 		<p class="hero-build">

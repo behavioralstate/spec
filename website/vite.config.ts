@@ -10,7 +10,7 @@ const { version } = JSON.parse(readFileSync(join(__dirname, '..', 'version.json'
 
 export default defineConfig({
 	define: {
-		__OAP_VERSION__: JSON.stringify(version)
+		__BSP_VERSION__: JSON.stringify(version)
 	},
 	plugins: [tailwindcss(), sveltekit()]
 });

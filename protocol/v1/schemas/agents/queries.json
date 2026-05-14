@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/agents/queries.json",
-  "title": "OAP Queries",
-  "description": "Schema for the query discovery and execution capability (io.oap.agents.queries).",
+  "$id": "https://behavioralstate.io/v1/schemas/agents/queries.json",
+  "title": "BSP Queries",
+  "description": "Schema for the query discovery and execution capability (io.bsp.agents.queries).",
   "$defs": {
     "queryCatalogueEntry": {
       "type": "object",

@@ -1,4 +1,4 @@
-# Service Lifecycle — `io.oap.agents.lifecycle`
+# Service Lifecycle — `io.bsp.agents.lifecycle`
 
 The lifecycle capability adds operational controls on a named service. The `{id}` parameter is the service identifier as declared in the discovery manifest (`services[].id`).
 

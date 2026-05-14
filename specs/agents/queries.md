@@ -1,10 +1,10 @@
-# Queries — `io.oap.agents.queries`
+# Queries — `io.bsp.agents.queries`
 
 Queries are **synchronous reads** of current domain state. They return data directly without changing anything. Unlike commands (which are queued and produce events asynchronously), queries return their result in the HTTP response body.
 
 ## Design Rationale
 
-OAP's command/event model is write-side only: commands change state, events record what happened. This is intentional — it decouples the write path from the read path and allows asynchronous processing. However, many callers need to read current state before they can issue commands. For example, an AI agent needs to know which broker accounts exist before it can reference one in a `configure-indicator-alert` command.
+BSP's command/event model is write-side only: commands change state, events record what happened. This is intentional — it decouples the write path from the read path and allows asynchronous processing. However, many callers need to read current state before they can issue commands. For example, an AI agent needs to know which broker accounts exist before it can reference one in a `configure-indicator-alert` command.
 
 Queries fill this gap:
 
@@ -16,29 +16,29 @@ Queries fill this gap:
 
 Queries are **not** a replacement for OpenAPI or a general REST query language. They are a minimal, catalogue-driven read surface that follows exactly the same discovery pattern as commands — discoverable, schema-described, and consistent.
 
-<div class="oap-diagram">
-  <div class="oap-node">
-    <div class="oap-node-title">Caller</div>
-    <div class="oap-node-box">Any Caller</div>
-    <div class="oap-node-sub">app · agent · LLM</div>
+<div class="BSP-diagram">
+  <div class="BSP-node">
+    <div class="BSP-node-title">Caller</div>
+    <div class="BSP-node-box">Any Caller</div>
+    <div class="BSP-node-sub">app · agent · LLM</div>
   </div>
-  <div class="oap-arrow">
-    <div class="oap-arrow-label">GET /queries/{schema}</div>
-    <div class="oap-arrow-track">→</div>
+  <div class="BSP-arrow">
+    <div class="BSP-arrow-label">GET /queries/{schema}</div>
+    <div class="BSP-arrow-track">→</div>
   </div>
-  <div class="oap-node">
-    <div class="oap-node-title">OAP Endpoint</div>
-    <div class="oap-node-box accent">Query Handler</div>
-    <div class="oap-node-sub">reads current state</div>
+  <div class="BSP-node">
+    <div class="BSP-node-title">BSP Endpoint</div>
+    <div class="BSP-node-box accent">Query Handler</div>
+    <div class="BSP-node-sub">reads current state</div>
   </div>
-  <div class="oap-arrow">
-    <div class="oap-arrow-label">Sync response</div>
-    <div class="oap-arrow-track">→</div>
+  <div class="BSP-arrow">
+    <div class="BSP-arrow-label">Sync response</div>
+    <div class="BSP-arrow-track">→</div>
   </div>
-  <div class="oap-node">
-    <div class="oap-node-title">Result</div>
-    <div class="oap-node-box">Current State</div>
-    <div class="oap-node-sub">JSON in HTTP body</div>
+  <div class="BSP-node">
+    <div class="BSP-node-title">Result</div>
+    <div class="BSP-node-box">Current State</div>
+    <div class="BSP-node-sub">JSON in HTTP body</div>
   </div>
 </div>
 
@@ -170,10 +170,10 @@ This is the canonical flow for an AI agent that needs to read state before issui
 
 ## What Queries Are NOT
 
-- **Not a REST resource hierarchy** — there are no sub-resources, nested paths, or per-item GETs here. Each query is a named, flat operation. Standard REST GET endpoints (e.g. `GET /brokers/{id}`) belong in the service's own API and are out of OAP scope.
+- **Not a REST resource hierarchy** — there are no sub-resources, nested paths, or per-item GETs here. Each query is a named, flat operation. Standard REST GET endpoints (e.g. `GET /brokers/{id}`) belong in the service's own API and are out of BSP scope.
 - **Not a query language** — no filtering expressions, joins, aggregations, or sort clauses beyond simple parameters.
 - **Not event sourcing** — queries return current state as the service projects it, not a replay of events. The source of truth for historical facts remains `GET /events`.
-- **Not a replacement for OpenAPI** — OpenAPI describes every HTTP endpoint, parameter, and response exhaustively. OAP Queries defines a single, fixed GET pattern with catalogue-driven discovery. The two can coexist.
+- **Not a replacement for OpenAPI** — OpenAPI describes every HTTP endpoint, parameter, and response exhaustively. BSP Queries defines a single, fixed GET pattern with catalogue-driven discovery. The two can coexist.
 
 ## Schema
 

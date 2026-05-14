@@ -1,9 +1,9 @@
 
   "openapi": "3.1.0",
   "info": {
-    "title": "OAP Agent Service",
-    "description": "HTTP API for the io.oap.agents service â€” service registry, command ingestion, command discovery, event log, and service memory.",
-    "version": "{{OAP_VERSION}}",
+    "title": "BSP Agent Service",
+    "description": "HTTP API for the io.bsp.agents service â€” service registry, command ingestion, command discovery, event log, and service memory.",
+    "version": "{{BSP_VERSION}}",
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"
@@ -12,10 +12,10 @@
   "servers": [
     {
       "url": "{endpoint}",
-      "description": "OAP-compliant endpoint base URL (from the http.endpoint field in the /.well-known/oap manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/oap/, then GET /services resolves to https://app.example.com/oap/services.",
+      "description": "BSP-compliant endpoint base URL (from the http.endpoint field in the /.well-known/bsp manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/BSP/, then GET /services resolves to https://app.example.com/BSP/services.",
       "variables": {
         "endpoint": {
-          "default": "https://your.compliant.oap.endpoint"
+          "default": "https://your.compliant.BSP.endpoint"
         }
       }
     }
@@ -26,11 +26,11 @@
     }
   ],
   "paths": {
-    "/.well-known/oap": {
+    "/.well-known/bsp": {
       "get": {
         "operationId": "getDiscoveryManifest",
         "summary": "Discovery manifest",
-        "description": "Returns the OAP discovery manifest describing available services, capabilities, and transport bindings.",
+        "description": "Returns the BSP discovery manifest describing available services, capabilities, and transport bindings.",
         "tags": [
           "Discovery"
         ],
@@ -576,19 +576,19 @@
     },
     {
       "name": "Service Registry",
-      "description": "io.oap.agents.registry â€” Register, remove, list, get services"
+      "description": "io.bsp.agents.registry â€” Register, remove, list, get services"
     },
     {
       "name": "Service Lifecycle",
-      "description": "io.oap.agents.lifecycle â€” Pause and resume services"
+      "description": "io.bsp.agents.lifecycle â€” Pause and resume services"
     },
     {
       "name": "Commands",
-      "description": "io.oap.agents.commands — Discover command types (GET /commands), fetch versioned schemas (GET /commands/{schema}/{version}), and send commands (POST /commands)"
+      "description": "io.bsp.agents.commands — Discover command types (GET /commands), fetch versioned schemas (GET /commands/{schema}/{version}), and send commands (POST /commands)"
     },
     {
       "name": "Events",
-      "description": "io.oap.agents.events — List and query published domain events"
+      "description": "io.bsp.agents.events — List and query published domain events"
     }
   ],
   "components": {

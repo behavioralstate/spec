@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+﻿name: CI/CD Pipeline
 
 on:
   push:
@@ -118,11 +118,11 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.IAC_PAT }}
-          commit-message: "Update OAP website image to ${{ github.ref_name }} (${{ github.sha }})"
-          branch: update-oap-website-${{ github.ref_name }}
+          commit-message: "Update BSP website image to ${{ github.ref_name }} (${{ github.sha }})"
+          branch: update-BSP-website-${{ github.ref_name }}
           base: ${{ secrets.IAC_BRANCH }}
-          title: "Update OAP website image to ${{ github.ref_name }}"
-          body: "Automated update of OAP website image tag to ${{ github.ref_name }} (commit ${{ github.sha }})."
+          title: "Update BSP website image to ${{ github.ref_name }}"
+          body: "Automated update of BSP website image tag to ${{ github.ref_name }} (commit ${{ github.sha }})."
           committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           signoff: true

@@ -4,7 +4,7 @@ A2A (Google Agent-to-Agent) enables multi-agent coordination. Agents can expose 
 
 ## Mapping
 
-| A2A Concept | OAP Mapping |
+| A2A Concept | BSP Mapping |
 |---|---|
 | **Agent Card** | Agent descriptor |
 | **Task** | A command being processed |
@@ -14,8 +14,8 @@ A2A (Google Agent-to-Agent) enables multi-agent coordination. Agents can expose 
 
 ```json
 "a2a": {
-  "agent_card_url": "https://your.compliant.oap.endpoint/.well-known/agent.json"
+  "agent_card_url": "https://your.compliant.BSP.endpoint/.well-known/agent.json"
 }
 ```
 
-A2A transport is **optional** — HTTP is the baseline. A2A is declared in the `/.well-known/oap` manifest only if the endpoint supports it.
+A2A transport is **optional** — HTTP is the baseline. A2A is declared in the `/.well-known/bsp` manifest only if the endpoint supports it.

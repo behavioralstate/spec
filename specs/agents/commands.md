@@ -1,40 +1,40 @@
-# Commands — `io.oap.agents.commands`
+# Commands — `io.bsp.agents.commands`
 
 Commands are **intents to change** a domain service. They are sent **to** the service by any caller — a Process Manager, an AI agent, a UI, or another service. The service validates, queues, and processes them asynchronously.
 
-<div class="oap-diagram">
-  <div class="oap-node">
-    <div class="oap-node-title">Caller</div>
-    <div class="oap-node-box">Any Caller</div>
-    <div class="oap-node-sub">app · agent · LLM</div>
+<div class="BSP-diagram">
+  <div class="BSP-node">
+    <div class="BSP-node-title">Caller</div>
+    <div class="BSP-node-box">Any Caller</div>
+    <div class="BSP-node-sub">app · agent · LLM</div>
   </div>
-  <div class="oap-arrow">
-    <div class="oap-arrow-label">POST /commands</div>
-    <div class="oap-arrow-track">→</div>
+  <div class="BSP-arrow">
+    <div class="BSP-arrow-label">POST /commands</div>
+    <div class="BSP-arrow-track">→</div>
   </div>
-  <div class="oap-node">
-    <div class="oap-node-title">OAP Endpoint</div>
-    <div class="oap-node-box accent">Validates &amp; Queues</div>
-    <div class="oap-node-sub">201 Accepted (async)</div>
+  <div class="BSP-node">
+    <div class="BSP-node-title">BSP Endpoint</div>
+    <div class="BSP-node-box accent">Validates &amp; Queues</div>
+    <div class="BSP-node-sub">201 Accepted (async)</div>
   </div>
-  <div class="oap-arrow">
-    <div class="oap-arrow-label">Async processing</div>
-    <div class="oap-arrow-track">→</div>
+  <div class="BSP-arrow">
+    <div class="BSP-arrow-label">Async processing</div>
+    <div class="BSP-arrow-track">→</div>
   </div>
-  <div class="oap-node">
-    <div class="oap-node-title">Service</div>
-    <div class="oap-node-box">Domain Handler</div>
-    <div class="oap-node-sub">processes · emits event</div>
+  <div class="BSP-node">
+    <div class="BSP-node-title">Service</div>
+    <div class="BSP-node-box">Domain Handler</div>
+    <div class="BSP-node-sub">processes · emits event</div>
   </div>
 </div>
 
 ## Command Wire Format
 
-> **`POST /commands` is a behaviour endpoint, not a resource collection.** Sending a command is not creating a "command resource" — it is expressing an intent. The path `/commands` is a single entry point for all operations this service accepts. What the service does with the message is determined entirely by the `type` field, not the HTTP verb or the URL. This is the fundamental difference between OAP and REST: in REST you manipulate resources; in OAP you invoke named operations and observe the facts they produce.
+> **`POST /commands` is a behaviour endpoint, not a resource collection.** Sending a command is not creating a "command resource" — it is expressing an intent. The path `/commands` is a single entry point for all operations this service accepts. What the service does with the message is determined entirely by the `type` field, not the HTTP verb or the URL. This is the fundamental difference between BSP and REST: in REST you manipulate resources; in BSP you invoke named operations and observe the facts they produce.
 
 Commands use the **CloudEvent 1.0 envelope shape** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
 
-> **OAP is not a conformant CloudEvent implementation.** OAP borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/docs/design-decisions#cloudevent-deviations) for the full list. Callers should treat OAP messages as *OAP-shaped envelopes*, not as spec-compliant CloudEvents.
+> **BSP is not a conformant CloudEvent implementation.** BSP borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/docs/design-decisions#cloudevent-deviations) for the full list. Callers should treat BSP messages as *BSP-shaped envelopes*, not as spec-compliant CloudEvents.
 
 The `dataschema` field in an **incoming command** is informational metadata — it documents which schema the client used when constructing the payload. It is **not** an instruction to the server. The server selects the schema to validate against using the `type` field, by looking up that type in its own command catalogue. A well-formed client will have fetched the schema from `GET /commands` and its `dataschema` value will match what the server holds — but the server never needs to fetch it.
 
@@ -59,7 +59,7 @@ When a caller selects `POST /commands` in a playground or tooling UI, the CloudE
 
 The ingestion API owns and hosts the schemas via `GET /commands/{schema}/{version}`. The `dataschema` URI in a command catalogue entry points to this endpoint — same base URL, same capability.
 
-> **Command types are domain data, not protocol capabilities.** Individual command types (`ProposeCounter`, `SubmitOrder`) must not appear as capability entries in `/.well-known/oap`. The capability `io.oap.agents.commands` declares that this service supports the command surface; the specific command types accepted are discovered at runtime via `GET /commands`. Proliferating per-command capabilities would mix domain identifiers into the protocol namespace and make the manifest domain-specific rather than protocol-specific.
+> **Command types are domain data, not protocol capabilities.** Individual command types (`ProposeCounter`, `SubmitOrder`) must not appear as capability entries in `/.well-known/bsp`. The capability `io.bsp.agents.commands` declares that this service supports the command surface; the specific command types accepted are discovered at runtime via `GET /commands`. Proliferating per-command capabilities would mix domain identifiers into the protocol namespace and make the manifest domain-specific rather than protocol-specific.
 
 ### Example
 
@@ -136,7 +136,7 @@ Processing steps:
 
 Response: `201 Created` — the command has been accepted and queued.
 
-> **Why `201` and not `202`?** Practitioners familiar with distributed systems often expect `202 Accepted` for async operations. OAP uses `201 Created` deliberately: `202` means "I'll try to process this eventually" — it makes no guarantee. `201` is stronger: it signals that a resource was durably created (the command record in the queue or event store) and that processing *will* happen. The command is not fire-and-forget; it is committed. Use `202` for truly speculative acceptance where the server cannot guarantee eventual processing. If your implementation cannot durably enqueue the command before responding, `202` is appropriate — but `201` should be the target for production-grade implementations.
+> **Why `201` and not `202`?** Practitioners familiar with distributed systems often expect `202 Accepted` for async operations. BSP uses `201 Created` deliberately: `202` means "I'll try to process this eventually" — it makes no guarantee. `201` is stronger: it signals that a resource was durably created (the command record in the queue or event store) and that processing *will* happen. The command is not fire-and-forget; it is committed. Use `202` for truly speculative acceptance where the server cannot guarantee eventual processing. If your implementation cannot durably enqueue the command before responding, `202` is appropriate — but `201` should be the target for production-grade implementations.
 
 ### GET /commands/{schema}/{version} — Versioned Schema Document
 
@@ -164,7 +164,7 @@ The JSON Schema document returned by this endpoint **may** include a `produces` 
 
 #### Failure Events
 
-Failure outcomes are regular domain events in the `produces` list. The naming convention that distinguishes a failure event (e.g. suffix `Failed`, `Failure`) is service-defined — OAP does not mandate a specific suffix. Services must document their convention in the `description` field. Silent failures (no event raised at all) are handled client-side via timeout.
+Failure outcomes are regular domain events in the `produces` list. The naming convention that distinguishes a failure event (e.g. suffix `Failed`, `Failure`) is service-defined — BSP does not mandate a specific suffix. Services must document their convention in the `description` field. Silent failures (no event raised at all) are handled client-side via timeout.
 
 #### Correlation
 
@@ -174,7 +174,7 @@ The `id` returned in the `201 Created` response to `POST /commands` is the **cor
 { "id": "XCSFIFR04763087" }
 ```
 
-No additional correlation field is defined at the protocol level. The field name used to carry the correlation identifier inside an event payload is agreed between client and server — OAP does not mandate it.
+No additional correlation field is defined at the protocol level. The field name used to carry the correlation identifier inside an event payload is agreed between client and server — BSP does not mandate it.
 
 ## Schema
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/agents/memory.json",
-  "title": "OAP Agent Memory",
-  "description": "Schema for the agent memory capability (io.oap.agents.memory). Extends io.oap.agents.registry. The memory response body is opaque — different runtimes return different formats.",
+  "$id": "https://behavioralstate.io/v1/schemas/agents/memory.json",
+  "title": "BSP Agent Memory",
+  "description": "Schema for the agent memory capability (io.bsp.agents.memory). Extends io.bsp.agents.registry. The memory response body is opaque — different runtimes return different formats.",
   "$defs": {
     "agentMemory": {
       "type": "object",

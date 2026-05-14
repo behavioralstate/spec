@@ -43,8 +43,8 @@
 		{
 			label: 'Comparisons',
 			items: [
-				{ label: 'OAP vs REST', href: '/docs/comparisons/rest' },
-				{ label: 'OAP vs UCP', href: '/docs/comparisons/ucp' }
+				{ label: 'BSP vs REST', href: '/docs/comparisons/rest' },
+				{ label: 'BSP vs UCP', href: '/docs/comparisons/ucp' }
 			]
 		}
 	];

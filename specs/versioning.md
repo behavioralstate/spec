@@ -1,25 +1,25 @@
 # Versioning
 
-OAP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](https://semver.org) rules.
+BSP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](https://semver.org) rules.
 
 ## Release Version
 
-The release version is the git tag — `v{{OAP_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
+The release version is the git tag — `v{{BSP_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
 
 The version string (without the `v` prefix) appears in:
-- The `/.well-known/oap` manifest root — `oap.version`
-- Each service definition — `services["io.oap.*"].version`
+- The `/.well-known/bsp` manifest root — `BSP.version`
+- Each service definition — `services["io.bsp.*"].version`
 - Each capability definition — `capabilities[*].version`
 
 ```json
 {
-  "oap": {
-    "version": "{{OAP_VERSION}}",
+  "BSP": {
+    "version": "{{BSP_VERSION}}",
     "services": {
-      "io.oap.agents": { "version": "{{OAP_VERSION}}", "..." : "..." }
+      "io.bsp.agents": { "version": "{{BSP_VERSION}}", "..." : "..." }
     },
     "capabilities": [
-      { "name": "io.oap.agents.commands", "version": "{{OAP_VERSION}}", "..." : "..." }
+      { "name": "io.bsp.agents.commands", "version": "{{BSP_VERSION}}", "..." : "..." }
     ]
   }
 }
@@ -39,11 +39,11 @@ The version string (without the `v` prefix) appears in:
 
 ## Namespace Convention
 
-All OAP identifiers use reverse domain notation: `io.oap.{service}.{capability}`.
+All BSP identifiers use reverse domain notation: `io.bsp.{service}.{capability}`.
 
 Examples:
-- `io.oap.agents.registry`
-- `io.oap.agents.commands`
-- `io.oap.agents.events`
+- `io.bsp.agents.registry`
+- `io.bsp.agents.commands`
+- `io.bsp.agents.events`
 
 Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).

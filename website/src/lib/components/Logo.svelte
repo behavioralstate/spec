@@ -14,7 +14,7 @@
 	viewBox="0 0 48 32"
 	fill="none"
 	xmlns="http://www.w3.org/2000/svg"
-	aria-label="OAP"
+	aria-label="BSP"
 	role="img"
 	class={className}
 >
@@ -28,7 +28,7 @@
 		stroke-width="1"
 	/>
 
-	<!-- OAP text — tight tracking, bold, white -->
+	<!-- BSP text — tight tracking, bold, white -->
 	<text
 		x="24"
 		y="22.5"
@@ -38,5 +38,5 @@
 		font-weight="800"
 		font-size="15"
 		letter-spacing="-0.5"
-	>OAP</text>
+	>BSP</text>
 </svg>
