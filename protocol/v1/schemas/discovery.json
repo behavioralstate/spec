@@ -1,24 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/discovery.json",
-  "title": "OAP Discovery Manifest",
-  "description": "Schema for the /.well-known/oap discovery manifest. Every OAP-compliant endpoint must expose this at GET /.well-known/oap.",
+  "$id": "https://behavioralstate.io/v1/schemas/discovery.json",
+  "title": "BSP Discovery Manifest",
+  "description": "Schema for the /.well-known/bsp discovery manifest. Every BSP-compliant endpoint must expose this at GET /.well-known/bsp.",
   "type": "object",
-  "required": ["oap"],
+  "required": ["BSP"],
   "properties": {
-    "oap": {
+    "BSP": {
       "type": "object",
       "required": ["version", "services", "capabilities"],
       "properties": {
         "version": {
           "type": "string",
-          "description": "OAP spec version (semver: MAJOR.MINOR.PATCH)",
+          "description": "BSP spec version (semver: MAJOR.MINOR.PATCH)",
           "pattern": "^\\d+\\.\\d+\\.\\d+$",
           "examples": ["0.4.0"]
         },
         "services": {
           "type": "object",
-          "description": "Service definitions with transport bindings. Keys are fully qualified service names (e.g. io.oap.agents).",
+          "description": "Service definitions with transport bindings. Keys are fully qualified service names (e.g. io.bsp.agents).",
           "additionalProperties": {
             "$ref": "#/$defs/service"
           }
@@ -86,7 +86,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Fully qualified capability name using reverse-domain notation. OAP built-in capabilities use the io.oap.* prefix (e.g. io.oap.agents.registry). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
+          "description": "Fully qualified capability name using reverse-domain notation. BSP built-in capabilities use the io.bsp.* prefix (e.g. io.bsp.agents.registry). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
           "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_-]*)*$"
         },
         "version": {
@@ -114,7 +114,7 @@
         },
         "service": {
           "type": "string",
-          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard OAP capability (io.oap.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.oap.agents.* capabilities under the io.oap.agents service)."
+          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard BSP capability (io.bsp.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.bsp.agents.* capabilities under the io.bsp.agents service)."
         },
         "status": {
           "type": "string",
@@ -209,7 +209,7 @@
     },
     "authentication": {
       "type": "object",
-      "description": "Authentication requirements for accessing this OAP endpoint. Consumers must present credentials according to the declared scheme before calling any protected endpoint.",
+      "description": "Authentication requirements for accessing this BSP endpoint. Consumers must present credentials according to the declared scheme before calling any protected endpoint.",
       "required": ["type"],
       "properties": {
         "type": {

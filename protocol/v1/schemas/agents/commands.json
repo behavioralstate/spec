@@ -1,15 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/agents/commands.json",
-  "title": "OAP Commands",
-  "description": "Schema for the command ingestion and discovery capability (io.oap.agents.commands).",
+  "$id": "https://behavioralstate.io/v1/schemas/agents/commands.json",
+  "title": "BSP Commands",
+  "description": "Schema for the command ingestion and discovery capability (io.bsp.agents.commands).",
   "$defs": {
     "command": {
       "allOf": [
         { "$ref": "../cloudEvent.json#/$defs/cloudEvent" },
         { "required": ["dataschema"] }
       ],
-      "description": "A command sent to an OAP-compliant service. CloudEvent 1.0 envelope — the type field must match a type in the command catalogue, and the data property is validated against the JSON Schema at the dataschema URI before the command is queued. dataschema is required for commands."
+      "description": "A command sent to an BSP-compliant service. CloudEvent 1.0 envelope — the type field must match a type in the command catalogue, and the data property is validated against the JSON Schema at the dataschema URI before the command is queued. dataschema is required for commands."
     },
     "commandCatalogueEntry": {
       "type": "object",

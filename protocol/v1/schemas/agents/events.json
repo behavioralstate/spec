@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/agents/events.json",
-  "title": "OAP Events",
-  "description": "Schema for domain events published by OAP-compliant services (io.oap.agents.events).",
+  "$id": "https://behavioralstate.io/v1/schemas/agents/events.json",
+  "title": "BSP Events",
+  "description": "Schema for domain events published by BSP-compliant services (io.bsp.agents.events).",
   "$defs": {
     "event": {
       "$ref": "../cloudEvent.json#/$defs/cloudEvent",
-      "description": "An immutable domain event published by an OAP-compliant service as the result of processing a command. CloudEvent 1.0 envelope — the type field identifies the domain fact (e.g. CounterProposed, OrderSubmitted), and source identifies the service that published it."
+      "description": "An immutable domain event published by an BSP-compliant service as the result of processing a command. CloudEvent 1.0 envelope — the type field identifies the domain fact (e.g. CounterProposed, OrderSubmitted), and source identifies the service that published it."
     },
     "eventList": {
       "type": "object",

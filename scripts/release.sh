@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OAP Release Script
+# BSP Release Script
 # Usage: ./scripts/release.sh <version> [--prerelease] [--protocol-version <MAJOR.MINOR.PATCH>]
 #
-# --protocol-version  Semver string to write to version.json as the OAP protocol version.
+# --protocol-version  Semver string to write to version.json as the BSP protocol version.
 #                     Defaults to the release version argument.
 #                     version.json is the single source of truth — the build pipeline
-#                     stamps {{OAP_VERSION}} placeholders at build time, so no other
+#                     stamps {{BSP_VERSION}} placeholders at build time, so no other
 #                     files need to be edited.
 #
 # Examples:
@@ -15,7 +15,7 @@ set -euo pipefail
 #   ./scripts/release.sh 1.0.0
 #   ./scripts/release.sh 1.1.0 --protocol-version 1.1.0
 
-REPO_URL="https://github.com/openagentprotocol/spec"
+REPO_URL="https://github.com/behaviouralstate/spec"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <version> [--prerelease] [--protocol-version <YYYY-MM-DD>]"
@@ -84,7 +84,7 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
 fi
 
 echo ""
-echo "=== OAP Release ==="
+echo "=== BSP Release ==="
 echo "  Version:          $TAG"
 echo "  Pre-release:      $PRERELEASE"
 echo "  Protocol version: $PROTOCOL_VERSION"
@@ -98,7 +98,7 @@ fi
 
 # Step 1: Update version.json — the single source of truth for the protocol version.
 # The build pipeline (copy-protocol.mjs, +page.server.ts) reads this at build time
-# and stamps {{OAP_VERSION}} placeholders in protocol files and spec pages.
+# and stamps {{BSP_VERSION}} placeholders in protocol files and spec pages.
 CURRENT_PROTO_VERSION=$(node -e "process.stdout.write(require('./version.json').version)")
 
 if [ "$CURRENT_PROTO_VERSION" = "$PROTOCOL_VERSION" ]; then
@@ -142,9 +142,9 @@ fi
 
 # Step 3: Create and push the tag
 if [ "$PRERELEASE" = true ]; then
-  git tag -a "$TAG" -m "OAP Specification $TAG (pre-release)"
+  git tag -a "$TAG" -m "BSP Specification $TAG (pre-release)"
 else
-  git tag -a "$TAG" -m "OAP Specification $TAG"
+  git tag -a "$TAG" -m "BSP Specification $TAG"
 fi
 
 echo "Pushing tag $TAG..."
@@ -154,9 +154,9 @@ git push origin "$TAG"
 if command -v gh &>/dev/null; then
   echo "Creating GitHub Release..."
   if [ "$PRERELEASE" = true ]; then
-    gh release create "$TAG" --title "OAP $TAG" --notes "Pre-release of the Open Agent Protocol specification." --prerelease
+    gh release create "$TAG" --title "BSP $TAG" --notes "Pre-release of the Behavioural State Protocol specification." --prerelease
   else
-    gh release create "$TAG" --title "OAP $TAG" --notes "Release of the Open Agent Protocol specification."
+    gh release create "$TAG" --title "BSP $TAG" --notes "Release of the Behavioural State Protocol specification."
   fi
   echo "GitHub Release created."
 else
@@ -165,12 +165,12 @@ else
   echo "  ${REPO_URL}/releases/new?tag=${TAG}&prerelease=$PRERELEASE"
 fi
 
-# Step 5: Update oap@stable tag for stable releases
+# Step 5: Update BSP@stable tag for stable releases
 if [ "$PRERELEASE" = false ]; then
-  echo "Updating oap@stable tag..."
-  git tag -f -a oap@stable "$TAG" -m "Stable pointer to $TAG"
-  git push origin oap@stable --force
-  echo "oap@stable now points to $TAG"
+  echo "Updating BSP@stable tag..."
+  git tag -f -a BSP@stable "$TAG" -m "Stable pointer to $TAG"
+  git push origin BSP@stable --force
+  echo "BSP@stable now points to $TAG"
 fi
 
 echo ""

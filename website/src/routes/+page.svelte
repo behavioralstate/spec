@@ -1,14 +1,14 @@
-﻿<script>
+<script>
 	import Hero from '$lib/components/Hero.svelte';
 	import FeatureCard from '$lib/components/FeatureCard.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
 
 	// injected at build time from version.json via vite.config.ts define
-	const oapVersion = __OAP_VERSION__;
+	const bspVersion = __BSP_VERSION__;
 </script>
 
 <svelte:head>
-	<title>OAP — Open Agent Protocol</title>
+	<title>BSP — Behavioural State Protocol</title>
 </svelte:head>
 
 <!-- Hero -->
@@ -26,17 +26,17 @@
 			<FeatureCard
 				icon="🌐"
 				title="Discoverable by Default"
-				description="Expose /.well-known/oap and your service becomes immediately usable by any agent or LLM client — no custom integration, no bespoke connector, no onboarding docs. Capabilities, schemas, and transport bindings are all self-describing."
+				description="Expose /.well-known/bsp and your service becomes immediately usable by any agent or LLM client — no custom integration, no bespoke connector, no onboarding docs. Capabilities, schemas, and transport bindings are all self-describing."
 			/>
 			<FeatureCard
 				icon="⚡"
 				title="Behaviour, Not Resources"
-				description="OAP is not REST. There are no resources to manipulate. Callers express named intents — commands like SignContract or SubmitOrder — and observe the facts that result. The domain language lives in the protocol, not buried in status-field patches."
+				description="BSP is not REST. There are no resources to manipulate. Callers express named intents — commands like SignContract or SubmitOrder — and observe the facts that result. The domain language lives in the protocol, not buried in status-field patches."
 			/>
 			<FeatureCard
 				icon="📡"
 				title="Observable Event Log"
-				description="Every OAP service exposes a queryable event log — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
+				description="Every BSP service exposes a queryable event log — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
 			/>
 			<FeatureCard
 				icon="🔍"
@@ -46,7 +46,7 @@
 			<FeatureCard
 				icon="🤖"
 				title="Instant LLM Integration"
-				description="Implement OAP and get MCP for free. Point oap-mcp at any OAP-compliant endpoint and every LLM client — Copilot, Claude, ChatGPT — immediately discovers commands, reads state, and sends requests. No custom tool definitions required."
+				description="Implement BSP and get MCP for free. Point bsp-mcp at any BSP-compliant endpoint and every LLM client — Copilot, Claude, ChatGPT — immediately discovers commands, reads state, and sends requests. No custom tool definitions required."
 			/>
 			<FeatureCard
 				icon="🔁"
@@ -63,14 +63,14 @@
 		<p class="section-eyebrow">See it in action</p>
 		<h2 class="section-title">Discovery manifest</h2>
 		<p class="section-subtitle">
-			Every OAP endpoint exposes a <code class="code-inline">/.well-known/oap</code> manifest. Consumers discover agents, capabilities, and transports in a single request.
+			Every BSP endpoint exposes a <code class="code-inline">/.well-known/bsp</code> manifest. Consumers discover agents, capabilities, and transports in a single request.
 		</p>
 		<CodeBlock code={`{
-  "oap": {
-    "version": "${oapVersion}",
+  "BSP": {
+    "version": "${bspVersion}",
     "services": {
-      "io.oap.agents": {
-        "version": "${oapVersion}",
+      "io.bsp.agents": {
+        "version": "${bspVersion}",
         "description": "Service registry, command ingestion, published events",
         "http": {
           "endpoint": "https://api.example.com/"
@@ -79,11 +79,11 @@
     },
     "capabilities": [
       {
-        "name": "io.oap.agents.commands",
-        "version": "${oapVersion}",
+        "name": "io.bsp.agents.commands",
+        "version": "${bspVersion}",
         "description": "Command catalogue and ingestion",
-        "spec": "https://openagentprotocol.io/specs/agents/commands",
-        "schema": "https://openagentprotocol.io/v1/schemas/agents/commands.json"
+        "spec": "https://behavioralstate.io/specs/agents/commands",
+        "schema": "https://behavioralstate.io/v1/schemas/agents/commands.json"
       }
     ],
     "services": [
@@ -104,11 +104,11 @@
 <section id="audience" class="features-section">
 	<div class="max-w-6xl mx-auto">
 		<p class="section-eyebrow">Designed for everyone</p>
-		<h2 class="section-title">Who is OAP for?</h2>
+		<h2 class="section-title">Who is BSP for?</h2>
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 			<div class="audience-card">
 				<h3>For Developers</h3>
-				<p>Build command-and-event services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement OAP.</p>
+				<p>Build command-and-event services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement BSP.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For Businesses</h3>
@@ -116,11 +116,11 @@
 			</div>
 			<div class="audience-card">
 				<h3>For AI Platforms</h3>
-				<p>Discover and interact with any OAP-compliant agent using MCP, A2A, or simple HTTP. Compatible with existing agent frameworks.</p>
+				<p>Discover and interact with any BSP-compliant agent using MCP, A2A, or simple HTTP. Compatible with existing agent frameworks.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For IoT &amp; Sensors</h3>
-				<p>Even a temperature sensor can be an OAP service — it accepts commands and publishes events, and any caller can discover it via the manifest.</p>
+				<p>Even a temperature sensor can be an BSP service — it accepts commands and publishes events, and any caller can discover it via the manifest.</p>
 			</div>
 		</div>
 	</div>
@@ -131,11 +131,11 @@
 	<div class="max-w-4xl mx-auto text-center">
 		<h2 class="section-title">Get started today</h2>
 		<p class="section-subtitle mx-auto">
-			OAP is open-source under Apache 2.0. Explore the spec, read the schemas, and start building.
+			BSP is open-source under Apache 2.0. Explore the spec, read the schemas, and start building.
 		</p>
 		<div class="cta-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>
-			<a href="https://github.com/openagentprotocol/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
+			<a href="https://github.com/behaviouralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
 		</div>
 	</div>
 </section>

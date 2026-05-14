@@ -1,4 +1,4 @@
-# OAP — CQRS + Event Sourcing
+﻿# BSP — CQRS + Event Sourcing
 
 The authoritative CQRS/ES design is documented in `specs/`. This file is a historical record of the refactor decisions — read it for context only.
 
@@ -10,5 +10,5 @@ The authoritative CQRS/ES design is documented in `specs/`. This file is a histo
 - `dataschema` URI pattern: `{base}/commands/{schema}/{version}` — kebab-case, versioned. Never flat `.json` or PascalCase.
 - `POST /commands` returns `201` (accepted and queued); schema validation is synchronous before queuing.
 - `source` on the CloudEvent identifies the caller — servers **MUST NOT** use it as the sole routing key; use `type` for routing.
-- The `io.oap.agents.*` capability namespace is frozen — renaming is a breaking change.
-- `{{OAP_VERSION}}` placeholder everywhere version appears in protocol/spec files; stamped at build time from `version.json`.
+- The `io.bsp.agents.*` capability namespace is frozen — renaming is a breaking change.
+- `{{BSP_VERSION}}` placeholder everywhere version appears in protocol/spec files; stamped at build time from `version.json`.

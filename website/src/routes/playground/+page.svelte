@@ -1,4 +1,4 @@
-﻿<script>
+<script>
 	let baseUrl = $state('');
 	let discovering = $state(false);
 	let discoverError = $state('');
@@ -105,11 +105,11 @@
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 			const json = await res.json();
-			manifest = json.oap ?? json;
+			manifest = json.BSP ?? json;
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
-			activePath = `/.well-known/oap/${tenantId}`;
+			activePath = `/.well-known/bsp/${tenantId}`;
 			activeEndpointBase = normalizedBase;
 			activeDescription = 'Tenant manifest';
 		} catch (e) {
@@ -135,14 +135,14 @@
 		tenantId = '';
 		tenantError = '';
 		try {
-			const res = await fetch(`${normalizedBase}/.well-known/oap`);
+			const res = await fetch(`${normalizedBase}/.well-known/bsp`);
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 			const json = await res.json();
-			manifest = json.oap ?? json;
+			manifest = json.BSP ?? json;
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
-			activePath = '/.well-known/oap';
+			activePath = '/.well-known/bsp';
 			activeEndpointBase = normalizedBase;
 			activeDescription = 'Discovery manifest';
 		} catch (e) {
@@ -205,7 +205,7 @@
 			{
 				specversion: '1.0',
 				id: crypto.randomUUID(),
-				source: 'https://playground.openagentprotocol.io',
+				source: 'https://playground.behavioralstate.io',
 				type: cloudEventType,
 				datacontenttype: 'application/json',
 				dataschema: found?.dataschema ?? '',
@@ -276,7 +276,7 @@
 </script>
 
 <svelte:head>
-	<title>Playground — OAP</title>
+	<title>Playground — BSP</title>
 </svelte:head>
 
 <div class="playground-shell">
@@ -287,7 +287,7 @@
 				<p class="overline">Interactive</p>
 				<h1 class="playground-title">Playground</h1>
 				<p class="playground-subtitle">
-					Point the playground at any OAP-compliant endpoint to explore its manifest, browse capabilities, and send commands — all from the browser.
+					Point the playground at any BSP-compliant endpoint to explore its manifest, browse capabilities, and send commands — all from the browser.
 				</p>
 			</div>
 
@@ -296,7 +296,7 @@
 				<input
 					class="url-input"
 					type="url"
-					placeholder="https://your.compliant.oap.endpoint"
+					placeholder="https://your.compliant.BSP.endpoint"
 					bind:value={baseUrl}
 					spellcheck="false"
 					autocomplete="off"
@@ -387,7 +387,7 @@
 				{#each capabilities as cap}
 					{@const capBase = resolveEndpointBase(cap)}
 					<details class="cap-group" open>
-						<summary class="cap-name">{cap.name.replace('io.oap.', '')}</summary>
+						<summary class="cap-name">{cap.name.replace('io.bsp.', '')}</summary>
 						{#if cap.endpoints && cap.endpoints.length > 0}
 							{#each cap.endpoints as ep}
 								<button
@@ -535,8 +535,8 @@
 		</div>
 	{:else if !discovering && !discoverError}
 		<div class="empty-landing">
-			<p>Enter the base URL of an OAP-compliant endpoint and click <strong>Discover</strong>.</p>
-			<p class="hint">The playground fetches <code>/.well-known/oap</code> and builds the capabilities tree from the manifest.</p>
+			<p>Enter the base URL of an BSP-compliant endpoint and click <strong>Discover</strong>.</p>
+			<p class="hint">The playground fetches <code>/.well-known/bsp</code> and builds the capabilities tree from the manifest.</p>
 		</div>
 	{/if}
 </div>

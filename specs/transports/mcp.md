@@ -1,36 +1,36 @@
 # MCP Transport
 
-MCP (Model Context Protocol) allows any LLM client to interact with an OAP-compliant service directly — discovering commands and queries, reading state, and sending commands — without any bespoke integration.
+MCP (Model Context Protocol) allows any LLM client to interact with an BSP-compliant service directly — discovering commands and queries, reading state, and sending commands — without any bespoke integration.
 
-<div class="oap-diagram">
-  <div class="oap-node">
-    <div class="oap-node-title">LLM Client</div>
-    <div class="oap-node-box">Copilot / Claude / ChatGPT</div>
-    <div class="oap-node-sub">any MCP-capable client</div>
+<div class="BSP-diagram">
+  <div class="BSP-node">
+    <div class="BSP-node-title">LLM Client</div>
+    <div class="BSP-node-box">Copilot / Claude / ChatGPT</div>
+    <div class="BSP-node-sub">any MCP-capable client</div>
   </div>
-  <div class="oap-arrow">
-    <div class="oap-arrow-label">MCP tools</div>
-    <div class="oap-arrow-track">→</div>
+  <div class="BSP-arrow">
+    <div class="BSP-arrow-label">MCP tools</div>
+    <div class="BSP-arrow-track">→</div>
   </div>
-  <div class="oap-node">
-    <div class="oap-node-title">oap-mcp</div>
-    <div class="oap-node-box accent">MCP Server</div>
-    <div class="oap-node-sub">stdio or http transport</div>
+  <div class="BSP-node">
+    <div class="BSP-node-title">bsp-mcp</div>
+    <div class="BSP-node-box accent">MCP Server</div>
+    <div class="BSP-node-sub">stdio or http transport</div>
   </div>
-  <div class="oap-arrow">
-    <div class="oap-arrow-label">OAP HTTP</div>
-    <div class="oap-arrow-track">→</div>
+  <div class="BSP-arrow">
+    <div class="BSP-arrow-label">BSP HTTP</div>
+    <div class="BSP-arrow-track">→</div>
   </div>
-  <div class="oap-node">
-    <div class="oap-node-title">Service</div>
-    <div class="oap-node-box">OAP Endpoint</div>
-    <div class="oap-node-sub">any compliant API</div>
+  <div class="BSP-node">
+    <div class="BSP-node-title">Service</div>
+    <div class="BSP-node-box">BSP Endpoint</div>
+    <div class="BSP-node-sub">any compliant API</div>
   </div>
 </div>
 
 ## Mapping
 
-| OAP Concept | MCP Concept |
+| BSP Concept | MCP Concept |
 |---|---|
 | Command catalogue (`GET /commands`) | MCP tool: `get_command_catalogue` |
 | Command schema (`GET /commands/{schema}/{version}`) | MCP tool: `get_command_schema` |
@@ -42,22 +42,22 @@ MCP (Model Context Protocol) allows any LLM client to interact with an OAP-compl
 
 ## Result
 
-Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes a capable caller of any OAP-compliant service — with full command and query discovery, no hardcoded integration.
+Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes a capable caller of any BSP-compliant service — with full command and query discovery, no hardcoded integration.
 
-## Reference Implementation — `oap-mcp`
+## Reference Implementation — `bsp-mcp`
 
-`oap-mcp` is the reference MCP server for OAP. It is generic — it works with any OAP-compliant endpoint. Point it at any OAP HTTP surface and it exposes the full command and query surface as MCP tools.
+`bsp-mcp` is the reference MCP server for BSP. It is generic — it works with any BSP-compliant endpoint. Point it at any BSP HTTP surface and it exposes the full command and query surface as MCP tools.
 
 ```bash
-npx oap-mcp
+npx bsp-mcp
 ```
 
 ### Configuration
 
 | Variable | Required | Description |
 |---|---|---|
-| `OAP_ENDPOINT` | yes | Base URL of the OAP HTTP surface (e.g. `https://api.example.com/oap`) |
-| `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
+| `BSP_ENDPOINT` | yes | Base URL of the BSP HTTP surface (e.g. `https://api.example.com/BSP`) |
+| `BSP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
 
@@ -68,10 +68,10 @@ npx oap-mcp
   "mcpServers": {
     "my-service": {
       "command": "npx",
-      "args": ["oap-mcp"],
+      "args": ["bsp-mcp"],
       "env": {
-        "OAP_ENDPOINT": "https://api.example.com/oap",
-        "OAP_API_KEY": "<your-api-key>"
+        "BSP_ENDPOINT": "https://api.example.com/BSP",
+        "BSP_API_KEY": "<your-api-key>"
       }
     }
   }
@@ -84,9 +84,9 @@ Start in HTTP mode and expose via a tunnel:
 
 ```bash
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
-  OAP_ENDPOINT=https://api.example.com/oap \
-  OAP_API_KEY=<key> \
-  npx oap-mcp
+  BSP_ENDPOINT=https://api.example.com/BSP \
+  BSP_API_KEY=<key> \
+  npx bsp-mcp
 
 ngrok http 3001
 ```
@@ -130,7 +130,7 @@ The `mcp` block in the service definition declares how to reach the MCP server:
 | `push` | boolean | no | When `true`, the server supports server-to-client push notifications for domain events. Callers should prefer this channel over polling `GET /events`. |
 | `authentication` | object | no | Authentication requirements for connecting to this MCP server |
 
-MCP transport is **optional** — HTTP is the baseline. MCP is declared in the `/.well-known/oap` manifest only if the endpoint supports it.
+MCP transport is **optional** — HTTP is the baseline. MCP is declared in the `/.well-known/bsp` manifest only if the endpoint supports it.
 
 ## Authentication
 
@@ -236,4 +236,4 @@ When a caller maintains an active MCP session and `"push": true` is declared on 
 }
 ```
 
-When `"push": true` is present, callers **should** prefer this channel over polling `GET /events`. The `io.oap.agents.events` capability in the manifest declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#push-channel-declaration).
+When `"push": true` is present, callers **should** prefer this channel over polling `GET /events`. The `io.bsp.agents.events` capability in the manifest declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#push-channel-declaration).

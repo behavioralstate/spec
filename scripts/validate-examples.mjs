@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Validates all example JSON files in protocol/v1/examples/
  * are valid JSON.
  *

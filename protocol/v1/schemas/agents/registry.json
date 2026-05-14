@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/agents/registry.json",
-  "title": "OAP Service Registry",
-  "description": "Schema for service descriptors and the service registry capability (io.oap.agents.registry).",
+  "$id": "https://behavioralstate.io/v1/schemas/agents/registry.json",
+  "title": "BSP Service Registry",
+  "description": "Schema for service descriptors and the service registry capability (io.bsp.agents.registry).",
   "$defs": {
     "webhook": {
       "type": "object",
@@ -24,7 +24,7 @@
     },
     "serviceDescriptor": {
       "type": "object",
-      "description": "The identity card for an OAP-compliant service — what it does, what commands it accepts, what events it produces.",
+      "description": "The identity card for an BSP-compliant service — what it does, what commands it accepts, what events it produces.",
       "required": ["id", "name", "accepts", "produces", "status"],
       "properties": {
         "id": {
@@ -50,7 +50,7 @@
         "endpoint": {
           "type": "string",
           "format": "uri",
-          "description": "Base URL of this service's OAP surface. Consumers append /.well-known/oap to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
+          "description": "Base URL of this service's BSP surface. Consumers append /.well-known/bsp to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
         },
         "accepts": {
           "type": "array",
@@ -114,7 +114,7 @@
         "endpoint": {
           "type": "string",
           "format": "uri",
-          "description": "Base URL of this service's OAP surface. Consumers append /.well-known/oap to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
+          "description": "Base URL of this service's BSP surface. Consumers append /.well-known/bsp to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
         },
         "accepts": {
           "type": "array",

@@ -12,14 +12,14 @@
 	<div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 		<a href="/" class="flex items-center gap-2.5 no-underline">
 			<Logo size={32} />
-			<span class="nav-wordmark">Open Agent Protocol</span>
+			<span class="nav-wordmark">Behavioural State Protocol</span>
 		</a>
 		<div class="flex items-center gap-8">
 			{#each navItems as item}
 				<a href={item.href} class="nav-link">{item.label}</a>
 			{/each}
 			<a
-				href="https://github.com/openagentprotocol/spec"
+				href="https://github.com/behaviouralstate/spec"
 				target="_blank"
 				rel="noopener"
 				class="nav-link"

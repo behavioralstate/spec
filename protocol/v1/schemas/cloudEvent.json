@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openagentprotocol.io/v1/schemas/cloudEvent.json",
+  "$id": "https://behavioralstate.io/v1/schemas/cloudEvent.json",
   "title": "CloudEvent",
-  "description": "OAP envelope shape for commands and events. Based on the CloudEvent 1.0 structure but not conformant with the CloudEvent 1.0 specification — see design-decisions.md#cloudevent-deviations for the full list of intentional deviations.",
+  "description": "BSP envelope shape for commands and events. Based on the CloudEvent 1.0 structure but not conformant with the CloudEvent 1.0 specification — see design-decisions.md#cloudevent-deviations for the full list of intentional deviations.",
   "$defs": {
     "cloudEvent": {
       "type": "object",
-      "description": "A CloudEvent 1.0 message. Used as the wire format for OAP commands (sent to a service) and OAP events (published by a service). The data property is a domain-specific payload whose shape is defined by the JSON Schema at dataschema.",
+      "description": "A CloudEvent 1.0 message. Used as the wire format for BSP commands (sent to a service) and BSP events (published by a service). The data property is a domain-specific payload whose shape is defined by the JSON Schema at dataschema.",
       "required": ["specversion", "id", "source", "type", "datacontenttype", "time", "data"],
       "properties": {
         "specversion": {
@@ -33,7 +33,7 @@
         },
         "dataschema": {
           "type": "string",
-          "description": "Reference to the JSON Schema that defines the structure of data. For commands: a relative URI in the form '{schema}/{version}' (e.g. 'configure-broker/1.0') — resolved against the service's own command catalogue. Absolute URIs appear in catalogue entries. Optional for events — when omitted the consumer is responsible for interpreting the data payload (untyped event). Note: OAP deliberately uses relative URIs here; this field does not conform to the CloudEvent 1.0 'dataschema' URI requirement."
+          "description": "Reference to the JSON Schema that defines the structure of data. For commands: a relative URI in the form '{schema}/{version}' (e.g. 'configure-broker/1.0') — resolved against the service's own command catalogue. Absolute URIs appear in catalogue entries. Optional for events — when omitted the consumer is responsible for interpreting the data payload (untyped event). Note: BSP deliberately uses relative URIs here; this field does not conform to the CloudEvent 1.0 'dataschema' URI requirement."
         },
         "time": {
           "type": "string",

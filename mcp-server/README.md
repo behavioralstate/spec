@@ -1,6 +1,6 @@
-# oap-mcp
+# bsp-mcp
 
-MCP server for any [OAP-compliant](https://openagentprotocol.io) endpoint. Exposes the OAP command and query surface as MCP tools so any LLM client (ChatGPT Desktop, Claude Desktop, GitHub Copilot, Cursor) can discover and interact with an OAP service.
+MCP server for any [BSP-compliant](https://behavioralstate.io) endpoint. Exposes the BSP command and query surface as MCP tools so any LLM client (ChatGPT Desktop, Claude Desktop, GitHub Copilot, Cursor) can discover and interact with an BSP service.
 
 ## Tools
 
@@ -33,19 +33,19 @@ Set two environment variables:
 
 | Variable | Required | Description |
 |---|---|---|
-| `OAP_ENDPOINT` | yes | Base URL of the OAP HTTP surface (see below) |
-| `OAP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
+| `BSP_ENDPOINT` | yes | Base URL of the BSP HTTP surface (see below) |
+| `BSP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
 
-**`OAP_ENDPOINT`** should point at the root of the OAP HTTP surface — the base path from which `/commands`, `/queries`, etc. are resolved. Examples:
+**`BSP_ENDPOINT`** should point at the root of the BSP HTTP surface — the base path from which `/commands`, `/queries`, etc. are resolved. Examples:
 
 ```
-# Generic OAP service
-OAP_ENDPOINT=https://api.example.com/oap
+# Generic BSP service
+BSP_ENDPOINT=https://api.example.com/BSP
 
 # Multi-tenant service (dotQuant example)
-OAP_ENDPOINT=https://dotquant.io/api/oap/tenants/<your-tenant-id>
+BSP_ENDPOINT=https://dotquant.io/api/BSP/tenants/<your-tenant-id>
 ```
 
 ## Transport options
@@ -57,11 +57,11 @@ OAP_ENDPOINT=https://dotquant.io/api/oap/tenants/<your-tenant-id>
 ```json
 {
   "mcpServers": {
-    "my-oap-service": {
-      "command": "oap-mcp",
+    "my-BSP-service": {
+      "command": "bsp-mcp",
       "env": {
-        "OAP_ENDPOINT": "https://api.example.com/oap",
-        "OAP_API_KEY": "<your-api-key>"
+        "BSP_ENDPOINT": "https://api.example.com/BSP",
+        "BSP_API_KEY": "<your-api-key>"
       }
     }
   }
@@ -74,8 +74,8 @@ ChatGPT Desktop connects to MCP servers over HTTPS. Start in HTTP mode and expos
 
 ```bash
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
-  OAP_ENDPOINT=https://api.example.com/oap \
-  OAP_API_KEY=<key> \
+  BSP_ENDPOINT=https://api.example.com/BSP \
+  BSP_API_KEY=<key> \
   node dist/index.js
 
 # Expose via ngrok (or Cloudflare Tunnel)
@@ -87,7 +87,7 @@ Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**
 
 ### CloudEvent `source` field
 
-When sending a command, `send_command` requires a `source` value. Per OAP, `source` identifies the origin of the command. The required value for a given service is documented in the schema description returned by `get_command_schema` — always read it from there.
+When sending a command, `send_command` requires a `source` value. Per BSP, `source` identifies the origin of the command. The required value for a given service is documented in the schema description returned by `get_command_schema` — always read it from there.
 
 ## Publishing to npm
 

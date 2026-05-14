@@ -1,14 +1,14 @@
-﻿# Security Considerations
+# Security Considerations
 
-OAP is an open protocol with a broad attack surface. This page catalogues the security requirements that every conformant implementation must observe.
+BSP is an open protocol with a broad attack surface. This page catalogues the security requirements that every conformant implementation must observe.
 
 ## TLS
 
-All OAP HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying OAP traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
+All BSP HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying BSP traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
 
 ## Authentication and Authorisation
 
-Only `GET /.well-known/oap` is unauthenticated by design — it is the public discovery endpoint. Every other endpoint **MUST** require authentication.
+Only `GET /.well-known/bsp` is unauthenticated by design — it is the public discovery endpoint. Every other endpoint **MUST** require authentication.
 
 Implementations **SHOULD** define distinct authorisation scopes or roles:
 
@@ -79,7 +79,7 @@ Servers **SHOULD** apply rate limits and quotas per authenticated client and per
 
 ## Manifest Content
 
-The `/.well-known/oap` manifest is publicly accessible by design. Its content **MUST** be limited to information intended for unauthenticated disclosure:
+The `/.well-known/bsp` manifest is publicly accessible by design. Its content **MUST** be limited to information intended for unauthenticated disclosure:
 
 - Service descriptions, capability names, and transport endpoints — yes
 - Internal-only endpoint addresses, tenant metadata, credential hints, or sensitive integration names — **MUST NOT** appear

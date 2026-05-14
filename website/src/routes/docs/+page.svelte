@@ -1,11 +1,11 @@
 <svelte:head>
-	<title>Documentation — OAP</title>
+	<title>Documentation — BSP</title>
 </svelte:head>
 
 <div class="index-page">
 	<div class="index-header">
 		<h1>Documentation</h1>
-		<p>Open Agent Protocol — a standard interaction surface so any caller can send commands to any service, and any observer can consume the events it produces.</p>
+		<p>Behavioural State Protocol — a standard interaction surface so any caller can send commands to any service, and any observer can consume the events it produces.</p>
 	</div>
 
 	<!-- Flow diagram — analogous to dotQuant's TradingView → Bridge → Brokers -->
@@ -22,9 +22,9 @@
 		</div>
 
 		<div class="flow-node">
-			<div class="node-title">OAP Endpoint</div>
+			<div class="node-title">BSP Endpoint</div>
 			<div class="node-box node-box--brand">Your Implementation</div>
-			<div class="node-sub">/.well-known/oap</div>
+			<div class="node-sub">/.well-known/bsp</div>
 		</div>
 
 		<div class="flow-arrow">
@@ -44,7 +44,7 @@
 		<div class="step">
 			<span class="step-num">1</span>
 			<div class="step-body">
-				<strong>Expose <code>/.well-known/oap</code></strong>
+				<strong>Expose <code>/.well-known/bsp</code></strong>
 				<p>Serve a discovery manifest describing your agents, capabilities, and transport bindings. Consumers read it once and know everything.</p>
 			</div>
 		</div>
@@ -68,15 +68,15 @@
 		<section class="index-group">
 			<h2>Getting Started</h2>
 			<ul>
-				<li><a href="/docs/overview">Protocol Overview</a><span>What OAP is and how it works</span></li>
-				<li><a href="/docs/discovery">Discovery</a><span>The <code>/.well-known/oap</code> manifest</span></li>
+				<li><a href="/docs/overview">Protocol Overview</a><span>What BSP is and how it works</span></li>
+				<li><a href="/docs/discovery">Discovery</a><span>The <code>/.well-known/bsp</code> manifest</span></li>
 			</ul>
 		</section>
 
 		<section class="index-group">
 			<h2>Agents</h2>
 			<ul>
-				<li><a href="/docs/agents/registry">Global Registry</a><span>Future concept — public OAP directory</span></li>
+				<li><a href="/docs/agents/registry">Global Registry</a><span>Future concept — public BSP directory</span></li>
 				<li><a href="/docs/agents/lifecycle">Lifecycle</a><span>Pause and resume agents</span></li>
 				<li><a href="/docs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/docs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
@@ -97,15 +97,15 @@
 			<h2>Reference</h2>
 			<ul>
 				<li><a href="/docs/versioning">Versioning</a><span>How versions work</span></li>
-				<li><a href="/docs/conformance">Conformance</a><span>What it means to be OAP-compliant</span></li>
-				<li><a href="/docs/design-decisions">Design Decisions</a><span>Why OAP is shaped the way it is</span></li>
+				<li><a href="/docs/conformance">Conformance</a><span>What it means to be BSP-compliant</span></li>
+				<li><a href="/docs/design-decisions">Design Decisions</a><span>Why BSP is shaped the way it is</span></li>
 			</ul>
 		</section>
 
 		<section class="index-group">
 			<h2>Comparisons</h2>
 			<ul>
-				<li><a href="/docs/comparisons/ucp">OAP vs UCP</a><span>How OAP relates to Google's Universal Commerce Protocol</span></li>
+				<li><a href="/docs/comparisons/ucp">BSP vs UCP</a><span>How BSP relates to Google's Universal Commerce Protocol</span></li>
 			</ul>
 		</section>
 	</div>
