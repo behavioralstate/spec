@@ -30,6 +30,8 @@ Commands are **intents to change** a domain service. They are sent **to** the se
 
 ## Command Wire Format
 
+> **`POST /commands` is a behaviour endpoint, not a resource collection.** Sending a command is not creating a "command resource" — it is expressing an intent. The path `/commands` is a single entry point for all operations this service accepts. What the service does with the message is determined entirely by the `type` field, not the HTTP verb or the URL. This is the fundamental difference between OAP and REST: in REST you manipulate resources; in OAP you invoke named operations and observe the facts they produce.
+
 Commands use the **CloudEvent 1.0 envelope shape** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
 
 > **OAP is not a conformant CloudEvent implementation.** OAP borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/docs/design-decisions#cloudevent-deviations) for the full list. Callers should treat OAP messages as *OAP-shaped envelopes*, not as spec-compliant CloudEvents.

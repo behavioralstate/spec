@@ -21,7 +21,7 @@
 			<span class="hero-brand-text">Open Agent Protocol</span>
 		</div>
 		<h1 class="hero-title">
-			Agent Interoperability.<br /><span class="hero-title-muted">By Design.</span>
+			Agentic Behaviours.<br /><span class="hero-title-muted">By Design.</span>
 		</h1>
 		<!-- Flow diagram -->
 		<div class="hero-diagram">

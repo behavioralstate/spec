@@ -28,6 +28,8 @@ Webhook subscription (push event delivery) is part of the `agents.events` capabi
 
 ## Local Service Registry — `io.oap.agents.registry`
 
+> **When to implement this:** Only if your OAP endpoint hosts multiple independent agent services that consumers need to enumerate at runtime. For a single-service endpoint, `/.well-known/oap` is sufficient — the manifest already describes what the service accepts and produces. If you are exposing one service, skip this capability entirely.
+
 While a global OAP registry is a future concept, the protocol defines a **local service registry** as a first-class capability (`io.oap.agents.registry`). An OAP endpoint implementing this capability exposes:
 
 | Method | Path | Description |

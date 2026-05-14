@@ -145,9 +145,11 @@ The `io.oap.agents.events` capability **may** include a `push` object declaring 
   "version": "{{OAP_VERSION}}",
   "endpoints": [
     { "method": "GET", "path": "/events" },
+    { "method": "GET", "path": "/events/stream" },
     { "method": "GET", "path": "/events/{schema}/{version}" }
   ],
   "push": {
+    "sse": true,
     "mcp": true,
     "a2a": true,
     "webhook": true
@@ -157,9 +159,10 @@ The `io.oap.agents.events` capability **may** include a `push` object declaring 
 
 | Field | Type | Description |
 |---|---|---|
+| `push.sse` | boolean | Server-Sent Events stream supported at `GET /events/stream` — recommended for browser apps, CLI tools, and locally-running agents that cannot expose a public webhook endpoint |
 | `push.mcp` | boolean | Server-to-client MCP notifications are supported — see [MCP transport](../transports/mcp.md) |
 | `push.a2a` | boolean | A2A message delivery to caller agent is supported — see [A2A transport](../transports/a2a.md) |
-| `push.webhook` | boolean | Webhook callback delivery is supported — callers may register a `webhook` on `POST /services` |
+| `push.webhook` | boolean | Webhook callback delivery is supported — callers may register via `POST /subscriptions` |
 
 ### Capability Status
 
