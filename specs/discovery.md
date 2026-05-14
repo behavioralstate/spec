@@ -248,9 +248,73 @@ OAP does not define what a tenant *is* — that is the implementer's domain mode
 | Enterprise platform with sub-organisations | The organisation or workspace |
 | API gateway serving multiple products | The product or project |
 
-**When to use multi-tenancy:** Use `tenants.manifest` when different callers have different capability surfaces, different command schemas, or different endpoint bases, and a single root manifest cannot describe all of them. If all callers share the same commands and endpoints, a single manifest without `tenants` is simpler and preferred.
+#### Why use multi-tenancy?
 
-**When to skip it:** A single-tenant deployment, a self-hosted service with one user, or any implementation where all callers share the same capability surface should omit the `tenants` block entirely. The `tenants.manifest` pattern adds a required onboarding step — only use it when the per-caller scoping genuinely requires it.
+There are two distinct reasons to use `tenants.manifest`, and they are independent of each other:
+
+| Reason | Description | Example |
+|---|---|---|
+| **Different capability surfaces** | Different tenants accept different commands or expose different schemas | Free tier vs. enterprise tier |
+| **Data scope isolation** | All tenants share the same capabilities, but each tenant's data is separate | B2B SaaS where every org has the same commands but their own records |
+
+The second reason is just as valid as the first — and more common in practice. **You do not need different capabilities per tenant to benefit from `tenants.manifest`.**
+
+<div class="oap-diagram">
+  <div class="oap-node">
+    <div class="oap-node-title">Shared capabilities</div>
+    <div class="oap-node-box">Same commands<br/>Same schemas</div>
+    <div class="oap-node-sub">all tenants</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">but</div>
+    <div class="oap-arrow-track">≠</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Isolated data</div>
+    <div class="oap-node-box accent">Separate data<br/>Separate endpoints</div>
+    <div class="oap-node-sub">per-tenant manifest</div>
+  </div>
+</div>
+
+**Benefits of per-tenant manifests even when capabilities are identical:**
+
+1. **Pre-scoped base URL** — the tenant manifest's `http.endpoint` already contains the tenant context (e.g. `https://api.example.com/api/oap/tenants/acme`). A consumer configured with this manifest never needs to inject a tenant ID into requests — it is structurally encoded into every path.
+
+2. **Self-contained `dataschema` URIs** — every command catalogue entry's `dataschema` URI is fully resolved against the tenant endpoint. No placeholders, no caller-side substitution required.
+
+3. **Data isolation is explicit and auditable** — tenant scope is visible in the URL on every request, not hidden inside an API key or a request header. This makes it easy to audit, log, and enforce at the infrastructure layer.
+
+4. **Shared team access** — when a tenant represents an organisation, all members of that org share one manifest and one API key. No per-user configuration is needed for consumers (agents, MCP clients, bots).
+
+<div class="oap-diagram">
+  <div class="oap-node">
+    <div class="oap-node-title">Consumer</div>
+    <div class="oap-node-box">Agent / MCP client</div>
+    <div class="oap-node-sub">configured with tenant endpoint</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">POST /commands<br/>(no tenantId needed)</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Tenant endpoint</div>
+    <div class="oap-node-box accent">api.example.com/<br/>tenants/acme/commands</div>
+    <div class="oap-node-sub">scope already encoded</div>
+  </div>
+  <div class="oap-arrow">
+    <div class="oap-arrow-label">routes to</div>
+    <div class="oap-arrow-track">→</div>
+  </div>
+  <div class="oap-node">
+    <div class="oap-node-title">Tenant data</div>
+    <div class="oap-node-box">acme's records only</div>
+    <div class="oap-node-sub">isolated</div>
+  </div>
+</div>
+
+**When to use multi-tenancy:** Use `tenants.manifest` when different callers operate in isolated data scopes, even if all tenants share the same capability surface. Also use it when different tenants genuinely have different capabilities or schemas.
+
+**When to skip it:** A single-tenant deployment, a self-hosted service with one user, or any implementation where a single manifest describes the full capability surface *and* all callers share the same data scope. The `tenants.manifest` pattern adds a required onboarding step — only use it when per-caller scoping genuinely applies.
 
 To make tenant manifest discovery machine-actionable, the root manifest may declare a `tenants` block with a `manifest` URI template (RFC 6570):
 

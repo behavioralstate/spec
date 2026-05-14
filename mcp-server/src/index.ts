@@ -58,7 +58,10 @@ async function parseErrorMessage(response: Response): Promise<string> {
   const text = await response.text();
   try {
     const json = JSON.parse(text);
-    return json.error ?? json.title ?? json.detail ?? text;
+    const err = json.error;
+    if (typeof err === 'string') return err;
+    if (err && typeof err === 'object') return err.message ?? JSON.stringify(err);
+    return json.title ?? json.detail ?? text;
   } catch {
     return text;
   }
@@ -167,7 +170,7 @@ const TOOLS: Tool[] = [
       'List all read queries available at this OAP endpoint. ' +
       'Returns the query catalogue: every query type with its schema name, version, dataschema URI, and description. ' +
       'Call this to discover what current-state data you can read. ' +
-      'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts).',
+      'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds).',
     inputSchema: { type: 'object', properties: {}, required: [] }
   },
   {

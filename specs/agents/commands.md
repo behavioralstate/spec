@@ -134,6 +134,8 @@ Processing steps:
 
 Response: `201 Created` — the command has been accepted and queued.
 
+> **Why `201` and not `202`?** Practitioners familiar with distributed systems often expect `202 Accepted` for async operations. OAP uses `201 Created` deliberately: `202` means "I'll try to process this eventually" — it makes no guarantee. `201` is stronger: it signals that a resource was durably created (the command record in the queue or event store) and that processing *will* happen. The command is not fire-and-forget; it is committed. Use `202` for truly speculative acceptance where the server cannot guarantee eventual processing. If your implementation cannot durably enqueue the command before responding, `202` is appropriate — but `201` should be the target for production-grade implementations.
+
 ### GET /commands/{schema}/{version} — Versioned Schema Document
 
 Returns the JSON Schema document for a specific command type and version. This is the canonical target for the `dataschema` URI in a command catalogue entry.
