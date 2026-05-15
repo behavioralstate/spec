@@ -165,6 +165,57 @@ const TOOLS: Tool[] = [
     }
   },
   {
+    name: 'send_command_and_wait',
+    description:
+      'Send a command to the BSP endpoint and wait for it to be processed by polling a query. ' +
+      'Use this instead of send_command when you need to confirm the command was processed before proceeding, ' +
+      'for example subscribing a price feed and then verifying it appears in the list. ' +
+      'Provide poll_query (query schema name from get_query_catalogue) and poll_until_contains ' +
+      '(a string that must appear in the query result, e.g. a ticker symbol). ' +
+      'Returns the command ID plus the query result once the condition is met, ' +
+      'or a timeout warning if the condition is not met within timeout_seconds.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        schema: {
+          type: 'string',
+          description: 'Command schema name in kebab-case (e.g. subscribe-price-feed)'
+        },
+        version: {
+          type: 'string',
+          description: 'Schema version (e.g. 1.0)'
+        },
+        source: {
+          type: 'string',
+          description: 'CloudEvent source — read the required value from get_command_schema before calling this tool'
+        },
+        data: {
+          type: 'object',
+          description: 'Command payload matching the JSON Schema from get_command_schema.',
+          additionalProperties: true
+        },
+        poll_query: {
+          type: 'string',
+          description: 'Query schema name to poll after sending the command (from get_query_catalogue). If omitted the tool behaves like send_command.'
+        },
+        poll_until_contains: {
+          type: 'string',
+          description: 'String that must appear in the query result for the wait to succeed. If omitted, the first successful query response is returned.'
+        },
+        poll_params: {
+          type: 'object',
+          description: 'Optional query parameters for the poll query.',
+          additionalProperties: true
+        },
+        timeout_seconds: {
+          type: 'number',
+          description: 'Maximum seconds to wait for the query to satisfy the condition (default: 30).'
+        }
+      },
+      required: ['schema', 'version', 'source', 'data']
+    }
+  },
+  {
     name: 'get_query_catalogue',
     description:
       'List all read queries available at this BSP endpoint. ' +
@@ -262,6 +313,33 @@ async function handleSendCommand(args: Record<string, unknown>): Promise<string>
   return `Command accepted. ID: ${result.id}`;
 }
 
+async function handleSendCommandAndWait(args: Record<string, unknown>): Promise<string> {
+  const commandResult = await handleSendCommand(args);
+
+  const pollQuery = args.poll_query as string | undefined;
+  if (!pollQuery) return commandResult;
+
+  const pollParams = (args.poll_params ?? {}) as Record<string, unknown>;
+  const pollUntilContains = args.poll_until_contains as string | undefined;
+  const timeoutSeconds = (args.timeout_seconds as number) ?? 30;
+  const intervalMs = 2000;
+  const maxAttempts = Math.ceil((timeoutSeconds * 1000) / intervalMs);
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+    try {
+      const result = await handleExecuteQuery({ schema: pollQuery, params: pollParams });
+      if (!pollUntilContains || result.includes(pollUntilContains)) {
+        return `${commandResult}\n\nQuery result after processing:\n${result}`;
+      }
+    } catch {
+      // transient query failure — keep polling
+    }
+  }
+
+  return `${commandResult}\n\nWarning: timed out after ${timeoutSeconds}s waiting for '${pollUntilContains ?? 'any result'}' in ${pollQuery}.`;
+}
+
 async function handleGetQueryCatalogue(): Promise<string> {
   const data = await oapGet<{ queries: unknown[] }>('/queries');
   if (!data.queries.length) return 'No queries available at this endpoint.';
@@ -339,7 +417,8 @@ function createMcpServer(): Server {
       switch (name) {
         case 'get_command_catalogue': text = await handleGetCommandCatalogue();         break;
         case 'get_command_schema':    text = await handleGetCommandSchema(safeArgs);    break;
-        case 'send_command':          text = await handleSendCommand(safeArgs);         break;
+        case 'send_command':               text = await handleSendCommand(safeArgs);              break;
+        case 'send_command_and_wait':       text = await handleSendCommandAndWait(safeArgs);       break;
         case 'get_query_catalogue':   text = await handleGetQueryCatalogue();           break;
         case 'get_query_schema':      text = await handleGetQuerySchema(safeArgs);      break;
         case 'execute_query':         text = await handleExecuteQuery(safeArgs);        break;
