@@ -159,7 +159,7 @@ export async function load({ params }) {
 	const markdown = await readFile(filePath, 'utf-8');
 	const { version } = JSON.parse(await readFile(VERSION_FILE, 'utf-8'));
 	const { marked } = await import('marked');
-	let html = await marked(markdown.replaceAll('{{OAP_VERSION}}', version));
+	let html = await marked(markdown.replaceAll('{{BSP_VERSION}}', version));
 	html = rewriteLinks(html, slug);
 	html = classifyBlockquotes(html);
 	const { html: processedHtml, headings } = processHeadings(html);

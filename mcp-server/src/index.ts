@@ -67,7 +67,7 @@ async function parseErrorMessage(response: Response): Promise<string> {
   }
 }
 
-async function oapGet<T>(path: string): Promise<T> {
+async function bspGet<T>(path: string): Promise<T> {
   const response = await fetch(`${ENDPOINT}${path}`, {
     headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' }
   });
@@ -78,7 +78,7 @@ async function oapGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function oapPost<T>(path: string, body: unknown): Promise<T> {
+async function bspPost<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${ENDPOINT}${path}`, {
     method: 'POST',
     headers: {
@@ -274,7 +274,7 @@ const TOOLS: Tool[] = [
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 
 async function handleGetCommandCatalogue(): Promise<string> {
-  const data = await oapGet<{ commands: unknown[] }>('/commands');
+  const data = await bspGet<{ commands: unknown[] }>('/commands');
   if (!data.commands.length) return 'No commands available at this endpoint.';
   return JSON.stringify(data.commands, null, 2);
 }
@@ -282,7 +282,7 @@ async function handleGetCommandCatalogue(): Promise<string> {
 async function handleGetCommandSchema(args: Record<string, unknown>): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await oapGet<unknown>(`/commands/${schema}/${version}`);
+  const doc = await bspGet<unknown>(`/commands/${schema}/${version}`);
   return JSON.stringify(doc, null, 2);
 }
 
@@ -309,7 +309,7 @@ async function handleSendCommand(args: Record<string, unknown>): Promise<string>
     data
   };
 
-  const result = await oapPost<{ id: string }>('/commands', cloudEvent);
+  const result = await bspPost<{ id: string }>('/commands', cloudEvent);
   return `Command accepted. ID: ${result.id}`;
 }
 
@@ -341,7 +341,7 @@ async function handleSendCommandAndWait(args: Record<string, unknown>): Promise<
 }
 
 async function handleGetQueryCatalogue(): Promise<string> {
-  const data = await oapGet<{ queries: unknown[] }>('/queries');
+  const data = await bspGet<{ queries: unknown[] }>('/queries');
   if (!data.queries.length) return 'No queries available at this endpoint.';
   return JSON.stringify(data.queries, null, 2);
 }
@@ -349,7 +349,7 @@ async function handleGetQueryCatalogue(): Promise<string> {
 async function handleGetQuerySchema(args: Record<string, unknown>): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await oapGet<unknown>(`/queries/${schema}/${version}`);
+  const doc = await bspGet<unknown>(`/queries/${schema}/${version}`);
   return JSON.stringify(doc, null, 2);
 }
 
@@ -363,7 +363,7 @@ async function handleExecuteQuery(args: Record<string, unknown>): Promise<string
     .join('&');
 
   const path = queryString ? `/queries/${schema}?${queryString}` : `/queries/${schema}`;
-  const result = await oapGet<unknown>(path);
+  const result = await bspGet<unknown>(path);
   return JSON.stringify(result, null, 2);
 }
 
