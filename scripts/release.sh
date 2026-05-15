@@ -28,7 +28,8 @@ if [ $# -lt 1 ]; then
 fi
 
 VERSION="$1"
-TAG="v${VERSION}"
+TAG="spec/v${VERSION}"
+VERSION_TAG="v${VERSION}"  # used for GitHub blob/release URLs (no prefix)
 PRERELEASE=false
 PROTOCOL_VERSION="$VERSION"
 
@@ -119,23 +120,23 @@ fi
 CURRENT_README_TAG=$(grep -oP '(?<=blob/)(v[0-9]+\.[0-9]+\.[0-9]+)' README.md | sort | uniq | head -1)
 if [ -z "$CURRENT_README_TAG" ]; then
   echo "Warning: Could not detect current tag in README.md — skipping table update."
-elif [ "$CURRENT_README_TAG" = "$TAG" ]; then
-  echo "README.md already references $TAG — no update needed."
+elif [ "$CURRENT_README_TAG" = "$VERSION_TAG" ]; then
+  echo "README.md already references $VERSION_TAG — no update needed."
 else
-  echo "Updating README.md: $CURRENT_README_TAG → $TAG"
-  sed -i "s|blob/${CURRENT_README_TAG}/|blob/${TAG}/|g" README.md
-  sed -i "s|\[${CURRENT_README_TAG}\](${REPO_URL}/blob/${TAG}/|[${TAG}](${REPO_URL}/blob/${TAG}/|g" README.md
-  sed -i "s|releases/tag/${CURRENT_README_TAG}|releases/tag/${TAG}|g" README.md
+  echo "Updating README.md: $CURRENT_README_TAG → $VERSION_TAG"
+  sed -i "s|blob/${CURRENT_README_TAG}/|blob/${VERSION_TAG}/|g" README.md
+  sed -i "s|\[${CURRENT_README_TAG}\](${REPO_URL}/blob/${VERSION_TAG}/|[${VERSION_TAG}](${REPO_URL}/blob/${VERSION_TAG}/|g" README.md
+  sed -i "s|releases/tag/${CURRENT_README_TAG}|releases/tag/${VERSION_TAG}|g" README.md
   if [ "$PRERELEASE" = true ]; then
-    sed -i "s|The most recent pre-release is \[${CURRENT_README_TAG}\]([^)]*)|The most recent pre-release is [${TAG}](${REPO_URL}/releases/tag/${TAG})|g" README.md
+    sed -i "s|The most recent pre-release is \[${CURRENT_README_TAG}\]([^)]*)|The most recent pre-release is [${VERSION_TAG}](${REPO_URL}/releases/tag/${VERSION_TAG})|g" README.md
   else
-    sed -i "s|The most recent.*is \[${CURRENT_README_TAG}\]([^)]*)|The most recent stable release is [${TAG}](${REPO_URL}/releases/tag/${TAG})|g" README.md
+    sed -i "s|The most recent.*is \[${CURRENT_README_TAG}\]([^)]*)|The most recent stable release is [${VERSION_TAG}](${REPO_URL}/releases/tag/${VERSION_TAG})|g" README.md
   fi
   git add README.md
   if git diff --cached --quiet; then
     echo "No README.md changes to commit."
   else
-    git commit -m "chore: update README docs table to ${TAG}"
+    git commit -m "chore: update README docs table to ${VERSION_TAG}"
     git push origin main
   fi
 fi
@@ -154,9 +155,9 @@ git push origin "$TAG"
 if command -v gh &>/dev/null; then
   echo "Creating GitHub Release..."
   if [ "$PRERELEASE" = true ]; then
-    gh release create "$TAG" --title "BSP $TAG" --notes "Pre-release of the Behavioral State Protocol specification." --prerelease
+    gh release create "$TAG" --title "BSP $VERSION_TAG" --notes "Pre-release of the Behavioral State Protocol specification." --prerelease
   else
-    gh release create "$TAG" --title "BSP $TAG" --notes "Release of the Behavioral State Protocol specification."
+    gh release create "$TAG" --title "BSP $VERSION_TAG" --notes "Release of the Behavioral State Protocol specification."
   fi
   echo "GitHub Release created."
 else
