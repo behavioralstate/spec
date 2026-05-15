@@ -1,6 +1,6 @@
 {
   "name": "@behavioralstate/bsp-mcp",
-  "version": "1.5.2",
+  "version": "1.5.4",
   "description": "MCP server for any BSP-compliant endpoint — exposes commands and queries as tools for LLM clients",
   "type": "module",
   "bin": {
