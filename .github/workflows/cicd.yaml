@@ -3,7 +3,7 @@
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['spec/v*', 'mcp/v*']
   pull_request:
     branches: [main]
 
@@ -64,7 +64,7 @@ jobs:
           path: website/build/
 
   docker-publish:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/spec/v')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -97,7 +97,7 @@ jobs:
           echo "tag=ghcr.io/${REPO_OWNER_LC}/spec:${{ github.sha }}" >> $GITHUB_OUTPUT
 
   npm-publish:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mcp/v')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -126,7 +126,7 @@ jobs:
         working-directory: ./mcp-server
 
   update-iac:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/spec/v')
     needs: docker-publish
     runs-on: ubuntu-latest
     steps:
