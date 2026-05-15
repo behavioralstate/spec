@@ -3,5 +3,5 @@
   <rect x="0.5" y="0.5" width="47" height="31" rx="6.5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
   <text x="24" y="22.5" text-anchor="middle" fill="white"
     font-family="system-ui, -apple-system, sans-serif"
-    font-weight="800" font-size="15" letter-spacing="-0.5">OAP</text>
+    font-weight="800" font-size="15" letter-spacing="-0.5">BSP</text>
 </svg>

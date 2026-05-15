@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.title} — OAP</title>
+	<title>{data.title} — BSP</title>
 </svelte:head>
 
 <div class="page-wrapper">

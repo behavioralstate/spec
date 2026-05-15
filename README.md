@@ -65,10 +65,10 @@ cd website && npm install && npm run dev
 
 ```bash
 # Install globally
-npm install -g bsp-mcp
+npm install -g @behavioralstate/bsp-mcp
 
 # Or run without installing
-npx bsp-mcp
+npx @behavioralstate/bsp-mcp
 ```
 
 **Required environment variables:**
@@ -85,7 +85,7 @@ BSP_API_KEY=<your-api-key>                 # sent as Authorization: Bearer <key>
   "mcpServers": {
     "my-service": {
       "command": "npx",
-      "args": ["bsp-mcp"],
+      "args": ["@behavioralstate/bsp-mcp"],
       "env": {
         "BSP_ENDPOINT": "https://api.example.com/BSP",
         "BSP_API_KEY": "<your-api-key>"
@@ -98,12 +98,34 @@ BSP_API_KEY=<your-api-key>                 # sent as Authorization: Bearer <key>
 **HTTP mode** (ChatGPT Desktop — requires HTTPS, use ngrok or Cloudflare Tunnel locally):
 
 ```bash
-MCP_TRANSPORT=http MCP_HTTP_PORT=3001 BSP_ENDPOINT=https://api.example.com/BSP BSP_API_KEY=<key> npx bsp-mcp
+MCP_TRANSPORT=http MCP_HTTP_PORT=3001 BSP_ENDPOINT=https://api.example.com/BSP BSP_API_KEY=<key> npx @behavioralstate/bsp-mcp
 ```
 
 See [`mcp-server/README.md`](mcp-server/README.md) and [`specs/transports/mcp.md`](specs/transports/mcp.md) for full documentation.
 
 ## Cutting a Release
+
+This repo has two independent versioned artifacts with separate tag prefixes:
+
+| Artifact | Tag prefix | Triggers |
+|---|---|---|
+| BSP protocol spec + website | `spec/v*` | Docker build → GHCR → IaC PR |
+| `@behavioralstate/bsp-mcp` npm package | `mcp/v*` | npm publish |
+
+### Releasing the MCP server
+
+1. Bump `version` in `mcp-server/package.json`
+2. Commit and push
+3. Tag and push:
+
+```bash
+git tag -a mcp/v1.5.5 -m "Release mcp v1.5.5"
+git push origin mcp/v1.5.5
+```
+
+CI publishes `@behavioralstate/bsp-mcp` to npm automatically.
+
+### Releasing the protocol spec / website
 
 Use the release script to tag and publish a new version:
 
@@ -124,7 +146,7 @@ The script will:
 1. Stamp the protocol version date into all `"version": "YYYY-MM-DD"` fields in JSON and Svelte source files (defaults to today's date).
 2. Update the documents table in this README to reference the new tag.
 3. Prompt you to confirm before committing the version stamp and before creating the tag.
-4. Create an annotated git tag (`v<version>`) and push it to `origin`.
+4. Create an annotated git tag (`spec/v<version>`) and push it to `origin`.
 
 ## Community
 
