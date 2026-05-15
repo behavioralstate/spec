@@ -111,7 +111,7 @@ jobs:
       - name: Update image tag in deployment
         run: |
           REPO_OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          DEPLOY_FILE="${{ secrets.IAC_DEPLOY_PATH }}"
+          DEPLOY_FILE="${{ secrets.IAC_DEPLOY_PATH }}/deployment.yaml"
           sed -i 's|^\([[:space:]]*\)image:.*|\1image: ghcr.io/'"$REPO_OWNER_LC"'/spec:'"${{ github.sha }}"'|g' "$DEPLOY_FILE"
 
       - name: Create Pull Request
