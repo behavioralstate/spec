@@ -5,7 +5,7 @@
 <div class="index-page">
 	<div class="index-header">
 		<h1>Documentation</h1>
-		<p>Behavioural State Protocol — a standard interaction surface so any caller can send commands to any service, and any observer can consume the events it produces.</p>
+		<p>Behavioral State Protocol — a standard interaction surface so any caller can send commands to any service, and any observer can consume the events it produces.</p>
 	</div>
 
 	<!-- Flow diagram — analogous to dotQuant's TradingView → Bridge → Brokers -->

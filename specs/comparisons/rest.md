@@ -1,6 +1,6 @@
 # BSP vs REST — Comparison
 
-REST (Representational State Transfer) and BSP (Behavioural State Protocol) both use HTTP as a transport, but they answer fundamentally different questions. REST asks *"what resources exist and how do I manipulate them?"* BSP asks *"what operations does this service support, and what facts does it emit when those operations complete?"*
+REST (Representational State Transfer) and BSP (Behavioral State Protocol) both use HTTP as a transport, but they answer fundamentally different questions. REST asks *"what resources exist and how do I manipulate them?"* BSP asks *"what operations does this service support, and what facts does it emit when those operations complete?"*
 
 BSP is not limited to AI agents. It is a general-purpose protocol for exposing any service's capabilities — internal backends, microservices, third-party integrations — in a way that is **behaviour-oriented by design**. That design choice has two consequences: it drives the service implementation toward sound architectural patterns (DDD, CQRS, Event Sourcing), and it makes the surface naturally consumable by AI agents, which can reason far more effectively about named operations and observable facts than about resource URLs and status-field patches.
 

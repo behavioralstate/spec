@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>BSP — Behavioural State Protocol</title>
+	<title>BSP — Behavioral State Protocol</title>
 </svelte:head>
 
 <!-- Hero -->
@@ -135,7 +135,7 @@
 		</p>
 		<div class="cta-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>
-			<a href="https://github.com/behaviouralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
+			<a href="https://github.com/behavioralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
 		</div>
 	</div>
 </section>

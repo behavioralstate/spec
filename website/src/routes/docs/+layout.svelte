@@ -12,9 +12,9 @@
 	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
 	const shaMatch = gitTag ? gitTag.match(/-g([0-9a-f]+)$/) : null;
 	const tagUrl = isCleanTag
-		? `https://github.com/behaviouralstate/spec/releases/tag/${gitTag}`
+		? `https://github.com/behavioralstate/spec/releases/tag/${gitTag}`
 		: shaMatch
-			? `https://github.com/behaviouralstate/spec/commit/${shaMatch[1]}`
+			? `https://github.com/behavioralstate/spec/commit/${shaMatch[1]}`
 			: null;
 </script>
 

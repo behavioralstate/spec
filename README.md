@@ -1,4 +1,4 @@
-# BSP — Behavioural State Protocol
+# BSP — Behavioral State Protocol
 
 CQRS separates write (commands) and read (events) — but there is no common way to discover what commands a service accepts, what events it produces, or how to interact with it, without reading bespoke documentation or source code.
 
@@ -13,16 +13,16 @@ If you are new to BSP, start with the [Overview](specs/overview.md) for the prot
 |  | Pre-release | WIP |
 |---|:---:|:---:|
 | **Core Specification:** | | |
-| [BSP Overview](specs/overview.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/overview.md) | [WIP](specs/overview.md) |
-| [Discovery](specs/discovery.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/discovery.md) | [WIP](specs/discovery.md) |
-| [Versioning](specs/versioning.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/versioning.md) | [WIP](specs/versioning.md) |
-| [Conformance](specs/conformance.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/conformance.md) | [WIP](specs/conformance.md) |
+| [BSP Overview](specs/overview.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/overview.md) | [WIP](specs/overview.md) |
+| [Discovery](specs/discovery.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/discovery.md) | [WIP](specs/discovery.md) |
+| [Versioning](specs/versioning.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/versioning.md) | [WIP](specs/versioning.md) |
+| [Conformance](specs/conformance.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/conformance.md) | [WIP](specs/conformance.md) |
 | | | |
 | **Agent Capabilities:** | | |
 | ~~[Registry](specs/agents/registry.md)~~ | *(removed — see [future concept](specs/agents/registry.md))* | — |
-| [Lifecycle](specs/agents/lifecycle.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
-| [Events](specs/agents/events.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/agents/events.md) | [WIP](specs/agents/events.md) |
-| [Commands](specs/agents/commands.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
+| [Lifecycle](specs/agents/lifecycle.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
+| [Events](specs/agents/events.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/agents/events.md) | [WIP](specs/agents/events.md) |
+| [Commands](specs/agents/commands.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
 | [Queries](specs/agents/queries.md) | — | [WIP](specs/agents/queries.md) |
 | [Memory](specs/agents/memory.md) | *(removed — see [design decisions](specs/design-decisions.md#service-metadata-vs-memory))* | — |
 | | | |
@@ -30,11 +30,11 @@ If you are new to BSP, start with the [Overview](specs/overview.md) for the prot
 | ~~Tracing~~ | *(removed — see changelog)* | — |
 | | | |
 | **Transport Bindings:** | | |
-| [HTTP](specs/transports/http.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/transports/http.md) | [WIP](specs/transports/http.md) |
-| [MCP](specs/transports/mcp.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/transports/mcp.md) | [WIP](specs/transports/mcp.md) |
-| [A2A](specs/transports/a2a.md) | [v0.5.7](https://github.com/behaviouralstate/spec/blob/v0.5.7/specs/transports/a2a.md) | [WIP](specs/transports/a2a.md) |
+| [HTTP](specs/transports/http.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/transports/http.md) | [WIP](specs/transports/http.md) |
+| [MCP](specs/transports/mcp.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/transports/mcp.md) | [WIP](specs/transports/mcp.md) |
+| [A2A](specs/transports/a2a.md) | [v0.5.7](https://github.com/behavioralstate/spec/blob/v0.5.7/specs/transports/a2a.md) | [WIP](specs/transports/a2a.md) |
 
-> The most recent stable release is [v0.5.7](https://github.com/behaviouralstate/spec/releases/tag/v0.5.7).
+> The most recent stable release is [v0.5.7](https://github.com/behavioralstate/spec/releases/tag/v0.5.7).
 
 ## Protocol Artifacts
 
@@ -129,8 +129,8 @@ The script will:
 ## Community
 
 - [Website & Documentation](https://behavioralstate.io/)
-- [GitHub Issues](https://github.com/behaviouralstate/spec/issues) — bug reports & feature requests
-- [Contributing](https://github.com/behaviouralstate/spec/blob/main/CONTRIBUTING.md) — how to contribute
+- [GitHub Issues](https://github.com/behavioralstate/spec/issues) — bug reports & feature requests
+- [Contributing](https://github.com/behavioralstate/spec/blob/main/CONTRIBUTING.md) — how to contribute
 
 ## License
 

@@ -5,9 +5,9 @@
 	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
 	const shaMatch = gitTag ? gitTag.match(/-g([0-9a-f]+)$/) : null;
 	const tagUrl = isCleanTag
-		? `https://github.com/behaviouralstate/spec/releases/tag/${gitTag}`
+		? `https://github.com/behavioralstate/spec/releases/tag/${gitTag}`
 		: shaMatch
-			? `https://github.com/behaviouralstate/spec/commit/${shaMatch[1]}`
+			? `https://github.com/behavioralstate/spec/commit/${shaMatch[1]}`
 			: null;
 </script>
 
@@ -18,7 +18,7 @@
 	<div class="hero-inner">
 		<div class="hero-brand">
 			<Logo size={40} />
-			<span class="hero-brand-text">Behavioural State Protocol</span>
+			<span class="hero-brand-text">Behavioral State Protocol</span>
 		</div>
 		<h1 class="hero-title">
 			Agentic Behaviours.<br /><span class="hero-title-muted">By Design.</span>
@@ -55,7 +55,7 @@
 		</p>
 		<div class="hero-actions">
 			<a href="/docs" class="btn-primary">Read the docs</a>
-			<a href="https://github.com/behaviouralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
+			<a href="https://github.com/behavioralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
 		</div>
 		{#if gitTag}
 		<p class="hero-build">

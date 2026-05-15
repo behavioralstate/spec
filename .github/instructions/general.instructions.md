@@ -1,4 +1,4 @@
-ï»¿# BSP â€” Behavioural State Protocol (spec repo)
+# BSP — Behavioral State Protocol (spec repo)
 
 The authoritative protocol documentation lives in `specs/`. Do not duplicate it here.
 Read `specs/` to understand the protocol. These instructions cover only repo conventions and tooling.
@@ -7,7 +7,7 @@ Read `specs/` to understand the protocol. These instructions cover only repo con
 
 | Path | Contents |
 |---|---|
-| `specs/` | Canonical spec documents (Markdown) â€” the source of truth |
+| `specs/` | Canonical spec documents (Markdown) — the source of truth |
 | `protocol/v1/schemas/` | JSON Schema files for all capabilities |
 | `protocol/v1/services/` | OpenAPI specs for the HTTP transport |
 | `protocol/v1/examples/` | Example manifests and payloads |
@@ -34,9 +34,9 @@ cd mcp-server && npm install && npm run build
 ## Version Stamping
 
 - **Single source of truth**: `version.json` at repo root
-- Spec and example files use the placeholder `{{BSP_VERSION}}` â€” never hardcode a version string
+- Spec and example files use the placeholder `{{BSP_VERSION}}` — never hardcode a version string
 - Files using the placeholder: `protocol/v1/examples/well-known-BSP.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
-- Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{BSP_VERSION}}` when copying `protocol/v1/` â†’ `website/static/v1/`
+- Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{BSP_VERSION}}` when copying `protocol/v1/` ? `website/static/v1/`
 
 ## Cutting a Release
 
@@ -54,13 +54,13 @@ Generic MCP server for any BSP-compliant endpoint. Published to npm as `bsp-mcp`
 | Variable | Required | Description |
 |---|---|---|
 | `BSP_ENDPOINT` | yes | Base URL of the BSP HTTP surface |
-| `BSP_API_KEY` | yes | API key â€” sent as `Authorization: Bearer <key>` |
+| `BSP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
 | `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
 | `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
 
 Tools exposed: `get_command_catalogue`, `get_command_schema`, `send_command`, `get_query_catalogue`, `get_query_schema`, `execute_query`.
 
-`send_command` derives the CloudEvent `type` via PascalCase conversion of the schema name (`configure-broker â†’ ConfigureBroker`). The `source` value must be read from the schema description â€” never invented.
+`send_command` derives the CloudEvent `type` via PascalCase conversion of the schema name (`configure-broker ? ConfigureBroker`). The `source` value must be read from the schema description — never invented.
 
 Publishing:
 ```sh

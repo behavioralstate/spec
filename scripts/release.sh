@@ -15,7 +15,7 @@ set -euo pipefail
 #   ./scripts/release.sh 1.0.0
 #   ./scripts/release.sh 1.1.0 --protocol-version 1.1.0
 
-REPO_URL="https://github.com/behaviouralstate/spec"
+REPO_URL="https://github.com/behavioralstate/spec"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <version> [--prerelease] [--protocol-version <YYYY-MM-DD>]"
@@ -154,9 +154,9 @@ git push origin "$TAG"
 if command -v gh &>/dev/null; then
   echo "Creating GitHub Release..."
   if [ "$PRERELEASE" = true ]; then
-    gh release create "$TAG" --title "BSP $TAG" --notes "Pre-release of the Behavioural State Protocol specification." --prerelease
+    gh release create "$TAG" --title "BSP $TAG" --notes "Pre-release of the Behavioral State Protocol specification." --prerelease
   else
-    gh release create "$TAG" --title "BSP $TAG" --notes "Release of the Behavioural State Protocol specification."
+    gh release create "$TAG" --title "BSP $TAG" --notes "Release of the Behavioral State Protocol specification."
   fi
   echo "GitHub Release created."
 else

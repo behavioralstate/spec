@@ -2,7 +2,7 @@
 
 ## What is BSP?
 
-BSP (Behavioural State Protocol) is an open protocol that standardises **agent interoperability** — how agents discover each other, exchange events and commands, and observe what happened, across distributed systems.
+BSP (Behavioral State Protocol) is an open protocol that standardises **agent interoperability** — how agents discover each other, exchange events and commands, and observe what happened, across distributed systems.
 
 > BSP lets **anyone expose skills, services, or capabilities** to any agent — without building bespoke integrations.
 
