@@ -54,12 +54,16 @@ npx bsp-mcp
 
 ### Configuration
 
-| Variable | Required | Description |
-|---|---|---|
-| `BSP_ENDPOINT` | yes | Base URL of the BSP HTTP surface (e.g. `https://api.example.com/BSP`) |
-| `BSP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
-| `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
-| `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `BSP_ENDPOINT` | yes | — | Base URL of the BSP HTTP surface (e.g. `https://api.example.com/BSP`) |
+| `BSP_API_KEY` | yes* | — | Credential value (*not required when `BSP_AUTH_TYPE=none`) |
+| `BSP_AUTH_TYPE` | no | `bearer` | `bearer` · `apikey` · `none` — maps to `authentication.type` in `/.well-known/bsp` |
+| `BSP_AUTH_HEADER` | no | `X-Api-Key` | Header name when `BSP_AUTH_TYPE=apikey` and `BSP_AUTH_IN=header` |
+| `BSP_AUTH_IN` | no | `header` | `header` or `query` — where the key is sent when `BSP_AUTH_TYPE=apikey` |
+| `BSP_AUTH_PARAM` | no | `apikey` | Query parameter name when `BSP_AUTH_IN=query` |
+| `MCP_TRANSPORT` | no | `stdio` | `stdio` or `http` |
+| `MCP_HTTP_PORT` | no | `3000` | HTTP port when `MCP_TRANSPORT=http` |
 
 ### stdio — VS Code Copilot, Cursor, Claude Desktop
 
@@ -77,6 +81,8 @@ npx bsp-mcp
   }
 }
 ```
+
+For services using a custom API key header, add `"BSP_AUTH_TYPE": "apikey"` (and `"BSP_AUTH_HEADER"` if the header name differs from `X-Api-Key`).
 
 ### HTTP — ChatGPT Desktop
 

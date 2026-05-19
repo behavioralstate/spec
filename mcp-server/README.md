@@ -9,6 +9,7 @@ MCP server for any [BSP-compliant](https://behavioralstate.io) endpoint. Exposes
 | `get_command_catalogue` | List all commands this endpoint accepts |
 | `get_command_schema` | Fetch the full JSON Schema for a command type — learn the exact fields required |
 | `send_command` | Send a command (CloudEvent 1.0 envelope built automatically) |
+| `send_command_and_wait` | Send a command then poll a query until a condition is met — use when you need to confirm processing before proceeding |
 | `get_query_catalogue` | List all read queries this endpoint exposes |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
@@ -29,23 +30,34 @@ npm run build
 
 ### 2. Configure
 
-Set two environment variables:
+Configure via environment variables:
 
-| Variable | Required | Description |
-|---|---|---|
-| `BSP_ENDPOINT` | yes | Base URL of the BSP HTTP surface (see below) |
-| `BSP_API_KEY` | yes | API key — sent as `Authorization: Bearer <key>` |
-| `MCP_TRANSPORT` | no | `stdio` (default) or `http` |
-| `MCP_HTTP_PORT` | no | HTTP port when `MCP_TRANSPORT=http` (default: `3000`) |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `BSP_ENDPOINT` | yes | — | Base URL of the BSP HTTP surface (see below) |
+| `BSP_API_KEY` | yes* | — | Credential value (*not required when `BSP_AUTH_TYPE=none`) |
+| `BSP_AUTH_TYPE` | no | `bearer` | `bearer` · `apikey` · `none` |
+| `BSP_AUTH_HEADER` | no | `X-Api-Key` | Header name when `BSP_AUTH_TYPE=apikey` and `BSP_AUTH_IN=header` |
+| `BSP_AUTH_IN` | no | `header` | `header` or `query` — where the key is sent when `BSP_AUTH_TYPE=apikey` |
+| `BSP_AUTH_PARAM` | no | `apikey` | Query parameter name when `BSP_AUTH_IN=query` |
+| `MCP_TRANSPORT` | no | `stdio` | `stdio` or `http` |
+| `MCP_HTTP_PORT` | no | `3000` | HTTP port when `MCP_TRANSPORT=http` |
+
+`BSP_AUTH_TYPE` maps directly to the `authentication.type` field in `/.well-known/bsp`. Use `bearer` for OAuth2/JWT endpoints, `apikey` for custom-header or query-param API keys, `none` for public endpoints.
 
 **`BSP_ENDPOINT`** should point at the root of the BSP HTTP surface — the base path from which `/commands`, `/queries`, etc. are resolved. Examples:
 
 ```
-# Generic BSP service
-BSP_ENDPOINT=https://api.example.com/BSP
+# Single-tenant BSP service — Bearer auth (default)
+BSP_ENDPOINT=https://api.example.com/bsp
 
-# Multi-tenant service (dotQuant example)
-BSP_ENDPOINT=https://dotquant.io/api/BSP/tenants/<your-tenant-id>
+# Multi-tenant BSP service — tenant path scoped
+BSP_ENDPOINT=https://api.example.com/bsp/tenants/<your-tenant-id>
+
+# Service using a custom API key header
+BSP_ENDPOINT=https://api.example.com/bsp
+BSP_AUTH_TYPE=apikey
+BSP_AUTH_HEADER=X-Api-Key
 ```
 
 ## Transport options
@@ -57,11 +69,29 @@ BSP_ENDPOINT=https://dotquant.io/api/BSP/tenants/<your-tenant-id>
 ```json
 {
   "mcpServers": {
-    "my-BSP-service": {
+    "my-bsp-service": {
       "command": "bsp-mcp",
       "env": {
-        "BSP_ENDPOINT": "https://api.example.com/BSP",
+        "BSP_ENDPOINT": "https://api.example.com/bsp",
         "BSP_API_KEY": "<your-api-key>"
+      }
+    }
+  }
+}
+```
+
+For services using a custom API key header instead of Bearer:
+
+```json
+{
+  "mcpServers": {
+    "my-bsp-service": {
+      "command": "bsp-mcp",
+      "env": {
+        "BSP_ENDPOINT": "https://api.example.com/bsp",
+        "BSP_API_KEY": "<your-api-key>",
+        "BSP_AUTH_TYPE": "apikey",
+        "BSP_AUTH_HEADER": "X-Api-Key"
       }
     }
   }
@@ -74,7 +104,7 @@ ChatGPT Desktop connects to MCP servers over HTTPS. Start in HTTP mode and expos
 
 ```bash
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
-  BSP_ENDPOINT=https://api.example.com/BSP \
+  BSP_ENDPOINT=https://api.example.com/bsp \
   BSP_API_KEY=<key> \
   node dist/index.js
 
@@ -91,9 +121,9 @@ When sending a command, `send_command` requires a `source` value. Per BSP, `sour
 
 ## Publishing to npm
 
+Never run `npm publish` directly — the release is fully automated via CI:
+
 ```bash
-npm version patch   # or minor / major
-npm run build
-npm pkg fix
-npm publish --access public
+git tag -a mcp/v<x.y.z> -m "Release mcp/v<x.y.z>"
+git push origin mcp/v<x.y.z>
 ```

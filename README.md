@@ -75,7 +75,9 @@ npx @behavioralstate/bsp-mcp
 
 ```bash
 BSP_ENDPOINT=https://api.example.com/BSP   # base URL of the BSP HTTP surface
-BSP_API_KEY=<your-api-key>                 # sent as Authorization: Bearer <key>
+BSP_API_KEY=<your-api-key>                 # credential value (default auth: Authorization: Bearer)
+# BSP_AUTH_TYPE=apikey                     # set to 'apikey' for custom-header endpoints
+# BSP_AUTH_HEADER=X-Api-Key               # header name when BSP_AUTH_TYPE=apikey
 ```
 
 **stdio config** (VS Code Copilot, Cursor, Claude Desktop):
@@ -94,6 +96,8 @@ BSP_API_KEY=<your-api-key>                 # sent as Authorization: Bearer <key>
   }
 }
 ```
+
+For services using a custom API key header, add `BSP_AUTH_TYPE=apikey` (and optionally `BSP_AUTH_HEADER` if the header name is not `X-Api-Key`).
 
 **HTTP mode** (ChatGPT Desktop — requires HTTPS, use ngrok or Cloudflare Tunnel locally):
 
