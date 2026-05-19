@@ -109,48 +109,60 @@ See [`mcp-server/README.md`](mcp-server/README.md) and [`specs/transports/mcp.md
 
 ## Cutting a Release
 
-This repo has two independent versioned artifacts with separate tag prefixes:
+This repo has **two completely independent** versioned artifacts. Each has its own tag prefix, its own CI job, and its own release process. **Running one does not release the other.**
 
-| Artifact | Tag prefix | Triggers |
-|---|---|---|
-| BSP protocol spec + website | `spec/v*` | Docker build → GHCR → IaC PR |
-| `@behavioralstate/bsp-mcp` npm package | `mcp/v*` | npm publish |
+| Artifact | Tag prefix | CI job triggered | Outcome |
+|---|---|---|---|
+| `@behavioralstate/bsp-mcp` npm package | `mcp/v*` | `npm-publish` | Published to npm |
+| BSP protocol spec + website | `spec/v*` | `docker-publish` → `update-iac` | Docker image → GHCR → IaC PR to deploy |
 
-### Releasing the MCP server
+---
 
-1. Bump `version` in `mcp-server/package.json`
-2. Commit and push
-3. Tag and push:
+### Releasing `bsp-mcp` (npm package)
+
+> **No script.** Tag directly — CI does the rest.
+
+1. Bump `version` in `mcp-server/package.json`, commit and push to `main`.
+2. Tag and push:
 
 ```bash
-git tag -a mcp/v1.5.5 -m "Release mcp v1.5.5"
-git push origin mcp/v1.5.5
+git tag -a mcp/v1.5.7 -m "Release mcp/v1.5.7"
+git push origin mcp/v1.5.7
 ```
 
-CI publishes `@behavioralstate/bsp-mcp` to npm automatically.
+CI builds the MCP server and publishes `@behavioralstate/bsp-mcp` to npm automatically. Nothing else is needed.
 
-### Releasing the protocol spec / website
+---
 
-Use the release script to tag and publish a new version:
+### Releasing the BSP spec + website
+
+> **Use the script.** Never tag `spec/v*` manually.
 
 ```bash
-# Pre-release
-./scripts/release.sh 0.2.0 --prerelease
-
 # Stable release
-./scripts/release.sh 1.0.0
+./scripts/release.sh 0.5.12
 
-# Override the protocol version date stamped into JSON/Svelte files
-./scripts/release.sh 1.0.0 --protocol-version 2026-04-21
+# Pre-release
+./scripts/release.sh 0.5.12 --prerelease
 ```
 
-**Prerequisites:** must be run from the repo root, on `main`, with no uncommitted changes and with `origin/main` up to date.
+**Prerequisites:** run from the repo root, on `main`, with no uncommitted changes, and with `origin/main` up to date.
 
-The script will:
-1. Stamp the protocol version date into all `"version": "YYYY-MM-DD"` fields in JSON and Svelte source files (defaults to today's date).
-2. Update the documents table in this README to reference the new tag.
-3. Prompt you to confirm before committing the version stamp and before creating the tag.
-4. Create an annotated git tag (`spec/v<version>`) and push it to `origin`.
+The script handles everything:
+1. Bumps `version.json` (single source of truth for `{{BSP_VERSION}}` placeholders — no other files need editing)
+2. Updates the documents table in this README to reference the new tag
+3. Prompts for confirmation, then commits and pushes both changes
+4. Creates and pushes an annotated `spec/v*` tag
+5. Creates a GitHub Release
+6. Moves the `BSP@stable` pointer to the new tag (stable releases only)
+
+CI then builds the website Docker image, pushes to GHCR, and opens a PR in the IaC repo to deploy it.
+
+---
+
+### Releasing both in the same session
+
+They are independent — order does not matter. Convention: release `bsp-mcp` first so the npm package is live before the spec website references the updated docs, then run the spec release script.
 
 ## Community
 
