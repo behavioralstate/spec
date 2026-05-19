@@ -120,31 +120,19 @@ This repo has **two completely independent** versioned artifacts. Each has its o
 
 ### Releasing `bsp-mcp` (npm package)
 
-> **No script.** Tag directly — CI does the rest.
-
-1. Check the current published version:
+> **Use the script.** Never tag `mcp/v*` manually.
 
 ```bash
-git tag --list 'mcp/v*' --sort=-version:refname | head -1
+./scripts/release-mcp.sh 1.5.8
 ```
 
-2. Bump `version` in `mcp-server/package.json` to the **next** version (must be higher than the tag above), commit and push to `main`:
+The script handles everything:
+1. Checks you're on `main` and up to date
+2. Bumps `version` in `mcp-server/package.json`
+3. Commits and pushes to `main`
+4. Creates and pushes the `mcp/v*` tag
 
-```bash
-# edit mcp-server/package.json — increment the version
-git add mcp-server/package.json
-git commit -m "chore: bump mcp-server to <new-version>"
-git push origin main
-```
-
-3. Tag the new commit and push — **the tag must match the version in package.json**:
-
-```bash
-git tag -a mcp/v1.5.7 -m "Release mcp/v1.5.7"
-git push origin mcp/v1.5.7
-```
-
-CI builds the MCP server and publishes `@behavioralstate/bsp-mcp` to npm automatically. Nothing else is needed.
+CI then publishes `@behavioralstate/bsp-mcp` to npm automatically.
 
 ---
 

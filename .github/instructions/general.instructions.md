@@ -76,9 +76,8 @@ Auth type maps directly to the `authentication.type` block in `/.well-known/bsp`
 
 ### Publishing
 
-Never run `npm publish` directly — the release is automated via CI:
+Never tag `mcp/v*` manually — use the release script:
 ```sh
-git tag -a mcp/v<x.y.z> -m "Release mcp/v<x.y.z>"
-git push origin mcp/v<x.y.z>
+./scripts/release-mcp.sh <x.y.z>
 ```
 
