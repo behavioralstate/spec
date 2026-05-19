@@ -57,13 +57,12 @@ This returns a JSON manifest describing the available agents, services, capabili
 
 ```json
 {
-  "BSP": {
+  "bsp": {
     "version": "{{BSP_VERSION}}",
     "authentication": { ... },
     "tenants": { ... },
     "services": { ... },
-    "capabilities": [ ... ],
-    "services": [ ... ]
+    "capabilities": [ ... ]
   }
 }
 ```
@@ -73,9 +72,8 @@ This returns a JSON manifest describing the available agents, services, capabili
 | `version` | string | yes | BSP spec version (semver: `"MAJOR.MINOR.PATCH"`) |
 | `authentication` | object | no | Authentication requirements for this endpoint (omit for public endpoints) |
 | `tenants` | object | no | Multi-tenant manifest discovery. When present, signals that this is a multi-tenant host and provides a URI template for consumers to obtain a tenant-scoped manifest. See [Multi-Tenant Routing](#multi-tenant-routing). |
-| `services` | object | yes | Service definitions with transport bindings |
+| `services` | object | yes | Service definitions with transport bindings. Each service entry may include a `version` field (see [Versioning](../versioning.md)). |
 | `capabilities` | array | yes | Supported capabilities with schema URLs |
-| `services` | array | no | Snapshot of known services (discovery hint only — see below) |
 
 ## Authentication
 
@@ -132,7 +130,7 @@ Each capability object has these fields:
 | `service` | Key of the implementing service in the manifest's `services` object (e.g. `"io.bsp.agents"`, `"io.dotquant.trading"`). Required when the capability's name prefix does not match the service key — for example, a custom service implementing a standard BSP capability. Consumers use this to resolve which `http.endpoint` to call for the capability's endpoints. |
 | `status` | `active`, `partial`, or `planned` (omitted means active) |
 | `extends` | Parent capability name, if this extends another |
-| `endpoints` | Machine-readable list of HTTP endpoints exposed by this capability. Paths are relative to `http.endpoint`. Each entry has a `method` (GET/POST/DELETE/etc.) and a `path`. The HTTP method signals whether the operation is a read (GET) or a write (POST/DELETE/etc.). Consumers use this to discover catalogue URLs and determine mutability without reading the spec page. |
+| `endpoints` | Machine-readable list of HTTP endpoints exposed by this capability. Each entry has a `method` (GET/POST/DELETE/etc.) and a `path`. Paths are appended to `http.endpoint` to form the full URL — the leading slash is a separator, not a root-relative indicator. For example, if `http.endpoint` is `https://api.example.com/tenants/acme`, then `{ "path": "/commands" }` resolves to `https://api.example.com/tenants/acme/commands`. The HTTP method signals whether the operation is a read (GET) or a write (POST/DELETE/etc.). Consumers use this to discover catalogue URLs and determine mutability without reading the spec page. |
 | `push` | Optional object declaring which push channels this capability supports (see [Push Channel Declaration](#push-channel-declaration)). |
 
 ### Push Channel Declaration
@@ -192,16 +190,7 @@ The capability name must be unique. Implementers are responsible for ensuring th
 
 ## Services Array — Discovery Hint vs. Live Registry
 
-The optional `services` array in the manifest is a **snapshot at manifest-build time**, not the authoritative live list.
-
-| | `services` in manifest | `GET /services` endpoint |
-|---|---|---|
-| **Purpose** | Quick discovery hint | Authoritative live list |
-| **Freshness** | May be stale (built at deploy time) | Always current |
-| **Required** | No | Yes, if `agents.registry` capability is declared |
-| **Dynamic services** | May be absent or partial | Always complete |
-
-For systems where services are created dynamically at runtime (e.g. per-account, per-tenant), the `services` array **should be omitted** or contain only representative examples. Consumers that need the real-time list must call `GET /services` on the HTTP endpoint.
+The `services` object in the manifest holds transport binding definitions. For systems where additional services are registered dynamically at runtime, the manifest snapshot may be incomplete — the authoritative live list is always `GET /services` (when `agents.registry` is declared).
 
 ## Transport Bindings
 
@@ -346,13 +335,14 @@ For how `{tenantId}` maps to path parameters in the HTTP transport, see [Multi-T
 
 ```json
 {
-  "BSP": {
+  "bsp": {
     "version": "{{BSP_VERSION}}",
     "tenants": {
       "manifest": "https://api.example.com/.well-known/bsp/{tenantId}"
     },
     "services": {
       "io.bsp.agents": {
+        "version": "{{BSP_VERSION}}",
         "http": { "endpoint": "https://api.example.com/" }
       }
     },
@@ -375,12 +365,13 @@ For how `{tenantId}` maps to path parameters in the HTTP transport, see [Multi-T
 
 ```json
 {
-  "BSP": {
+  "bsp": {
     "version": "{{BSP_VERSION}}",
     "services": {
       "io.dotquant.trading": {
+        "version": "{{BSP_VERSION}}",
         "http": {
-          "endpoint": "https://api.example.com/api/BSP/tenants/be9e0176"
+          "endpoint": "https://api.example.com/api/bsp/tenants/be9e0176"
         }
       }
     },

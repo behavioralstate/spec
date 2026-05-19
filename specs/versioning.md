@@ -7,13 +7,13 @@ BSP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](ht
 The release version is the git tag — `v{{BSP_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
 
 The version string (without the `v` prefix) appears in:
-- The `/.well-known/bsp` manifest root — `BSP.version`
+- The `/.well-known/bsp` manifest root — `bsp.version`
 - Each service definition — `services["io.bsp.*"].version`
 - Each capability definition — `capabilities[*].version`
 
 ```json
 {
-  "BSP": {
+  "bsp": {
     "version": "{{BSP_VERSION}}",
     "services": {
       "io.bsp.agents": { "version": "{{BSP_VERSION}}", "..." : "..." }

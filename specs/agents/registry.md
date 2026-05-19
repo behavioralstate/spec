@@ -1,36 +1,8 @@
-# Global BSP Registry *(future)*
-
-> **Note:** This document describes a future concept — a public global directory of BSP-compliant endpoints. It is **not** a protocol capability that implementations need to support. No endpoints are defined here.
-
-A recurring question is: "I've implemented BSP — how do people find me?"
-
-BSP's self-describing discovery mechanism (`/.well-known/bsp`) solves the *interaction* problem — once a caller knows your endpoint URL, they can discover everything. But it does not solve the *discoverability* problem — how does a caller find your URL in the first place?
-
-## The Problem
-
-A global BSP registry would be a public, community-operated directory where anyone who has implemented BSP can list their endpoint:
-
-- **Implementer** publishes their BSP endpoint URL to the registry
-- **Caller** searches the registry by capability, domain, or name
-- **Registry** returns the endpoint URL(s) — the caller then hits `/.well-known/bsp` and proceeds normally
-
-This is conceptually similar to npm (packages), Docker Hub (images), or the WebFinger protocol — a well-known public listing, not part of the core protocol itself.
-
-## Why It Is Not Part of the Core Spec
-
-- **Not required for compliance** — two BSP-compliant services can interoperate perfectly without any registry
-- **Governance concerns** — a public registry requires moderation, abuse prevention, availability guarantees, and funding — none of which belong in a protocol spec
-- **Out-of-band discovery is common** — callers typically know their target service URLs via configuration, environment variables, or manual setup; a registry is a convenience layer
-
-## Webhook Subscriptions
-
-Webhook subscription (push event delivery) is part of the `agents.events` capability — see [`POST /subscriptions`](events.md#webhook-http-clients-optional).
-
-## Local Service Registry — `io.bsp.agents.registry`
+# Local Service Registry — `io.bsp.agents.registry`
 
 > **When to implement this:** Only if your BSP endpoint hosts multiple independent agent services that consumers need to enumerate at runtime. For a single-service endpoint, `/.well-known/bsp` is sufficient — the manifest already describes what the service accepts and produces. If you are exposing one service, skip this capability entirely.
 
-While a global BSP registry is a future concept, the protocol defines a **local service registry** as a first-class capability (`io.bsp.agents.registry`). An BSP endpoint implementing this capability exposes:
+A BSP endpoint implementing the `io.bsp.agents.registry` capability exposes a live, queryable directory of the services running behind it. Consumers use it to enumerate services, inspect what each one accepts and produces, and discover their individual BSP surfaces.
 
 | Method | Path | Description |
 |---|---|---|
@@ -39,7 +11,7 @@ While a global BSP registry is a future concept, the protocol defines a **local 
 | GET | `/services/{id}` | Get service detail |
 | DELETE | `/services/{id}` | Deregister a service — also removes all subscriptions with a matching `serviceId` |
 
-### Service Descriptor Fields
+## Service Descriptor Fields
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -61,6 +33,21 @@ While a global BSP registry is a future concept, the protocol defines a **local 
 
 See [registry.json](../../protocol/v1/schemas/agents/registry.json) for the full JSON Schema.
 
-## Global Registry *(future)*
+## Webhook Subscriptions
 
-If and when a public BSP registry is operated, it will be described here with its own endpoint URL, submission process, and discovery API. The registry itself would expose a standard BSP manifest and comply with the protocol — making it self-describing and agent-navigable.
+Webhook subscription (push event delivery) is part of the `agents.events` capability — see [`POST /subscriptions`](events.md#webhook-http-clients-optional).
+
+## Global Registry *(future concept)*
+
+A recurring question is: "I've implemented BSP — how do people find me?"
+
+BSP's self-describing discovery mechanism (`/.well-known/bsp`) solves the *interaction* problem — once a caller knows your endpoint URL, they can discover everything. But it does not solve the *discoverability* problem — how does a caller find your URL in the first place?
+
+A global BSP registry would be a public, community-operated directory where implementers can list their endpoint URL and callers can search by capability, domain, or name. This is conceptually similar to npm (packages) or Docker Hub (images) — a well-known public listing, not part of the core protocol.
+
+**Why it is not part of the core spec:**
+- Two BSP-compliant services can interoperate perfectly without any registry
+- A public registry requires moderation, abuse prevention, availability guarantees, and funding — none of which belong in a protocol spec
+- Callers typically know their target service URLs via configuration, environment variables, or manual setup
+
+If and when a public BSP registry is operated, it will be described here with its own endpoint URL, submission process, and discovery API. The registry itself would expose a standard BSP manifest — making it self-describing and agent-navigable.
