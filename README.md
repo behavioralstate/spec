@@ -123,16 +123,20 @@ This repo has **two completely independent** versioned artifacts. Each has its o
 > **Use the script.** Never tag `mcp/v*` manually.
 
 ```bash
-./scripts/release-mcp.sh 1.5.8
+# Patch bump (most common — auto-detects latest tag and bumps patch)
+./scripts/release-mcp.sh
+
+# Minor or major bump — specify explicitly
+./scripts/release-mcp.sh 1.6.0
+./scripts/release-mcp.sh 2.0.0
 ```
 
-The script handles everything:
-1. Checks you're on `main` and up to date
-2. Bumps `version` in `mcp-server/package.json`
-3. Commits and pushes to `main`
-4. Creates and pushes the `mcp/v*` tag
+To check the latest tag without running the script:
+```bash
+git tag --list 'mcp/v*' --sort=-version:refname | head -1
+```
 
-CI then publishes `@behavioralstate/bsp-mcp` to npm automatically.
+The script handles everything: detects the latest tag, bumps the version in `mcp-server/package.json`, commits and pushes to `main`, then creates and pushes the `mcp/v*` tag. CI publishes to npm automatically.
 
 ---
 

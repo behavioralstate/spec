@@ -2,25 +2,20 @@
 set -euo pipefail
 
 # bsp-mcp Release Script
-# Usage: ./scripts/release-mcp.sh <version>
+# Usage: ./scripts/release-mcp.sh [<version>]
+#
+# If no version is given, the script reads the latest mcp/v* tag and
+# automatically bumps the patch version.
+#
+# To check the latest tag yourself:
+#   git tag --list 'mcp/v*' --sort=-version:refname | head -1
 #
 # Examples:
-#   ./scripts/release-mcp.sh 1.5.8
-#   ./scripts/release-mcp.sh 2.0.0
+#   ./scripts/release-mcp.sh          # auto patch bump (e.g. 1.5.7 → 1.5.8)
+#   ./scripts/release-mcp.sh 1.6.0    # explicit minor bump
+#   ./scripts/release-mcp.sh 2.0.0    # explicit major bump
 
 REPO_URL="https://github.com/behavioralstate/spec"
-
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 <version>"
-  echo ""
-  echo "Examples:"
-  echo "  $0 1.5.8"
-  echo "  $0 2.0.0"
-  exit 1
-fi
-
-VERSION="$1"
-TAG="mcp/v${VERSION}"
 PACKAGE_FILE="mcp-server/package.json"
 
 # Ensure we're on main and up to date
@@ -46,6 +41,28 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
+# Resolve version
+if [ $# -ge 1 ]; then
+  VERSION="$1"
+else
+  LATEST_TAG=$(git tag --list 'mcp/v*' --sort=-version:refname | head -1)
+  if [ -z "$LATEST_TAG" ]; then
+    echo "Error: No mcp/v* tags found. Specify a version explicitly: $0 <version>"
+    exit 1
+  fi
+  # Strip 'mcp/v' prefix and bump patch
+  LATEST_VERSION="${LATEST_TAG#mcp/v}"
+  MAJOR=$(echo "$LATEST_VERSION" | cut -d. -f1)
+  MINOR=$(echo "$LATEST_VERSION" | cut -d. -f2)
+  PATCH=$(echo "$LATEST_VERSION" | cut -d. -f3)
+  VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+  echo "Latest tag: $LATEST_TAG → auto patch bump to $VERSION"
+  echo "(To do a minor or major bump, run: $0 <version>)"
+  echo ""
+fi
+
+TAG="mcp/v${VERSION}"
+
 # Check tag doesn't already exist
 if git rev-parse "$TAG" >/dev/null 2>&1; then
   echo "Error: Tag '$TAG' already exists."
@@ -56,7 +73,7 @@ fi
 CURRENT_VERSION=$(node -e "process.stdout.write(require('./${PACKAGE_FILE}').version)")
 
 if [ "$CURRENT_VERSION" = "$VERSION" ]; then
-  echo "Error: package.json is already at version $VERSION — bump to a new version."
+  echo "Error: package.json is already at version $VERSION — this version is already tagged or prepared."
   exit 1
 fi
 
