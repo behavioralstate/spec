@@ -122,14 +122,22 @@ This repo has **two completely independent** versioned artifacts. Each has its o
 
 > **No script.** Tag directly — CI does the rest.
 
-1. Check the current version:
+1. Check the current published version:
 
 ```bash
 git tag --list 'mcp/v*' --sort=-version:refname | head -1
 ```
 
-2. Bump `version` in `mcp-server/package.json`, commit and push to `main`.
-3. Tag and push:
+2. Bump `version` in `mcp-server/package.json` to the **next** version (must be higher than the tag above), commit and push to `main`:
+
+```bash
+# edit mcp-server/package.json — increment the version
+git add mcp-server/package.json
+git commit -m "chore: bump mcp-server to <new-version>"
+git push origin main
+```
+
+3. Tag the new commit and push — **the tag must match the version in package.json**:
 
 ```bash
 git tag -a mcp/v1.5.7 -m "Release mcp/v1.5.7"
