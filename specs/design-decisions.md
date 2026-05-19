@@ -117,6 +117,40 @@ BSP tells you *what* happened. OpenTelemetry tells you *how* and *when* it happe
 
 ---
 
+## Client Neutrality
+
+### The decision
+
+BSP is a **multi-implementer protocol**. The spec, its reference tooling (including `bsp-mcp`), and its documentation must remain neutral — they must not assume, require, or prefer any specific client, framework, authentication scheme, or deployment model. This applies especially to authentication, which varies widely across BSP-compliant services.
+
+### Why
+
+A protocol that is shaped around a single implementation is not a protocol — it is a proprietary API with a thin abstraction layer. BSP's value comes from interoperability: any agent should be able to discover and interact with any BSP-compliant endpoint without requiring service-specific adaptations.
+
+Authentication is the most common place where this principle is violated in practice. Different services legitimately use different schemes:
+
+| Scheme | How it works | Common for |
+|---|---|---|
+| `bearer` | `Authorization: Bearer <token>` | OAuth2, JWT, opaque tokens |
+| `apikey` (header) | Custom header, e.g. `X-Api-Key: <key>` | API gateways, developer portals |
+| `apikey` (query) | URL param, e.g. `?apikey=<key>` | IoT devices, webhook endpoints |
+| `none` | No credentials | Public or intranet endpoints |
+
+A single service may even expose **multiple auth schemes** — for example, JWT Bearer for user-facing web clients and a custom API key header for machine-to-machine BaaS callers. Both are valid; the spec accommodates both.
+
+### Requirements
+
+- The `bsp-mcp` server **must** support all `authentication.type` values defined in the discovery manifest and **must not** hardcode any single scheme.
+- Any new reference tooling or documentation example **must** use a generic, spec-neutral form (e.g. `Authorization: Bearer <token>` as the bearer example, a placeholder header name for `apikey`).
+- Implementation-specific auth details (header names, token formats, credential stores) **must not** appear in the protocol spec or shared tooling. They belong in the implementer's own documentation.
+- When the spec or tooling ships a **default**, that default must be the most widely deployed standard: `bearer` (`Authorization: Bearer`) is the default auth type because it is the RFC 6750 standard for token-based APIs.
+
+### Summary
+
+> **BSP defines the interaction surface. It does not own the identity layer.** Every deployment of BSP is different; every deployment of `bsp-mcp` is different. The protocol provides the vocabulary (`authentication.type`, `authentication.scheme`, `authentication.in`); the deployment provides the credentials. Neither the spec nor shared tooling ever hardcodes one.
+
+---
+
 ## Service Metadata vs. Memory
 
 ### The decision

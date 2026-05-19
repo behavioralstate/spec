@@ -6,13 +6,20 @@
  * can discover, read, and send commands to an BSP-compliant service.
  *
  * Configuration (environment variables):
- *   BSP_ENDPOINT   — Base URL of the BSP HTTP endpoint (required)
- *                    Point this at the root of the BSP surface, e.g.:
- *                      https://api.example.com/BSP
- *                      https://dotquant.io/api/BSP/tenants/<tenantId>
- *   BSP_API_KEY    — API key sent as "Authorization: Bearer <key>" (required)
- *   MCP_TRANSPORT  — "stdio" (default) or "http"
- *   MCP_HTTP_PORT  — HTTP port when MCP_TRANSPORT=http (default: 3000)
+ *   BSP_ENDPOINT    — Base URL of the BSP HTTP surface (required)
+ *                     e.g. https://api.example.com/bsp  or  https://api.example.com/bsp/tenants/<id>
+ *   BSP_API_KEY     — Credential value (required unless BSP_AUTH_TYPE=none)
+ *
+ *   BSP_AUTH_TYPE   — How credentials are sent (default: "bearer")
+ *                       bearer  → Authorization: Bearer <key>           (OAuth2 / JWT / opaque tokens)
+ *                       apikey  → custom header or query param           (set BSP_AUTH_HEADER / BSP_AUTH_IN)
+ *                       none    → no credentials sent                    (public endpoints)
+ *   BSP_AUTH_HEADER — Header name when BSP_AUTH_TYPE=apikey and BSP_AUTH_IN=header (default: "X-Api-Key")
+ *   BSP_AUTH_IN     — Where to send the key when BSP_AUTH_TYPE=apikey: "header" (default) or "query"
+ *   BSP_AUTH_PARAM  — Query parameter name when BSP_AUTH_IN=query (default: "apikey")
+ *
+ *   MCP_TRANSPORT   — "stdio" (default) or "http"
+ *   MCP_HTTP_PORT   — HTTP port when MCP_TRANSPORT=http (default: 3000)
  *
  * Transports:
  *   stdio — for VS Code Copilot, Cursor, Claude Desktop, and other local clients
@@ -33,17 +40,36 @@ import {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const ENDPOINT = (process.env.BSP_ENDPOINT ?? '').replace(/\/$/, '');
-const API_KEY  = process.env.BSP_API_KEY ?? '';
-const TRANSPORT  = process.env.MCP_TRANSPORT ?? 'stdio';
-const HTTP_PORT  = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
+const ENDPOINT    = (process.env.BSP_ENDPOINT ?? '').replace(/\/$/, '');
+const API_KEY     = process.env.BSP_API_KEY     ?? '';
+const AUTH_TYPE   = process.env.BSP_AUTH_TYPE   ?? 'bearer';  // bearer | apikey | none
+const AUTH_HEADER = process.env.BSP_AUTH_HEADER ?? 'X-Api-Key'; // used when AUTH_TYPE=apikey, AUTH_IN=header
+const AUTH_IN     = process.env.BSP_AUTH_IN     ?? 'header';  // header | query (for apikey)
+const AUTH_PARAM  = process.env.BSP_AUTH_PARAM  ?? 'apikey';  // query param name when AUTH_IN=query
+const TRANSPORT   = process.env.MCP_TRANSPORT   ?? 'stdio';
+const HTTP_PORT   = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
 
 const missing: string[] = [];
 if (!ENDPOINT) missing.push('BSP_ENDPOINT');
-if (!API_KEY)  missing.push('BSP_API_KEY');
+if (!API_KEY && AUTH_TYPE !== 'none') missing.push('BSP_API_KEY');
 if (missing.length) {
   process.stderr.write(`[bsp-mcp] ERROR: missing required environment variables: ${missing.join(', ')}\n`);
   process.exit(1);
+}
+
+function authHeaders(): Record<string, string> {
+  if (AUTH_TYPE === 'none')   return {};
+  if (AUTH_TYPE === 'bearer') return { Authorization: `Bearer ${API_KEY}` };
+  if (AUTH_TYPE === 'apikey' && AUTH_IN === 'header') return { [AUTH_HEADER]: API_KEY };
+  return {}; // apikey in query — credentials go in the URL, not headers
+}
+
+function withAuthQuery(path: string): string {
+  if (AUTH_TYPE === 'apikey' && AUTH_IN === 'query') {
+    const sep = path.includes('?') ? '&' : '?';
+    return `${path}${sep}${encodeURIComponent(AUTH_PARAM)}=${encodeURIComponent(API_KEY)}`;
+  }
+  return path;
 }
 
 // Disable TLS verification for localhost dev servers (e.g. self-signed Vite cert)
@@ -68,8 +94,8 @@ async function parseErrorMessage(response: Response): Promise<string> {
 }
 
 async function bspGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${ENDPOINT}${path}`, {
-    headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' }
+  const response = await fetch(`${ENDPOINT}${withAuthQuery(path)}`, {
+    headers: { ...authHeaders(), Accept: 'application/json' }
   });
   if (!response.ok) {
     const message = await parseErrorMessage(response);
@@ -79,10 +105,10 @@ async function bspGet<T>(path: string): Promise<T> {
 }
 
 async function bspPost<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${ENDPOINT}${path}`, {
+  const response = await fetch(`${ENDPOINT}${withAuthQuery(path)}`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      ...authHeaders(),
       'Content-Type': 'application/json',
       Accept: 'application/json'
     },
@@ -329,7 +355,8 @@ async function handleSendCommandAndWait(args: Record<string, unknown>): Promise<
     await new Promise(resolve => setTimeout(resolve, intervalMs));
     try {
       const result = await handleExecuteQuery({ schema: pollQuery, params: pollParams });
-      if (!pollUntilContains || result.includes(pollUntilContains)) {
+      const normalize = (s: string) => s.replace(/\s+/g, '');
+      if (!pollUntilContains || normalize(result).includes(normalize(pollUntilContains))) {
         return `${commandResult}\n\nQuery result after processing:\n${result}`;
       }
     } catch {
