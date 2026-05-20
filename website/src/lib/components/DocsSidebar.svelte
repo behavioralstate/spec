@@ -10,7 +10,8 @@
 			label: 'Getting Started',
 			items: [
 				{ label: 'Overview', href: '/docs/overview' },
-				{ label: 'Discovery', href: '/docs/discovery' }
+				{ label: 'Discovery', href: '/docs/discovery' },
+				{ label: 'Quick start with AI', href: '/docs/quickstart' }
 			]
 		},
 		{

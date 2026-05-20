@@ -1,22 +1,65 @@
 # bsp-mcp
 
-MCP server for any [BSP-compliant](https://behavioralstate.io) endpoint. Exposes the BSP command and query surface as MCP tools so any LLM client (ChatGPT Desktop, Claude Desktop, GitHub Copilot, Cursor) can discover and interact with an BSP service.
+MCP server for any [BSP-compliant](https://behavioralstate.io) endpoint. Exposes the BSP command and query surface as MCP tools so any LLM client (ChatGPT Desktop, Claude Desktop, GitHub Copilot, Cursor) can discover and interact with a BSP service.
+
+Supports **multiple named connections** in a single server instance — useful for admins who need to operate across tenant-scoped and platform-level surfaces, or across entirely separate BSP applications.
+
+---
+
+## Start with AI
+
+Paste either prompt into your LLM client to get configured in under a minute.
+
+**Configure bsp-mcp** — generates the exact env vars and `mcpServers` JSON for your client:
+
+```
+Configure bsp-mcp so I can use my BSP service from [VS Code Copilot / Claude Desktop / Cursor].
+
+Service base URL: [https://api.example.com/bsp]
+API key: [my-api-key]
+Tenant ID: [my-tenant-id]  ← remove this line if not multi-tenant
+
+Output the exact env vars and mcpServers JSON block to add to my client config.
+
+bsp-mcp docs: https://behavioralstate.io/docs/transports/mcp
+```
+
+**Make your service BSP-compliant** — scaffolds the four required endpoints in your framework:
+
+```
+Make my [ASP.NET Core / Express / FastAPI / Spring Boot] service BSP-compliant.
+
+I need these four endpoints:
+- GET /.well-known/bsp — discovery manifest
+- GET /commands — catalogue listing accepted commands with JSON Schema
+- POST /commands — CloudEvents 1.0 entry point
+- GET /queries — query catalogue
+
+Auth: X-Api-Key header. Set authentication.type = "apikey" in the manifest.
+
+Spec reference: https://behavioralstate.io/docs
+```
+
+---
 
 ## Tools
 
 | Tool | What it does |
 |---|---|
+| `list_connections` | List all configured connections with names, endpoints, and descriptions *(only shown when multiple connections are configured)* |
 | `get_command_catalogue` | List all commands this endpoint accepts |
 | `get_command_schema` | Fetch the full JSON Schema for a command type — learn the exact fields required |
 | `send_command` | Send a command (CloudEvent 1.0 envelope built automatically) |
-| `send_command_and_wait` | Send a command then poll a query until a condition is met — use when you need to confirm processing before proceeding |
+| `send_command_and_wait` | Send a command then poll a query until a condition is met |
 | `get_query_catalogue` | List all read queries this endpoint exposes |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
 
-For commands that require existing IDs: `get_query_catalogue` → `get_query_schema` → `execute_query` to read current state first.
+When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
+
+---
 
 ## Setup
 
@@ -30,94 +73,165 @@ npm run build
 
 ### 2. Configure
 
-Configure via environment variables:
+There are three configuration modes. Use whichever fits your setup — they are mutually exclusive and checked in the order listed.
+
+---
+
+### Mode 1 — Per-app env vars *(recommended)*
+
+One set of `BSP_<APP>_*` variables per application. The app name is a single uppercase word (letters and digits, no underscores), e.g. `TRADING`, `HR`, `ACCOUNTING`.
+
+#### Required
+
+| Variable | Description |
+|---|---|
+| `BSP_<APP>_BASE_URL` | Root URL of the BSP HTTP surface |
+| `BSP_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
+
+#### Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `BSP_<APP>_TENANT_ID` | — | When set, **auto-generates two connections**: `<app>/tenant` (tenant-scoped) and `<app>/platform` (platform-level). When omitted, generates one connection: `<app>`. |
+| `BSP_<APP>_AUTH_TYPE` | `apikey` | How the credential is sent — see [Auth types](#auth-types) below. **Defaults to `apikey` in Mode 1** (unlike Modes 2 and 3 which default to `bearer`). |
+| `BSP_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name — only used when `AUTH_TYPE=apikey` and `AUTH_IN=header` |
+| `BSP_<APP>_AUTH_IN` | `header` | Where the key is sent when `AUTH_TYPE=apikey`: `header` or `query` |
+| `BSP_<APP>_AUTH_PARAM` | `apikey` | Query parameter name — only used when `AUTH_IN=query` |
+
+#### Auth types
+
+> **Default differs by mode.** Mode 1 defaults to `apikey` because BSP services typically use API key headers. Modes 2 and 3 default to `bearer` for backward compatibility.
+
+| `AUTH_TYPE` | What it does | Extra vars needed |
+|---|---|---|
+| `apikey` *(Mode 1 default)* | Sends the key in a custom header or query param | `AUTH_HEADER` (header name, default `X-Api-Key`) or `AUTH_IN=query` + `AUTH_PARAM` |
+| `bearer` *(Modes 2 & 3 default)* | Sends `Authorization: Bearer <key>` | none |
+| `none` | No credentials sent (public endpoint) | `API_KEY` not required |
+
+#### Examples
+
+**Single app, tenant + platform surfaces (most common admin setup):**
+
+```
+BSP_TRADING_BASE_URL=https://api.example.com/bsp
+BSP_TRADING_API_KEY=your-api-key
+BSP_TRADING_TENANT_ID=your-tenant-id
+BSP_TRADING_AUTH_TYPE=apikey
+```
+
+This generates two connections automatically:
+- `trading/tenant` → `https://api.example.com/bsp/tenants/your-tenant-id`
+- `trading/platform` → `https://api.example.com/bsp`
+
+**Two separate apps:**
+
+```
+BSP_TRADING_BASE_URL=https://trading.example.com/bsp
+BSP_TRADING_API_KEY=trading-key
+BSP_TRADING_TENANT_ID=tenant-abc
+BSP_TRADING_AUTH_TYPE=apikey
+
+BSP_HR_BASE_URL=https://hr.example.com/bsp
+BSP_HR_API_KEY=hr-key
+BSP_HR_TENANT_ID=tenant-abc
+BSP_HR_AUTH_TYPE=apikey
+```
+
+This generates four connections: `trading/tenant`, `trading/platform`, `hr/tenant`, `hr/platform`.
+
+**App with no tenant scope:**
+
+```
+BSP_MYAPP_BASE_URL=https://api.example.com/bsp
+BSP_MYAPP_API_KEY=your-api-key
+```
+
+Generates one connection: `myapp`.
+
+#### MCP client config (stdio)
+
+```json
+{
+  "mcpServers": {
+    "bsp": {
+      "command": "npx",
+      "args": ["bsp-mcp"],
+      "env": {
+        "BSP_TRADING_BASE_URL": "https://api.example.com/bsp",
+        "BSP_TRADING_API_KEY": "your-api-key",
+        "BSP_TRADING_TENANT_ID": "your-tenant-id",
+        "BSP_TRADING_AUTH_TYPE": "apikey"
+      }
+    }
+  }
+}
+```
+
+---
+
+### Mode 2 — `BSP_CONNECTIONS` JSON array
+
+For advanced scenarios where per-app vars are not flexible enough. Set `BSP_CONNECTIONS` to a JSON array of connection objects — each connection is fully explicit with no auto-generation.
+
+Each object:
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `name` | yes | — | Connection identifier used in the `connection` tool parameter |
+| `endpoint` | yes | — | Fully-resolved base URL (no `{tenantId}` placeholder) |
+| `apiKey` | yes* | — | Credential (*not required when `authType` is `none`) |
+| `authType` | no | `bearer` | `bearer` · `apikey` · `none` |
+| `authHeader` | no | `X-Api-Key` | Header name when `authType=apikey` and `authIn=header` |
+| `authIn` | no | `header` | `header` or `query` |
+| `authParam` | no | `apikey` | Query param name when `authIn=query` |
+| `description` | no | — | Human-readable description surfaced to the LLM for connection selection |
+
+---
+
+### Mode 3 — Legacy single connection
+
+For simple single-endpoint setups. Use the flat `BSP_*` variables:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BSP_ENDPOINT` | yes | — | Base URL of the BSP HTTP surface (see below) |
-| `BSP_API_KEY` | yes* | — | Credential value (*not required when `BSP_AUTH_TYPE=none`) |
+| `BSP_ENDPOINT` | yes | — | Base URL of the BSP HTTP surface |
+| `BSP_API_KEY` | yes* | — | Credential (*not required when `BSP_AUTH_TYPE=none`) |
 | `BSP_AUTH_TYPE` | no | `bearer` | `bearer` · `apikey` · `none` |
-| `BSP_AUTH_HEADER` | no | `X-Api-Key` | Header name when `BSP_AUTH_TYPE=apikey` and `BSP_AUTH_IN=header` |
-| `BSP_AUTH_IN` | no | `header` | `header` or `query` — where the key is sent when `BSP_AUTH_TYPE=apikey` |
-| `BSP_AUTH_PARAM` | no | `apikey` | Query parameter name when `BSP_AUTH_IN=query` |
-| `MCP_TRANSPORT` | no | `stdio` | `stdio` or `http` |
-| `MCP_HTTP_PORT` | no | `3000` | HTTP port when `MCP_TRANSPORT=http` |
+| `BSP_AUTH_HEADER` | no | `X-Api-Key` | Header name when `AUTH_TYPE=apikey` |
+| `BSP_AUTH_IN` | no | `header` | `header` or `query` |
+| `BSP_AUTH_PARAM` | no | `apikey` | Query param name when `AUTH_IN=query` |
 
-`BSP_AUTH_TYPE` maps directly to the `authentication.type` field in `/.well-known/bsp`. Use `bearer` for OAuth2/JWT endpoints, `apikey` for custom-header or query-param API keys, `none` for public endpoints.
-
-**`BSP_ENDPOINT`** should point at the root of the BSP HTTP surface — the base path from which `/commands`, `/queries`, etc. are resolved. Examples:
-
-```
-# Single-tenant BSP service — Bearer auth (default)
-BSP_ENDPOINT=https://api.example.com/bsp
-
-# Multi-tenant BSP service — tenant path scoped
-BSP_ENDPOINT=https://api.example.com/bsp/tenants/<your-tenant-id>
-
-# Service using a custom API key header
-BSP_ENDPOINT=https://api.example.com/bsp
-BSP_AUTH_TYPE=apikey
-BSP_AUTH_HEADER=X-Api-Key
-```
+---
 
 ## Transport options
 
 ### stdio — VS Code Copilot, Cursor, Claude Desktop
 
-`MCP_TRANSPORT` defaults to `stdio`. Add to your client's MCP config:
-
-```json
-{
-  "mcpServers": {
-    "my-bsp-service": {
-      "command": "bsp-mcp",
-      "env": {
-        "BSP_ENDPOINT": "https://api.example.com/bsp",
-        "BSP_API_KEY": "<your-api-key>"
-      }
-    }
-  }
-}
-```
-
-For services using a custom API key header instead of Bearer:
-
-```json
-{
-  "mcpServers": {
-    "my-bsp-service": {
-      "command": "bsp-mcp",
-      "env": {
-        "BSP_ENDPOINT": "https://api.example.com/bsp",
-        "BSP_API_KEY": "<your-api-key>",
-        "BSP_AUTH_TYPE": "apikey",
-        "BSP_AUTH_HEADER": "X-Api-Key"
-      }
-    }
-  }
-}
-```
+`MCP_TRANSPORT` defaults to `stdio`. Add to your client's MCP config (see [Mode 1](#mode-1--per-app-env-vars-recommended) example above).
 
 ### HTTP — ChatGPT Desktop
 
-ChatGPT Desktop connects to MCP servers over HTTPS. Start in HTTP mode and expose via a tunnel for local development:
+Start in HTTP mode and expose via a tunnel:
 
 ```bash
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
-  BSP_ENDPOINT=https://api.example.com/bsp \
-  BSP_API_KEY=<key> \
+  BSP_TRADING_BASE_URL=https://api.example.com/bsp \
+  BSP_TRADING_API_KEY=<key> \
+  BSP_TRADING_AUTH_TYPE=apikey \
   node dist/index.js
 
-# Expose via ngrok (or Cloudflare Tunnel)
 ngrok http 3001
 ```
 
-Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**
-- Connector URL: `https://<your-ngrok-subdomain>.ngrok.app/mcp`
+Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app/mcp`
 
-### CloudEvent `source` field
+---
 
-When sending a command, `send_command` requires a `source` value. Per BSP, `source` identifies the origin of the command. The required value for a given service is documented in the schema description returned by `get_command_schema` — always read it from there.
+## CloudEvent `source` field
+
+When sending a command, `send_command` requires a `source` value. The required value is documented in the schema `description` returned by `get_command_schema` — always read it from there, never invent it.
+
+---
 
 ## Publishing to npm
 

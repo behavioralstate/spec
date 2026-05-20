@@ -70,6 +70,7 @@
 			<ul>
 				<li><a href="/docs/overview">Protocol Overview</a><span>What BSP is and how it works</span></li>
 				<li><a href="/docs/discovery">Discovery</a><span>The <code>/.well-known/bsp</code> manifest</span></li>
+				<li><a href="/docs/quickstart">Quick start with AI</a><span>Copy-paste prompts to get started fast</span></li>
 			</ul>
 		</section>
 

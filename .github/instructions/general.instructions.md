@@ -55,22 +55,44 @@ Generic MCP server for **any** BSP-compliant endpoint. Published to npm as `bsp-
 
 ### Environment variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `BSP_ENDPOINT` | yes | — | Base URL of the BSP HTTP surface |
-| `BSP_API_KEY` | yes* | — | Credential value (*not required when `BSP_AUTH_TYPE=none`) |
-| `BSP_AUTH_TYPE` | no | `bearer` | `bearer` · `apikey` · `none` |
-| `BSP_AUTH_HEADER` | no | `X-Api-Key` | Header name when `BSP_AUTH_TYPE=apikey` and `BSP_AUTH_IN=header` |
-| `BSP_AUTH_IN` | no | `header` | `header` or `query` — where the key is sent when `BSP_AUTH_TYPE=apikey` |
-| `BSP_AUTH_PARAM` | no | `apikey` | Query parameter name when `BSP_AUTH_IN=query` |
-| `MCP_TRANSPORT` | no | `stdio` | `stdio` or `http` |
-| `MCP_HTTP_PORT` | no | `3000` | HTTP port when `MCP_TRANSPORT=http` |
+Three configuration modes, checked in priority order:
 
-Auth type maps directly to the `authentication.type` block in `/.well-known/bsp` — see `specs/discovery.md`.
+#### Mode 1 — Per-app env vars *(recommended)*
+
+One `BSP_<APP>_*` block per application. App name = single uppercase word (letters and digits, no underscores).
+
+**Required per app:**
+
+| Variable | Description |
+|---|---|
+| `BSP_<APP>_BASE_URL` | Root URL of the BSP HTTP surface |
+| `BSP_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
+
+**Optional per app:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `BSP_<APP>_TENANT_ID` | — | When set, auto-generates two connections: `<app>/tenant` and `<app>/platform`. When omitted, generates one: `<app>`. |
+| `BSP_<APP>_AUTH_TYPE` | `bearer` | `bearer` · `apikey` · `none` |
+| `BSP_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name when `AUTH_TYPE=apikey`, `AUTH_IN=header` |
+| `BSP_<APP>_AUTH_IN` | `header` | `header` or `query` |
+| `BSP_<APP>_AUTH_PARAM` | `apikey` | Query param name when `AUTH_IN=query` |
+
+**Auth types:** Mode 1 defaults to `apikey` (BSP services typically use API key headers). Modes 2 & 3 default to `bearer` for backward compatibility. Values: `apikey` → custom header (`X-Api-Key`) or query param · `bearer` → `Authorization: Bearer <key>` · `none` → no credentials.
+
+#### Mode 2 — `BSP_CONNECTIONS` JSON array
+
+Set `BSP_CONNECTIONS` to a JSON array of fully-explicit connection objects. Each object: `name`, `endpoint`, `apiKey`, `authType`, `authHeader`, `authIn`, `authParam`, `description` (optional).
+
+#### Mode 3 — Legacy single connection
+
+`BSP_ENDPOINT` + `BSP_API_KEY` + optional `BSP_AUTH_TYPE`, `BSP_AUTH_HEADER`, `BSP_AUTH_IN`, `BSP_AUTH_PARAM`.
+
+**Transport (all modes):** `MCP_TRANSPORT` (`stdio` default · `http`) · `MCP_HTTP_PORT` (default `3000`).
 
 ### Tools exposed
 
-`get_command_catalogue`, `get_command_schema`, `send_command`, `send_command_and_wait`, `get_query_catalogue`, `get_query_schema`, `execute_query`.
+`list_connections` (only when multiple connections configured), `get_command_catalogue`, `get_command_schema`, `send_command`, `send_command_and_wait`, `get_query_catalogue`, `get_query_schema`, `execute_query`.
 
 `send_command` derives the CloudEvent `type` via PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`). The `source` value must be read from the schema description — never invented.
 
