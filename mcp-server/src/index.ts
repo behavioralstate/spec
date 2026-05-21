@@ -123,13 +123,13 @@ function parseConnections(): BspConnection[] {
           ...shared,
           name:        `${app}/tenant`,
           endpoint:    `${baseUrl}/tenants/${tenantId}`,
-          description: `${app} — tenant-scoped commands and queries`,
+          description: `${app} — tenant-scoped commands, queries, and agent registry (list_services)`,
         });
         connections.push({
           ...shared,
           name:        `${app}/platform`,
           endpoint:    baseUrl,
-          description: `${app} — platform-level (cross-tenant) queries`,
+          description: `${app} — platform root (manifest discovery and cross-tenant operations). Does not expose commands, queries, or the agent registry directly.`,
         });
       } else {
         connections.push({
