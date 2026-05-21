@@ -50,7 +50,7 @@ Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes
 `bsp-mcp` is the reference MCP server for BSP. It is generic — it works with any BSP-compliant endpoint. Point it at any BSP HTTP surface and it exposes the full command and query surface as MCP tools.
 
 ```bash
-npx bsp-mcp
+npx @behavioralstate/bsp-mcp
 ```
 
 ### Configuration
@@ -129,7 +129,7 @@ For simple single-endpoint setups. Set `BSP_ENDPOINT`, `BSP_API_KEY`, and option
   "mcpServers": {
     "bsp": {
       "command": "npx",
-      "args": ["bsp-mcp"],
+      "args": ["@behavioralstate/bsp-mcp"],
       "env": {
         "BSP_TRADING_BASE_URL": "https://api.example.com/bsp",
         "BSP_TRADING_API_KEY": "<your-api-key>",
@@ -151,7 +151,7 @@ Start in HTTP mode and expose via a tunnel:
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
   BSP_ENDPOINT=https://api.example.com/BSP \
   BSP_API_KEY=<key> \
-  npx bsp-mcp
+  npx @behavioralstate/bsp-mcp
 
 ngrok http 3001
 ```

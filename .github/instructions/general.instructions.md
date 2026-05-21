@@ -49,7 +49,7 @@ The script bumps `version.json`, commits, tags, and pushes. Never manually edit 
 
 ## MCP Server (`mcp-server/`)
 
-Generic MCP server for **any** BSP-compliant endpoint. Published to npm as `bsp-mcp`.
+Generic MCP server for **any** BSP-compliant endpoint. Published to npm as `@behavioralstate/bsp-mcp`.
 
 > **`bsp-mcp` must stay implementation-agnostic.** It works with any BSP endpoint — do not hardcode headers, paths, or auth schemes specific to a single service. Authentication is fully configurable via environment variables; the defaults follow the BSP HTTP transport spec.
 
