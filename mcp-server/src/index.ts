@@ -488,6 +488,34 @@ const TOOLS: Tool[] = [
       },
       required: ['schema']
     }
+  },
+  {
+    name: 'list_services',
+    description:
+      'List all agent services registered at this BSP endpoint. ' +
+      'Returns each service with its id, name, status (running/paused/stopped/error), ' +
+      'the command types it accepts, and the event types it produces. ' +
+      'Use this to discover what AI agents or background services are currently running behind this endpoint. ' +
+      'Requires the endpoint to implement the io.bsp.agents.registry capability.',
+    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
+  },
+  {
+    name: 'get_service',
+    description:
+      'Get the full descriptor of a specific registered service by its id. ' +
+      'Returns status, accepted command types, produced event types, metadata, and endpoint. ' +
+      'Get the service id from list_services.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        id: {
+          type: 'string',
+          description: 'Service identifier, from list_services'
+        }
+      },
+      required: ['id']
+    }
   }
 ];
 // ── Tool handlers ─────────────────────────────────────────────────────────────
@@ -598,6 +626,18 @@ async function handleExecuteQuery(args: Record<string, unknown>, conn: BspConnec
   return JSON.stringify(result, null, 2);
 }
 
+async function handleListServices(conn: BspConnection): Promise<string> {
+  const data = await bspGet<{ services: unknown[] }>('/services', conn);
+  if (!data.services || !data.services.length) return 'No services registered at this endpoint.';
+  return JSON.stringify(data.services, null, 2);
+}
+
+async function handleGetService(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
+  const id = args.id as string;
+  const service = await bspGet<unknown>(`/services/${encodeURIComponent(id)}`, conn);
+  return JSON.stringify(service, null, 2);
+}
+
 // ── Server factory ────────────────────────────────────────────────────────────
 
 const connectionSummary = MULTI
@@ -613,6 +653,13 @@ const connectionSummary = MULTI
 const SERVER_INSTRUCTIONS = (`
 You are connected to one or more BSP-compliant service endpoints.
 ${connectionSummary}
+
+## Discovering running services
+
+When the endpoint implements the io.bsp.agents.registry capability:
+
+1. Call list_services to see all registered agent services and their current status.
+2. Call get_service with a specific id to get full details (accepted commands, produced events, metadata).
 
 ## Reading current state (queries)
 
@@ -672,6 +719,8 @@ function createMcpServer(): Server {
         case 'get_query_catalogue':   text = await handleGetQueryCatalogue(conn);              break;
         case 'get_query_schema':      text = await handleGetQuerySchema(safeArgs, conn);       break;
         case 'execute_query':         text = await handleExecuteQuery(safeArgs, conn);         break;
+        case 'list_services':         text = await handleListServices(conn);                   break;
+        case 'get_service':           text = await handleGetService(safeArgs, conn);           break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }
