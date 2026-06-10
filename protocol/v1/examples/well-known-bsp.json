@@ -1,5 +1,5 @@
 {
-  "BSP": {
+  "bsp": {
     "version": "{{BSP_VERSION}}",
     "authentication": {
       "type": "apiKey",
@@ -82,7 +82,7 @@
         ]
       }
     ],
-    "services": [
+    "agents": [
       {
         "id": "negotiation",
         "name": "Contract Negotiation",

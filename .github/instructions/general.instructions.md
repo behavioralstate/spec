@@ -35,7 +35,7 @@ cd mcp-server && npm install && npm run build
 
 - **Single source of truth**: `version.json` at repo root
 - Spec and example files use the placeholder `{{BSP_VERSION}}` � never hardcode a version string
-- Files using the placeholder: `protocol/v1/examples/well-known-BSP.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
+- Files using the placeholder: `protocol/v1/examples/well-known-bsp.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
 - Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{BSP_VERSION}}` when copying `protocol/v1/` ? `website/static/v1/`
 
 ## Cutting a Release

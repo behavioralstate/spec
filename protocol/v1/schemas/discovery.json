@@ -4,9 +4,9 @@
   "title": "BSP Discovery Manifest",
   "description": "Schema for the /.well-known/bsp discovery manifest. Every BSP-compliant endpoint must expose this at GET /.well-known/bsp.",
   "type": "object",
-  "required": ["BSP"],
+  "required": ["bsp"],
   "properties": {
-    "BSP": {
+    "bsp": {
       "type": "object",
       "required": ["version", "services", "capabilities"],
       "properties": {

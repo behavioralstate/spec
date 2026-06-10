@@ -492,4 +492,4 @@ See [discovery.json](../protocol/v1/schemas/discovery.json) for the full JSON Sc
 
 ## Full Example
 
-See [well-known-BSP.json](../protocol/v1/examples/well-known-BSP.json) for a complete manifest example.
+See [well-known-bsp.json](../protocol/v1/examples/well-known-bsp.json) for a complete manifest example.

@@ -1,8 +1,13 @@
 <script>
+	import { onMount } from 'svelte';
+
 	let baseUrl = $state('');
 	let discovering = $state(false);
 	let discoverError = $state('');
 	let manifest = $state(null);
+	// Root (global) manifest, kept when a tenant manifest replaces `manifest`
+	// so the tenant strip stays available for switching tenants.
+	let rootManifest = $state(null);
 
 	let activeMethod = $state('');
 	let activePath = $state('');
@@ -31,13 +36,20 @@
 
 	let normalizedBase = $derived(baseUrl.replace(/\/+$/, ''));
 	let capabilities = $derived(manifest?.capabilities ?? []);
-	let services = $derived(manifest?.services ?? []);
+	// `services` is an object keyed by service id. Older drafts shipped an agent
+	// snapshot array under "services"; that snapshot now lives under "agents".
+	let serviceEntries = $derived(
+		manifest?.services && !Array.isArray(manifest.services) ? Object.entries(manifest.services) : []
+	);
+	let agents = $derived(
+		manifest?.agents ?? (Array.isArray(manifest?.services) ? manifest.services : [])
+	);
 	let auth = $derived(manifest?.authentication ?? null);
 	let needsAuth = $derived(auth && auth.type !== 'none');
 
-	// True when the root manifest has no capabilities but advertises a tenants.manifest template
-	let tenantTemplate = $derived(manifest?.tenants?.manifest ?? null);
-	let needsTenant = $derived(tenantTemplate !== null && capabilities.length === 0);
+	// Tenant discovery template advertised by the root manifest
+	let tenantTemplate = $derived(rootManifest?.tenants?.manifest ?? null);
+	let needsTenant = $derived(tenantTemplate !== null);
 
 	// Active path with {param} tokens replaced by user-supplied values
 	let resolvedPath = $derived(
@@ -91,6 +103,26 @@
 		return normalizedBase;
 	}
 
+	// Accept both the canonical lowercase "bsp" envelope and the legacy
+	// uppercase "BSP" casing emitted by pre-erratum implementations.
+	function unwrapManifest(json) {
+		return json?.bsp ?? json?.BSP ?? json;
+	}
+
+	function assertManifest(m) {
+		if (!m || typeof m !== 'object' || !(m.version || m.capabilities || m.services || m.tenants)) {
+			throw new Error('Response does not look like a BSP manifest (expected a "bsp" root object).');
+		}
+	}
+
+	// Keep the address bar shareable: /playground?url=<base>&tenant=<id>
+	function syncQueryString() {
+		const qs = new URLSearchParams();
+		if (normalizedBase) qs.set('url', normalizedBase);
+		if (tenantId) qs.set('tenant', tenantId);
+		history.replaceState(null, '', qs.size > 0 ? `?${qs.toString()}` : location.pathname);
+	}
+
 	async function loadTenantManifest() {
 		if (!tenantId || !tenantTemplate) return;
 		tenantDiscovering = true;
@@ -105,13 +137,16 @@
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 			const json = await res.json();
-			manifest = json.BSP ?? json;
+			const unwrapped = unwrapManifest(json);
+			assertManifest(unwrapped);
+			manifest = unwrapped;
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
 			activePath = `/.well-known/bsp/${tenantId}`;
 			activeEndpointBase = normalizedBase;
-			activeDescription = 'Tenant manifest';
+			activeDescription = `Tenant manifest (${tenantId})`;
+			syncQueryString();
 		} catch (e) {
 			tenantError = e.message;
 		} finally {
@@ -123,6 +158,7 @@
 		discovering = true;
 		discoverError = '';
 		manifest = null;
+		rootManifest = null;
 		responseText = '';
 		responseStatus = null;
 		responseError = '';
@@ -135,22 +171,48 @@
 		tenantId = '';
 		tenantError = '';
 		try {
-			const res = await fetch(`${normalizedBase}/.well-known/bsp`);
+			// Accept a bare base URL, a full /.well-known/bsp URL, or a tenant
+			// manifest URL (/.well-known/bsp/{tenantId}) pasted straight in.
+			const match = normalizedBase.match(/^(.*?)\/\.well-known\/bsp(?:\/([^/?#]+))?$/);
+			const base = match ? match[1] : normalizedBase;
+			const tenantFromUrl = match?.[2] ? decodeURIComponent(match[2]) : '';
+			if (match) baseUrl = base;
+
+			const res = await fetch(`${base}/.well-known/bsp`);
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 			const json = await res.json();
-			manifest = json.BSP ?? json;
+			const unwrapped = unwrapManifest(json);
+			assertManifest(unwrapped);
+			rootManifest = unwrapped;
+			manifest = unwrapped;
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
 			activePath = '/.well-known/bsp';
-			activeEndpointBase = normalizedBase;
+			activeEndpointBase = base;
 			activeDescription = 'Discovery manifest';
+			syncQueryString();
+
+			if (tenantFromUrl) {
+				tenantId = tenantFromUrl;
+				await loadTenantManifest();
+			}
 		} catch (e) {
 			discoverError = e.message;
 		} finally {
 			discovering = false;
 		}
 	}
+
+	// Deep link: /playground?url=<base-or-manifest-url>&tenant=<id>
+	onMount(() => {
+		const params = new URLSearchParams(location.search);
+		const url = params.get('url');
+		const tenant = params.get('tenant');
+		if (!url) return;
+		baseUrl = tenant ? `${url.replace(/\/+$/, '')}/.well-known/bsp/${tenant}` : url;
+		discover();
+	});
 
 	async function selectEndpoint(method, path, description, endpointBase) {
 		activeMethod = method;
@@ -387,7 +449,13 @@
 				{#each capabilities as cap}
 					{@const capBase = resolveEndpointBase(cap)}
 					<details class="cap-group" open>
-						<summary class="cap-name">{cap.name.replace('io.bsp.', '')}</summary>
+						<summary class="cap-name">
+							{cap.name.replace('io.bsp.', '')}
+							{#if cap.status && cap.status !== 'full'}<span class="cap-badge">{cap.status}</span>{/if}
+						</summary>
+						{#if cap.extends}
+							<p class="cap-extends">extends {cap.extends.replace('io.bsp.', '')}</p>
+						{/if}
 						{#if cap.endpoints && cap.endpoints.length > 0}
 							{#each cap.endpoints as ep}
 								<button
@@ -404,13 +472,23 @@
 					</details>
 				{/each}
 
-				{#if services.length > 0}
-					<div class="tree-section-label" style="margin-top: 1.5rem;">Services ({services.length})</div>
-					{#each services as svc}
+				{#if serviceEntries.length > 0}
+					<div class="tree-section-label" style="margin-top: 1.5rem;">Services ({serviceEntries.length})</div>
+					{#each serviceEntries as [id, svc]}
+						<div class="service-row" title={svc.description ?? ''}>
+							<span class="svc-name">{id}</span>
+							{#if svc.version}<span class="svc-status">v{svc.version}</span>{/if}
+						</div>
+					{/each}
+				{/if}
+
+				{#if agents.length > 0}
+					<div class="tree-section-label" style="margin-top: 1.5rem;">Agents ({agents.length})</div>
+					{#each agents as agent}
 						<div class="service-row">
-							<span class="status-dot {svc.status === 'running' ? 'dot-running' : svc.status === 'paused' ? 'dot-paused' : 'dot-stopped'}"></span>
-							<span class="svc-name">{svc.name ?? svc.id}</span>
-							<span class="svc-status">{svc.status}</span>
+							<span class="status-dot {agent.status === 'running' ? 'dot-running' : agent.status === 'paused' ? 'dot-paused' : 'dot-stopped'}"></span>
+							<span class="svc-name">{agent.name ?? agent.id}</span>
+							<span class="svc-status">{agent.status}</span>
 						</div>
 					{/each}
 				{/if}
@@ -535,8 +613,8 @@
 		</div>
 	{:else if !discovering && !discoverError}
 		<div class="empty-landing">
-			<p>Enter the base URL of an BSP-compliant endpoint and click <strong>Discover</strong>.</p>
-			<p class="hint">The playground fetches <code>/.well-known/bsp</code> and builds the capabilities tree from the manifest.</p>
+			<p>Enter the base URL of a BSP-compliant endpoint and click <strong>Discover</strong>.</p>
+			<p class="hint">The playground fetches <code>/.well-known/bsp</code> and builds the capabilities tree from the manifest. You can also paste a manifest URL directly — including a tenant manifest like <code>/.well-known/bsp/&#123;tenantId&#125;</code>.</p>
 		</div>
 	{/if}
 </div>
@@ -701,6 +779,28 @@
 	}
 
 	.cap-name::-webkit-details-marker { display: none; }
+
+	.cap-badge {
+		font-size: 0.6rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #facc15;
+		background: rgba(250, 204, 21, 0.12);
+		padding: 0.1em 0.45em;
+		border-radius: 0.25rem;
+		margin-left: 0.4rem;
+		vertical-align: middle;
+	}
+
+	.cap-extends {
+		margin: 0 0 0.2rem;
+		padding: 0 1rem;
+		font-size: 0.6875rem;
+		font-style: italic;
+		color: var(--color-text-muted);
+		opacity: 0.8;
+	}
 
 	.cap-name::before {
 		content: '▶ ';

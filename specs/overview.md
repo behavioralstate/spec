@@ -144,7 +144,7 @@ Return a JSON manifest describing your agent:
 ```json
 GET /.well-known/bsp
 {
-  "BSP": {
+  "bsp": {
     "version": "{{BSP_VERSION}}",
     "services": {
       "io.bsp.agents": {

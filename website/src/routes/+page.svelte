@@ -66,7 +66,7 @@
 			Every BSP endpoint exposes a <code class="code-inline">/.well-known/bsp</code> manifest. Consumers discover agents, capabilities, and transports in a single request.
 		</p>
 		<CodeBlock code={`{
-  "BSP": {
+  "bsp": {
     "version": "${bspVersion}",
     "services": {
       "io.bsp.agents": {
@@ -86,7 +86,7 @@
         "schema": "https://behavioralstate.io/v1/schemas/agents/commands.json"
       }
     ],
-    "services": [
+    "agents": [
       {
         "id": "negotiation",
         "name": "Contract Negotiation",
