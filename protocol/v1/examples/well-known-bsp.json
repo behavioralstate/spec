@@ -65,8 +65,14 @@
         "spec": "https://behavioralstate.io/specs/agents/events",
         "schema": "https://behavioralstate.io/v1/schemas/agents/events.json",
         "endpoints": [
-          { "method": "GET",  "path": "/events", "description": "List domain events published by this service" }
-        ]
+          { "method": "GET",  "path": "/events",        "description": "List domain events published by this service" },
+          { "method": "GET",  "path": "/events/stream", "description": "Server-Sent Events stream of domain events" }
+        ],
+        "push": {
+          "sse": true,
+          "mcp": true,
+          "webhook": true
+        }
       },
       {
         "name": "io.bsp.agents.commands",

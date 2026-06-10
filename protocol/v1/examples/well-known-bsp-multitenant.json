@@ -1,0 +1,39 @@
+{
+  "bsp": {
+    "version": "{{BSP_VERSION}}",
+    "authentication": {
+      "type": "bearer",
+      "scheme": "Bearer",
+      "docs": "https://docs.example.com/authentication"
+    },
+    "tenants": {
+      "manifest": "https://api.example.com/.well-known/bsp/{tenantId}"
+    },
+    "services": {
+      "io.bsp.agents": {
+        "version": "{{BSP_VERSION}}",
+        "description": "Platform-level service registry for the multi-tenant host",
+        "spec": "https://behavioralstate.io/specs/agents",
+        "http": {
+          "endpoint": "https://api.example.com/"
+        }
+      }
+    },
+    "capabilities": [
+      {
+        "name": "io.bsp.agents.registry",
+        "version": "{{BSP_VERSION}}",
+        "service": "io.bsp.agents",
+        "description": "Register, remove, list agents at the platform level",
+        "spec": "https://behavioralstate.io/specs/agents/registry",
+        "schema": "https://behavioralstate.io/v1/schemas/agents/registry.json",
+        "endpoints": [
+          { "method": "GET",    "path": "/services",      "description": "List all registered services" },
+          { "method": "POST",   "path": "/services",      "description": "Register a new service" },
+          { "method": "GET",    "path": "/services/{id}", "description": "Get service detail" },
+          { "method": "DELETE", "path": "/services/{id}", "description": "Remove a service" }
+        ]
+      }
+    ]
+  }
+}

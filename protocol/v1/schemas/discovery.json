@@ -34,11 +34,14 @@
           "type": "array",
           "description": "Snapshot of known agents at manifest-build time (optional). This is a discovery hint only — it is not the authoritative agent list. For the live list, consumers must call GET /agents on the REST endpoint. For dynamic systems where agents are created at runtime, this array may be omitted or contain only representative examples.",
           "items": {
-            "$ref": "agents/registry.json#/$defs/agentDescriptor"
+            "$ref": "agents/registry.json#/$defs/serviceDescriptor"
           }
         },
         "authentication": {
           "$ref": "#/$defs/authentication"
+        },
+        "tenants": {
+          "$ref": "#/$defs/tenants"
         }
       },
       "additionalProperties": false
@@ -82,7 +85,16 @@
     "capability": {
       "type": "object",
       "description": "A composable capability within a service.",
-      "required": ["name", "version", "description", "spec", "schema"],
+      "required": ["name", "version", "description"],
+      "if": {
+        "properties": {
+          "name": { "pattern": "^io\\.bsp\\." }
+        },
+        "required": ["name"]
+      },
+      "then": {
+        "required": ["spec", "schema"]
+      },
       "properties": {
         "name": {
           "type": "string",
@@ -101,12 +113,12 @@
         "spec": {
           "type": "string",
           "format": "uri",
-          "description": "URL to the capability specification."
+          "description": "URL to the capability specification. Required for io.bsp.* capabilities. Custom capabilities should host their own specification page and link it here when available."
         },
         "schema": {
           "type": "string",
           "format": "uri",
-          "description": "URL to the JSON Schema for this capability."
+          "description": "URL to the JSON Schema for this capability. Required for io.bsp.* capabilities. Custom capabilities should host their own schema and link it here when available."
         },
         "extends": {
           "type": "string",
@@ -144,6 +156,45 @@
             },
             "additionalProperties": false
           }
+        },
+        "push": {
+          "$ref": "#/$defs/pushChannels"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tenants": {
+      "type": "object",
+      "description": "Multi-tenant manifest discovery. When present, signals that this is a multi-tenant host and provides a URI template for consumers to obtain a tenant-scoped manifest. The tenant manifest returned at the expanded URI is fully self-contained and must not include a tenants block of its own.",
+      "required": ["manifest"],
+      "properties": {
+        "manifest": {
+          "type": "string",
+          "format": "uri-template",
+          "description": "RFC 6570 URI template for tenant manifest discovery (e.g. https://api.example.com/.well-known/bsp/{tenantId}). {tenantId} is the only defined variable. Consumers expand this template with a known tenant ID to obtain a fully-resolved, self-contained manifest."
+        }
+      },
+      "additionalProperties": false
+    },
+    "pushChannels": {
+      "type": "object",
+      "description": "Push channels this capability supports for delivering events to callers. All fields are optional — absence means the channel is not supported. Typically declared on the io.bsp.agents.events capability.",
+      "properties": {
+        "sse": {
+          "type": "boolean",
+          "description": "Server-Sent Events stream supported at GET /events/stream — recommended for browser apps, CLI tools, and locally-running agents that cannot expose a public webhook endpoint."
+        },
+        "mcp": {
+          "type": "boolean",
+          "description": "Server-to-client MCP notifications are supported."
+        },
+        "a2a": {
+          "type": "boolean",
+          "description": "A2A message delivery to the caller agent is supported."
+        },
+        "webhook": {
+          "type": "boolean",
+          "description": "Webhook callback delivery is supported — callers may register via POST /subscriptions."
         }
       },
       "additionalProperties": false

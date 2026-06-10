@@ -188,6 +188,8 @@ Implementers can expose capabilities beyond the `io.bsp.*` set. Custom capabilit
 
 The capability name must be unique. Implementers are responsible for ensuring their prefix does not conflict with others. The `io.bsp.*` namespace is reserved for the BSP specification.
 
+For `io.bsp.*` capabilities, `spec` and `schema` are **required** — they point at the published BSP specification and schema pages. For custom capabilities they are **optional**: the BSP project does not host documentation for implementer-owned namespaces. Implementers **should** host their own specification page and JSON Schema for each custom capability and link them via `spec` and `schema` so consumers can self-serve, but a custom capability without them is still conformant.
+
 ## Services Array — Discovery Hint vs. Live Registry
 
 The `services` object in the manifest holds transport binding definitions. For systems where additional services are registered dynamically at runtime, the manifest snapshot may be incomplete — the authoritative live list is always `GET /services` (when `agents.registry` is declared).
