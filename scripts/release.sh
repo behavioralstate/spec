@@ -29,7 +29,7 @@ fi
 
 VERSION="$1"
 TAG="spec/v${VERSION}"
-VERSION_TAG="v${VERSION}"  # used for GitHub blob/release URLs (no prefix)
+VERSION_TAG="v${VERSION}"  # clean vX.Y.Z label shown in the README version column (URLs use the full $TAG)
 PRERELEASE=false
 PROTOCOL_VERSION="$VERSION"
 
@@ -116,21 +116,23 @@ else
   fi
 fi
 
-# Step 2: Update README.md documents table to reference the new tag
-CURRENT_README_TAG=$(grep -oP '(?<=blob/)(v[0-9]+\.[0-9]+\.[0-9]+)' README.md | sort | uniq | head -1)
+# Step 2: Update README.md documents table to reference the new tag.
+# GitHub blob/release URLs must use the FULL namespaced tag (spec/vX.Y.Z) — that is the actual git tag,
+# so unprefixed (v0.6.4) URLs 404. The version column still displays the clean vX.Y.Z label.
+CURRENT_README_TAG=$(grep -oP '(?<=blob/spec/)v[0-9]+\.[0-9]+\.[0-9]+' README.md | sort | uniq | head -1)
 if [ -z "$CURRENT_README_TAG" ]; then
   echo "Warning: Could not detect current tag in README.md — skipping table update."
 elif [ "$CURRENT_README_TAG" = "$VERSION_TAG" ]; then
   echo "README.md already references $VERSION_TAG — no update needed."
 else
   echo "Updating README.md: $CURRENT_README_TAG → $VERSION_TAG"
-  sed -i "s|blob/${CURRENT_README_TAG}/|blob/${VERSION_TAG}/|g" README.md
-  sed -i "s|\[${CURRENT_README_TAG}\](${REPO_URL}/blob/${VERSION_TAG}/|[${VERSION_TAG}](${REPO_URL}/blob/${VERSION_TAG}/|g" README.md
-  sed -i "s|releases/tag/${CURRENT_README_TAG}|releases/tag/${VERSION_TAG}|g" README.md
+  sed -i "s|blob/spec/${CURRENT_README_TAG}/|blob/spec/${VERSION_TAG}/|g" README.md
+  sed -i "s|\[${CURRENT_README_TAG}\](${REPO_URL}/blob/spec/${VERSION_TAG}/|[${VERSION_TAG}](${REPO_URL}/blob/spec/${VERSION_TAG}/|g" README.md
+  sed -i "s|releases/tag/spec/${CURRENT_README_TAG}|releases/tag/spec/${VERSION_TAG}|g" README.md
   if [ "$PRERELEASE" = true ]; then
-    sed -i "s|The most recent pre-release is \[${CURRENT_README_TAG}\]([^)]*)|The most recent pre-release is [${VERSION_TAG}](${REPO_URL}/releases/tag/${VERSION_TAG})|g" README.md
+    sed -i "s|The most recent pre-release is \[${CURRENT_README_TAG}\]([^)]*)|The most recent pre-release is [${VERSION_TAG}](${REPO_URL}/releases/tag/spec/${VERSION_TAG})|g" README.md
   else
-    sed -i "s|The most recent.*is \[${CURRENT_README_TAG}\]([^)]*)|The most recent stable release is [${VERSION_TAG}](${REPO_URL}/releases/tag/${VERSION_TAG})|g" README.md
+    sed -i "s|The most recent.*is \[${CURRENT_README_TAG}\]([^)]*)|The most recent stable release is [${VERSION_TAG}](${REPO_URL}/releases/tag/spec/${VERSION_TAG})|g" README.md
   fi
   git add README.md
   if git diff --cached --quiet; then

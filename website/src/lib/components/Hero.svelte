@@ -24,7 +24,7 @@
 			Expose a manifest. Any AI agent discovers your service, reads what commands it accepts and what events it produces, and starts interacting — no custom integration required.
 		</p>
 		<div class="hero-actions">
-			<a href="/docs" class="btn-primary">Read the docs</a>
+			<a href="/specs" class="btn-primary">Read the docs</a>
 			<a href="https://github.com/behavioralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
 		</div>
 		{#if gitTag}

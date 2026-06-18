@@ -9,43 +9,43 @@
 		{
 			label: 'Getting Started',
 			items: [
-				{ label: 'Overview', href: '/docs/overview' },
-				{ label: 'Discovery', href: '/docs/discovery' },
-				{ label: 'Quick start with AI', href: '/docs/quickstart' }
+				{ label: 'Overview', href: '/specs/overview' },
+				{ label: 'Discovery', href: '/specs/discovery' },
+				{ label: 'Quick start with AI', href: '/specs/quickstart' }
 			]
 		},
 		{
 			label: 'Services',
 			items: [
-				{ label: 'Registry', href: '/docs/agents/registry' },
-				{ label: 'Lifecycle', href: '/docs/agents/lifecycle' },
-				{ label: 'Commands', href: '/docs/agents/commands' },
-				{ label: 'Events', href: '/docs/agents/events' },
-				{ label: 'Queries', href: '/docs/agents/queries' }
+				{ label: 'Registry', href: '/specs/agents/registry' },
+				{ label: 'Lifecycle', href: '/specs/agents/lifecycle' },
+				{ label: 'Commands', href: '/specs/agents/commands' },
+				{ label: 'Events', href: '/specs/agents/events' },
+				{ label: 'Queries', href: '/specs/agents/queries' }
 			]
 		},
 		{
 			label: 'Transports',
 			items: [
-				{ label: 'HTTP', href: '/docs/transports/http' },
-				{ label: 'MCP', href: '/docs/transports/mcp' },
-				{ label: 'A2A', href: '/docs/transports/a2a' }
+				{ label: 'HTTP', href: '/specs/transports/http' },
+				{ label: 'MCP', href: '/specs/transports/mcp' },
+				{ label: 'A2A', href: '/specs/transports/a2a' }
 			]
 		},
 		{
 			label: 'Reference',
 			items: [
-				{ label: 'Versioning', href: '/docs/versioning' },
-				{ label: 'Conformance', href: '/docs/conformance' },
-				{ label: 'Security', href: '/docs/security' },
-				{ label: 'Design Decisions', href: '/docs/design-decisions' }
+				{ label: 'Versioning', href: '/specs/versioning' },
+				{ label: 'Conformance', href: '/specs/conformance' },
+				{ label: 'Security', href: '/specs/security' },
+				{ label: 'Design Decisions', href: '/specs/design-decisions' }
 			]
 		},
 		{
 			label: 'Comparisons',
 			items: [
-				{ label: 'BSP vs REST', href: '/docs/comparisons/rest' },
-				{ label: 'BSP vs UCP', href: '/docs/comparisons/ucp' }
+				{ label: 'BSP vs REST', href: '/specs/comparisons/rest' },
+				{ label: 'BSP vs UCP', href: '/specs/comparisons/ucp' }
 			]
 		}
 	];
@@ -57,7 +57,7 @@
 
 <nav class="sidebar" class:open>
 	<div class="sidebar-inner">
-		<a href="/docs" class="sidebar-home" class:active={page.url.pathname === '/docs'}>
+		<a href="/specs" class="sidebar-home" class:active={page.url.pathname === '/specs'}>
 			All Docs
 		</a>
 

@@ -99,6 +99,8 @@ If an endpoint requires authentication, it declares this in the `authentication`
 
 The `/.well-known/bsp` endpoint itself is always publicly accessible without credentials so consumers can read the manifest. All other endpoints may require authentication as declared.
 
+> **Recommended — point callers at onboarding, especially for multi-tenant hosts.** Because the manifest is the only thing an un-onboarded caller can read, a host that requires credentials **should** set `authentication.docs` to a page explaining how to obtain them. For multi-tenant hosts (those exposing `tenants.manifest`), a caller needs **both** an API key **and** their tenant id before any capability is reachable, and neither is derivable from the manifest alone — so the linked page should cover acquiring both. Without it, a conformant client can discover the auth *scheme* from the manifest but has no path to actually acquiring credentials, and must fall back to out-of-band documentation.
+
 ## Services
 
 Services are top-level domains. Each service has its own version, spec URL, and transport bindings.
@@ -241,6 +243,9 @@ BSP does not define what a tenant *is* — that is the implementer's domain mode
 | Developer platform with per-user isolation | The individual user account |
 | Enterprise platform with sub-organisations | The organisation or workspace |
 | API gateway serving multiple products | The product or project |
+| Platform with a central/administrative context | The platform itself — a reserved tenant exposing cross-cutting capabilities |
+
+> **The platform itself can be a tenant.** A reserved tenant ID (e.g. `platform`) may represent the operator's own administrative context, exposing cross-cutting capabilities — platform-owned data, cross-tenant aggregations — that ordinary tenants do not have. This keeps the model uniform: there is **no separate "untenanted" surface**, just one more tenant with its own manifest at `/.well-known/bsp/{tenantId}`. Whether that reserved tenant's handlers may read across *other* tenants is an authorization concern BSP does not define — the protocol only sees a tenant whose capability surface happens to differ (the *"Different capability surfaces"* reason below). Implementers should treat such a tenant ID as reserved and privileged, so an ordinary tenant can never assume its capabilities.
 
 #### Why use multi-tenancy?
 

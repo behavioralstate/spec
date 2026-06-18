@@ -134,7 +134,7 @@
 			BSP is open-source under Apache 2.0. Explore the spec, read the schemas, and start building.
 		</p>
 		<div class="cta-actions">
-			<a href="/docs" class="btn-primary">Read the docs</a>
+			<a href="/specs" class="btn-primary">Read the docs</a>
 			<a href="https://github.com/behavioralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
 		</div>
 	</div>

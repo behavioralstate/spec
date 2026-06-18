@@ -34,11 +34,11 @@ Commands are **intents to change** a domain service. They are sent **to** the se
 
 Commands use the **CloudEvent 1.0 envelope shape** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
 
-> **BSP is not a conformant CloudEvent implementation.** BSP borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/docs/design-decisions#cloudevent-deviations) for the full list. Callers should treat BSP messages as *BSP-shaped envelopes*, not as spec-compliant CloudEvents.
+> **BSP is not a conformant CloudEvent implementation.** BSP borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/specs/design-decisions#cloudevent-deviations) for the full list. Callers should treat BSP messages as *BSP-shaped envelopes*, not as spec-compliant CloudEvents.
 
 The `dataschema` field in an **incoming command** is informational metadata — it documents which schema the client used when constructing the payload. It is **not** an instruction to the server. The server selects the schema to validate against using the `type` field, by looking up that type in its own command catalogue. A well-formed client will have fetched the schema from `GET /commands` and its `dataschema` value will match what the server holds — but the server never needs to fetch it.
 
-> **Note:** A server that fetches the caller-supplied `dataschema` URI to perform validation would be both architecturally wrong (the server owns its schema catalogue) and a security risk (caller-controlled URI fetch is an SSRF vector). See [Security Considerations](/docs/security#command-ingestion-dataschema-validation).
+> **Note:** A server that fetches the caller-supplied `dataschema` URI to perform validation would be both architecturally wrong (the server owns its schema catalogue) and a security risk (caller-controlled URI fetch is an SSRF vector). See [Security Considerations](/specs/security#command-ingestion-dataschema-validation).
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -132,7 +132,7 @@ Processing steps:
 4. If valid: queue the command and return `201`
 5. If invalid: return `400` with error detail
 
-> **Security:** The CloudEvent `id` field **MUST** be treated as an idempotency key. Servers MUST detect and reject duplicate command submissions (same `id` + authenticated source) within a defined retention window. A duplicate with a different payload **MUST** return `409`. See [Security Considerations](/docs/security#command-replay-protection).
+> **Security:** The CloudEvent `id` field **MUST** be treated as an idempotency key. Servers MUST detect and reject duplicate command submissions (same `id` + authenticated source) within a defined retention window. A duplicate with a different payload **MUST** return `409`. See [Security Considerations](/specs/security#command-replay-protection).
 
 Response: `201 Created` — the command has been accepted and queued.
 

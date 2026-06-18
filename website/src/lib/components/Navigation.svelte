@@ -3,7 +3,7 @@
 
 	const navItems = [
 		{ label: 'Features', href: '/#features' },
-		{ label: 'Docs', href: '/docs' },
+		{ label: 'Docs', href: '/specs' },
 		{ label: 'Playground', href: '/playground' }
 	];
 </script>

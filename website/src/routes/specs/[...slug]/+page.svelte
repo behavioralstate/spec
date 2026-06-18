@@ -11,7 +11,7 @@
 		<!-- Breadcrumb -->
 		{#if data.breadcrumb.length > 0}
 			<nav class="breadcrumb" aria-label="Breadcrumb">
-				<a href="/docs">Docs</a>
+				<a href="/specs">Docs</a>
 				{#each data.breadcrumb as crumb}
 					<span class="sep" aria-hidden="true">/</span>
 					<span>{crumb.label}</span>
@@ -19,7 +19,7 @@
 			</nav>
 		{:else}
 			<nav class="breadcrumb" aria-label="Breadcrumb">
-				<a href="/docs">Docs</a>
+				<a href="/specs">Docs</a>
 			</nav>
 		{/if}
 

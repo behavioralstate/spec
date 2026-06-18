@@ -272,7 +272,7 @@ Response: `201 Created` with the subscription descriptor (`secret` omitted, plus
 
 **DELETE /subscriptions/{id}** — Remove a subscription. Returns `204 No Content`.
 
-> **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/docs/security#webhook-ssrf-protection).
+> **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/specs/security#webhook-ssrf-protection).
 
 ## Mapping Domain Records to BSP Events
 

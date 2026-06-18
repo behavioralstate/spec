@@ -19,7 +19,7 @@ I need these four endpoints:
 
 Auth: X-Api-Key header. Set authentication.type = "apikey" in the manifest.
 
-Spec reference: https://behavioralstate.io/docs
+Spec reference: https://behavioralstate.io/specs
 ```
 
 **What to expect:** The LLM will scaffold the four routes, a manifest class or JSON file, and a command handler stub. Review the generated `/.well-known/bsp` and ensure it includes the `authentication` block and at least one entry in `capabilities`.
@@ -39,7 +39,7 @@ Tenant ID: [my-tenant-id]  ← remove this line if not multi-tenant
 
 Output the exact env vars and mcpServers JSON block to add to my client config.
 
-bsp-mcp docs: https://behavioralstate.io/docs/transports/mcp
+bsp-mcp docs: https://behavioralstate.io/specs/transports/mcp
 ```
 
 **What to expect:** The LLM will produce the `env` block and `mcpServers` JSON snippet. For VS Code you add it to `.vscode/mcp.json`; for Claude Desktop to `claude_desktop_config.json`; for Cursor to `cursor_mcp.json`. See [MCP transport](./transports/mcp.md) for full details.
@@ -61,7 +61,7 @@ Verify:
 3. POST /commands — accepts CloudEvents 1.0 (specversion, source, type, dataschema, data)
 4. dataschema uses relative URI format: {name}/{version} (e.g. "submit-order/1.0")
 
-Spec: https://behavioralstate.io/docs
+Spec: https://behavioralstate.io/specs
 ```
 
 **What to expect:** The LLM will walk through each endpoint, point out missing fields or incorrect formats, and suggest fixes. Common issues: `dataschema` set to an absolute URL instead of a relative URI, missing `authentication` block in the manifest, or command payload wrapped in an extra object rather than placed directly in CloudEvent `data`.

@@ -6,17 +6,17 @@
 		{
 			type: 'prompt',
 			label: 'Make your service BSP-compliant',
-			text: `Make my [Express / ASP.NET Core / FastAPI] service at [https://api.example.com] BSP-compliant. Spec: https://behavioralstate.io/docs`
+			text: `Make my [Express / ASP.NET Core / FastAPI] service at [https://api.example.com] BSP-compliant. Spec: https://behavioralstate.io/specs`
 		},
 		{
 			type: 'prompt',
 			label: 'Configure bsp-mcp for your LLM client',
-			text: `Configure bsp-mcp for [VS Code Copilot / Claude Desktop] with base URL [https://api.example.com/bsp] and API key [my-key]. Docs: https://behavioralstate.io/docs/transports/mcp`
+			text: `Configure bsp-mcp for [VS Code Copilot / Claude Desktop] with base URL [https://api.example.com/bsp] and API key [my-key]. Docs: https://behavioralstate.io/specs/transports/mcp`
 		},
 		{
 			type: 'prompt',
 			label: 'Validate your BSP endpoint',
-			text: `Validate that [https://api.example.com] correctly implements the BSP spec. Spec: https://behavioralstate.io/docs`
+			text: `Validate that [https://api.example.com] correctly implements the BSP spec. Spec: https://behavioralstate.io/specs`
 		}
 	];
 
