@@ -107,7 +107,7 @@ Services are top-level domains. Each service has its own version, spec URL, and 
 
 | Service | Namespace | Description |
 |---|---|---|
-| Agents | `io.bsp.agents` | Service registry, command ingestion, published events |
+| Agents | `io.bsp.agents` | Command ingestion, queries, published events |
 
 ## Capabilities
 
@@ -115,20 +115,19 @@ Capabilities are composable building blocks within a service.
 
 | Capability | Description | Extends |
 |---|---|---|
-| `io.bsp.agents.registry` | Register, remove, list, get services | — |
-| `io.bsp.agents.lifecycle` | Pause and resume services | `agents.registry` |
-| `io.bsp.agents.events` | List and query domain events, event catalogue, event schema discovery | — |
 | `io.bsp.agents.commands` | Discover available commands (catalogue), send commands (ingestion) | — |
+| `io.bsp.agents.events` | List and query domain events, event catalogue, event schema discovery | — |
+| `io.bsp.agents.queries` | Discover and execute synchronous reads of current state | — |
 
 Each capability object has these fields:
 
 | Field | Description |
 |---|---|
-| `name` | Fully qualified capability identifier (e.g. `io.bsp.agents.registry`) |
+| `name` | Fully qualified capability identifier (e.g. `io.bsp.agents.commands`) |
 | `version` | Semver version string |
 | `description` | Human-readable summary |
 | `spec` | URL to the capability specification page |
-| `schema` | URL to the **JSON Schema** for this capability's data structures — e.g. `registry.json`, `events.json`. This is a JSON Schema file, not an OpenAPI spec. |
+| `schema` | URL to the **JSON Schema** for this capability's data structures — e.g. `commands.json`, `events.json`. This is a JSON Schema file, not an OpenAPI spec. |
 | `service` | Key of the implementing service in the manifest's `services` object (e.g. `"io.bsp.agents"`, `"io.dotquant.trading"`). Required when the capability's name prefix does not match the service key — for example, a custom service implementing a standard BSP capability. Consumers use this to resolve which `http.endpoint` to call for the capability's endpoints. |
 | `status` | `active`, `partial`, or `planned` (omitted means active) |
 | `extends` | Parent capability name, if this extends another |
@@ -144,9 +143,11 @@ The `io.bsp.agents.events` capability **may** include a `push` object declaring 
   "name": "io.bsp.agents.events",
   "version": "{{BSP_VERSION}}",
   "endpoints": [
-    { "method": "GET", "path": "/events" },
-    { "method": "GET", "path": "/events/stream" },
-    { "method": "GET", "path": "/events/{schema}/{version}" }
+    { "method": "GET",    "path": "/events" },
+    { "method": "GET",    "path": "/events/stream" },
+    { "method": "GET",    "path": "/events/{schema}/{version}" },
+    { "method": "POST",   "path": "/subscriptions" },
+    { "method": "DELETE", "path": "/subscriptions/{id}" }
   ],
   "push": {
     "sse": true,
@@ -184,7 +185,7 @@ Implementers can expose capabilities beyond the `io.bsp.*` set. Custom capabilit
 
 | Convention | Example |
 |---|---|
-| BSP built-in | `io.bsp.agents.registry` |
+| BSP built-in | `io.bsp.agents.commands` |
 | Organisation-scoped | `io.dotquant.trading`, `com.acme.inventory` |
 | Team-scoped | `com.acme.payments.refunds` |
 
@@ -192,9 +193,13 @@ The capability name must be unique. Implementers are responsible for ensuring th
 
 For `io.bsp.*` capabilities, `spec` and `schema` are **required** — they point at the published BSP specification and schema pages. For custom capabilities they are **optional**: the BSP project does not host documentation for implementer-owned namespaces. Implementers **should** host their own specification page and JSON Schema for each custom capability and link them via `spec` and `schema` so consumers can self-serve, but a custom capability without them is still conformant.
 
-## Services Array — Discovery Hint vs. Live Registry
+## Agents Array — Declared Service Descriptors
 
-The `services` object in the manifest holds transport binding definitions. For systems where additional services are registered dynamically at runtime, the manifest snapshot may be incomplete — the authoritative live list is always `GET /services` (when `agents.registry` is declared).
+The `services` object in the manifest holds transport binding definitions. Separately, the manifest **may** include an `agents` array — a snapshot of the [service descriptors](#service-descriptor) (id, accepts, produces, status, metadata) the endpoint hosts. This is a discovery hint, not a live directory: BSP defines no registry endpoint. Implementations that manage services dynamically can expose that as a domain — a `list-services` query and `RegisterService` command — under their own namespace (see [Registry](agents/registry.md) for the recommended vocabulary).
+
+### Service Descriptor
+
+A service descriptor is the identity card for a BSP-compliant service: what it does, the commands it accepts, the events it produces, and optional operational `metadata` (model name, system prompt, provider settings — opaque to the protocol). Descriptors appear as entries in the manifest's `agents` array. See [service-descriptor.json](../protocol/v1/examples/service-descriptor.json) for a complete example and [discovery.json](../protocol/v1/schemas/discovery.json) for the schema.
 
 ## Transport Bindings
 
@@ -353,20 +358,12 @@ For how `{tenantId}` maps to path parameters in the HTTP transport, see [Multi-T
         "http": { "endpoint": "https://api.example.com/" }
       }
     },
-    "capabilities": [
-      {
-        "name": "io.bsp.agents.registry",
-        "endpoints": [
-          { "method": "GET",    "path": "/services" },
-          { "method": "POST",   "path": "/services" },
-          { "method": "GET",    "path": "/services/{id}" },
-          { "method": "DELETE", "path": "/services/{id}" }
-        ]
-      }
-    ]
+    "capabilities": []
   }
 }
 ```
+
+> The root manifest of a multi-tenant host typically declares **no** capabilities of its own — it only routes consumers to a tenant manifest via `tenants.manifest`. Any capability the root can fulfil directly without a tenant context may be listed here.
 
 **Tenant manifest (returned at the expanded URI):**
 
@@ -487,7 +484,7 @@ This returns the list of command types the service accepts, each with a `schema`
 |---|---|
 | `http.endpoint` | **Consumer-facing base URL.** Must be publicly reachable by the consumer — never an internal backend address or private service-mesh URL. All HTTP API paths are appended to this value. |
 
-The `http.endpoint` value is the **consumer-facing base URL**. All HTTP API paths are appended to it. For example, if `http.endpoint` is `https://app.agenthost.example/`, then the services registry is at `https://app.agenthost.example/services`.
+The `http.endpoint` value is the **consumer-facing base URL**. All HTTP API paths are appended to it. For example, if `http.endpoint` is `https://app.agenthost.example/`, then the command catalogue is at `https://app.agenthost.example/commands`.
 
 > **`http.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If the implementation sits behind a proxy or API gateway, `http.endpoint` is the outermost address consumers hit.
 

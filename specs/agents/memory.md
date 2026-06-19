@@ -4,10 +4,10 @@
 
 The `io.bsp.agents.memory` capability has been removed. The use cases it was intended to cover are now better served by two existing parts of the protocol:
 
-- **Static operational configuration** (model name, system prompt, provider settings): use the `metadata` field on the service descriptor — available on any registered service via `GET /services/{id}`.
+- **Static operational configuration** (model name, system prompt, provider settings): use the `metadata` field on the service descriptor — declared in the discovery manifest's `agents` array.
 
 - **Historical event log** (conversation history, audit trails, accumulated facts): use `GET /events` with the full filter set — `?type=`, `?source=`, `?from=`, `?to=`, `?correlationId=`, plus cursor-based pagination.
 
-See [Service Descriptor Fields](registry.md#service-descriptor-fields) and [Events — Historical Query](events.md#get-events-historical-query) for the current specification.
+See [Service Descriptor](../discovery.md#service-descriptor) and [Events — Historical Query](events.md#get-events-historical-query) for the current specification.
 
 See [Design Decisions — Service Metadata vs. Memory](../design-decisions.md#service-metadata-vs-memory) for the rationale.

@@ -14,9 +14,8 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 
 | Scope | Applies to |
 |---|---|
-| Read | `GET /services`, `GET /events`, `GET /commands`, `GET /commands/{schema}/{version}` |
-| Write | `POST /commands`, `POST /services`, `DELETE /services/{id}` |
-| Admin | `POST /services/{id}/pause`, `POST /services/{id}/resume` |
+| Read | `GET /events`, `GET /commands`, `GET /commands/{schema}/{version}`, `GET /queries` |
+| Write | `POST /commands`, `POST /subscriptions`, `DELETE /subscriptions/{id}` |
 
 `GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read domain events.
 
@@ -52,7 +51,7 @@ The `source` field in a command is **caller-declared** and **MUST NOT** be treat
 
 ## Webhook SSRF Protection
 
-When a service is registered with a `webhook.url`, the server will subsequently POST CloudEvents to that URL. A caller can exploit this to make the server issue requests to internal services.
+When a subscription is registered with a `webhook.url`, the server will subsequently POST CloudEvents to that URL. A caller can exploit this to make the server issue requests to internal services.
 
 **Requirements:**
 - Servers **MUST** validate `webhook.url` before storing or using it.
@@ -69,13 +68,13 @@ For implementations that serve multiple tenants:
 - Access to tenant-scoped manifests and resources **MUST** be authorised per tenant. Knowing or guessing another tenant's identifier **MUST NOT** grant access to their resources.
 - Tenant context **MUST** be derived from the authenticated identity (Bearer token, API key), not from caller-supplied path parameters, query strings, body fields, or CloudEvent attributes.
 - Tenant-specific HTTP responses **MUST** be isolated in caches (`Vary` headers or non-cacheable) and **MUST NOT** be served to a different tenant.
-- Command deduplication, service registrations, event streams, and webhook configurations **MUST** be isolated per tenant.
+- Command deduplication, event streams, and webhook configurations **MUST** be isolated per tenant.
 
 ## Input Limits
 
-Servers **MUST** enforce maximum request body sizes for `POST /commands` and `POST /services` and **SHOULD** return `413 Payload Too Large` when exceeded. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
+Servers **MUST** enforce maximum request body sizes for `POST /commands` and `POST /subscriptions` and **SHOULD** return `413 Payload Too Large` when exceeded. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
 
-Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission and service registration.
+Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission and subscription registration.
 
 ## Manifest Content
 

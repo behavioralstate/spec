@@ -77,8 +77,8 @@ DDD centres on a **Ubiquitous Language** — a shared vocabulary between domain 
 
 CQRS separates write operations (commands) from read operations (queries). BSP has this separation built into the protocol:
 
-- `POST /services/{id}/commands` — the write path
-- `GET /services/{id}/queries` — the read path  
+- `POST /commands` — the write path
+- `GET /queries` — the read path  
 - `GET /events` — the observable log
 
 In REST, reads and writes share the same resource endpoints. CQRS must be bolted on as an architectural convention that is invisible at the API boundary.

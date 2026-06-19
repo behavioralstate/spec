@@ -42,8 +42,8 @@ The version string (without the `v` prefix) appears in:
 All BSP identifiers use reverse domain notation: `io.bsp.{service}.{capability}`.
 
 Examples:
-- `io.bsp.agents.registry`
 - `io.bsp.agents.commands`
 - `io.bsp.agents.events`
+- `io.bsp.agents.queries`
 
 Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).

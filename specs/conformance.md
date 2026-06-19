@@ -18,12 +18,11 @@ For each capability an endpoint claims to support:
 
 | Capability | Required Endpoints |
 |---|---|
-| `agents.lifecycle` | POST /services/{id}/pause, POST /services/{id}/resume |
-| `agents.events` | GET /events |
 | `agents.commands` | GET /commands, POST /commands |
+| `agents.events` | GET /events |
 | `agents.queries` | GET /queries, GET /queries/{schema}/{version}, GET /queries/{schema} |
 
-> **Path resolution:** All paths above are relative to the `http.endpoint` base URL declared in the discovery manifest. For example, if `http.endpoint` is `https://app.example.com/BSP/`, then `GET /services` resolves to `https://app.example.com/BSP/services`. The paths are never relative to the domain root unless `http.endpoint` itself is the domain root.
+> **Path resolution:** All paths above are relative to the `http.endpoint` base URL declared in the discovery manifest. For example, if `http.endpoint` is `https://app.example.com/BSP/`, then `GET /commands` resolves to `https://app.example.com/BSP/commands`. The paths are never relative to the domain root unless `http.endpoint` itself is the domain root.
 
 ### Partial Capabilities
 

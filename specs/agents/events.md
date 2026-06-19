@@ -87,6 +87,8 @@ This pattern suits services that emit dynamic, loosely-structured payloads (e.g.
 > GET /events/stream?correlationId=abc123 → what happens next
 > ```
 
+> **Two tiers: the domain surface vs. the delivery tier.** `GET /events` and `GET /events/{schema}/{version}` are the **domain surface** — they expose the facts a service produces, the read half of the command/event model. `GET /events/stream` and `POST` / `DELETE /subscriptions` are the **delivery tier** — transport plumbing for *receiving* those facts over HTTP, nothing more. That is why these two are resource-shaped (`/subscriptions/{id}`) rather than commands: registering a delivery channel is connection setup, not a domain intent, and it wants synchronous request/response — you cannot be notified of a subscription's creation over the channel you are still establishing. They are the HTTP-callback peer of the SSE stream, not an exception to BSP's behaviour-oriented design.
+
 ### GET /events/stream — Live Event Stream (SSE)
 
 > **Live events only.** This endpoint delivers events produced *after* the connection is opened. It does not replay historical events. To query past events, use `GET /events`.
@@ -266,7 +268,7 @@ For callers using the HTTP binding, a webhook callback URL can be registered to 
 
 The `secret` field is write-only — never returned in read responses. When present, the server signs delivery payloads using HMAC. The `filter.types` array limits delivery to specific event types; omit it to receive all events. Both `filter.types` entries and the `accepts`/`produces` fields on service descriptors use CloudEvent `type` strings — PascalCase (e.g. `CounterProposed`).
 
-The optional `serviceId` field links this subscription to a registered service. When the service is removed via `DELETE /services/{id}`, all subscriptions with that `serviceId` are automatically deleted — no orphaned webhooks remain. Omit `serviceId` for standalone subscriptions that are not tied to a specific registered service.
+The optional `serviceId` field associates this subscription with a service descriptor (by its `id`) — useful for grouping and bulk cleanup. Subscriptions are removed via `DELETE /subscriptions/{id}`. Omit `serviceId` for standalone subscriptions that are not tied to a specific service.
 
 Response: `201 Created` with the subscription descriptor (`secret` omitted, plus a generated `id`).
 

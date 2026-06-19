@@ -17,8 +17,6 @@
 		{
 			label: 'Services',
 			items: [
-				{ label: 'Registry', href: '/specs/agents/registry' },
-				{ label: 'Lifecycle', href: '/specs/agents/lifecycle' },
 				{ label: 'Commands', href: '/specs/agents/commands' },
 				{ label: 'Events', href: '/specs/agents/events' },
 				{ label: 'Queries', href: '/specs/agents/queries' }

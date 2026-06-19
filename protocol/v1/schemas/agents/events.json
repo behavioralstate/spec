@@ -31,7 +31,7 @@
       "properties": {
         "serviceId": {
           "type": "string",
-          "description": "Identifier of a registered service (from POST /services) that owns this subscription. When present, the subscription is lifecycle-coupled to the service — deleting the service via DELETE /services/{id} will also remove this subscription."
+          "description": "Identifier of a service descriptor (its id, as declared in the manifest's agents array) that this subscription is associated with. Optional — used for grouping and cleanup. Subscriptions are removed via DELETE /subscriptions/{id}."
         },
         "webhook": {
           "type": "object",

@@ -19,8 +19,8 @@ If you are new to BSP, start with the [Overview](specs/overview.md) for the prot
 | [Conformance](specs/conformance.md) | [v0.6.7](https://github.com/behavioralstate/spec/blob/spec/v0.6.7/specs/conformance.md) | [WIP](specs/conformance.md) |
 | | | |
 | **Agent Capabilities:** | | |
-| ~~[Registry](specs/agents/registry.md)~~ | *(removed — see [future concept](specs/agents/registry.md))* | — |
-| [Lifecycle](specs/agents/lifecycle.md) | [v0.6.7](https://github.com/behavioralstate/spec/blob/spec/v0.6.7/specs/agents/lifecycle.md) | [WIP](specs/agents/lifecycle.md) |
+| ~~[Registry](specs/agents/registry.md)~~ | *(removed — absorbed into core; see [design decisions](specs/design-decisions.md#registry-and-lifecycle-removed))* | — |
+| ~~[Lifecycle](specs/agents/lifecycle.md)~~ | *(removed — absorbed into core; see [design decisions](specs/design-decisions.md#registry-and-lifecycle-removed))* | — |
 | [Events](specs/agents/events.md) | [v0.6.7](https://github.com/behavioralstate/spec/blob/spec/v0.6.7/specs/agents/events.md) | [WIP](specs/agents/events.md) |
 | [Commands](specs/agents/commands.md) | [v0.6.7](https://github.com/behavioralstate/spec/blob/spec/v0.6.7/specs/agents/commands.md) | [WIP](specs/agents/commands.md) |
 | [Queries](specs/agents/queries.md) | — | [WIP](specs/agents/queries.md) |

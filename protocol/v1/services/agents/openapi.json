@@ -1,8 +1,8 @@
-
+{
   "openapi": "3.1.0",
   "info": {
     "title": "BSP Agent Service",
-    "description": "HTTP API for the io.bsp.agents service â€” service registry, command ingestion, command discovery, event log, and service memory.",
+    "description": "HTTP API for the io.bsp.agents service — command ingestion, command discovery, event log, and queries.",
     "version": "{{BSP_VERSION}}",
     "license": {
       "name": "Apache-2.0",
@@ -12,7 +12,7 @@
   "servers": [
     {
       "url": "{endpoint}",
-      "description": "BSP-compliant endpoint base URL (from the http.endpoint field in the /.well-known/bsp manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/BSP/, then GET /services resolves to https://app.example.com/BSP/services.",
+      "description": "BSP-compliant endpoint base URL (from the http.endpoint field in the /.well-known/bsp manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/BSP/, then GET /commands resolves to https://app.example.com/BSP/commands.",
       "variables": {
         "endpoint": {
           "default": "https://your.compliant.BSP.endpoint"
@@ -48,263 +48,11 @@
         }
       }
     },
-    "/services": {
-      "get": {
-        "operationId": "listServices",
-        "summary": "List all registered services",
-        "tags": [
-          "Service Registry"
-        ],
-        "responses": {
-          "200": {
-            "description": "List of service descriptors",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/agents/registry.json#/$defs/serviceList"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "post": {
-        "operationId": "registerService",
-        "summary": "Register or update a service (upsert)",
-        "description": "Creates the service if it does not exist, or fully replaces its descriptor if it does. Re-registering an existing service does not remove its subscriptions — only DELETE /services/{id} does that.",
-        "tags": [
-          "Service Registry"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "../../schemas/agents/registry.json#/$defs/serviceRegistration"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Service registered or updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/agents/registry.json#/$defs/serviceDescriptor"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request body",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/services/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Service identifier"
-        }
-      ],
-      "get": {
-        "operationId": "getService",
-        "summary": "Get service detail",
-        "tags": [
-          "Service Registry"
-        ],
-        "responses": {
-          "200": {
-            "description": "Service descriptor",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/agents/registry.json#/$defs/serviceDescriptor"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Service not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "removeService",
-        "summary": "Remove a service",
-        "tags": [
-          "Service Registry"
-        ],
-        "responses": {
-          "204": {
-            "description": "Service removed"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Service not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/services/{id}/pause": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Service identifier"
-        }
-      ],
-      "post": {
-        "operationId": "pauseService",
-        "summary": "Pause a running service",
-        "tags": [
-          "Service Lifecycle"
-        ],
-        "responses": {
-          "204": {
-            "description": "Service paused"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Service not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/services/{id}/heartbeat": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Service identifier"
-        }
-      ],
-      "post": {
-        "operationId": "heartbeatService",
-        "summary": "Signal that a service is still alive",
-        "description": "Agents must call this endpoint periodically to confirm they are still running. Servers use the absence of heartbeats to detect stale registrations and transition the service status to 'error'. The required heartbeat interval is server-defined and should be documented by the implementation.",
-        "tags": [
-          "Service Lifecycle"
-        ],
-        "responses": {
-          "204": {
-            "description": "Heartbeat recorded"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Service not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/services/{id}/resume": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Service identifier"
-        }
-      ],
-      "post": {
-        "operationId": "resumeService",
-        "summary": "Resume a paused service",
-        "tags": [
-          "Service Lifecycle"
-        ],
-        "responses": {
-          "204": {
-            "description": "Service resumed"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Service not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/subscriptions": {
       "post": {
         "operationId": "createSubscription",
         "summary": "Register a webhook subscription for push event delivery",
-        "description": "Registers a webhook callback URL to receive events as they are published. An optional serviceId links the subscription to a registered service — when that service is deleted via DELETE /services/{id}, this subscription is automatically removed.",
+        "description": "Registers a webhook callback URL to receive events as they are published. An optional serviceId associates the subscription with a service descriptor for grouping and cleanup.",
         "tags": [
           "Events"
         ],
@@ -429,7 +177,7 @@
             "description": "Command accepted and queued for processing"
           },
           "400": {
-            "description": "Invalid command â€” schema validation failed or missing required CloudEvent attributes",
+            "description": "Invalid command — schema validation failed or missing required CloudEvent attributes",
             "content": {
               "application/json": {
                 "schema": {
@@ -575,14 +323,6 @@
       "description": "Protocol discovery"
     },
     {
-      "name": "Service Registry",
-      "description": "io.bsp.agents.registry â€” Register, remove, list, get services"
-    },
-    {
-      "name": "Service Lifecycle",
-      "description": "io.bsp.agents.lifecycle â€” Pause and resume services"
-    },
-    {
       "name": "Commands",
       "description": "io.bsp.agents.commands — Discover command types (GET /commands), fetch versioned schemas (GET /commands/{schema}/{version}), and send commands (POST /commands)"
     },
@@ -633,4 +373,3 @@
     }
   }
 }
-

@@ -90,7 +90,7 @@ Not everything in the BSP spec carries equal weight. Understanding which parts a
 | Tier | Capabilities | What it means |
 |---|---|---|
 | **Core** | `/.well-known/bsp` discovery · `io.bsp.agents.commands` · `io.bsp.agents.events` | Required for any functional BSP endpoint. A service that implements only these three is fully BSP-compliant. |
-| **Extended** | `io.bsp.agents.registry` · `io.bsp.agents.lifecycle` · `io.bsp.agents.queries` | Optional. Declared in the manifest so consumers discover them at runtime. Omitting them does not affect core compliance. |
+| **Extended** | `io.bsp.agents.queries` | Optional. Declared in the manifest so consumers discover it at runtime. Omitting it does not affect core compliance. |
 | **Out of scope** | Execution runtime · workflow orchestration · durable execution · memory contracts · retry policies · checkpointing | BSP never owns these. They belong to the service's internal implementation or a separate execution layer (e.g. Temporal, Durable Functions, an actor runtime). |
 
 <div class="BSP-diagram">
@@ -104,7 +104,7 @@ Not everything in the BSP spec carries equal weight. Understanding which parts a
   </div>
   <div class="BSP-node">
     <div class="BSP-node-title">Extended</div>
-    <div class="BSP-node-box">Registry<br/>Lifecycle<br/>Queries</div>
+    <div class="BSP-node-box">Queries</div>
     <div class="BSP-node-sub">optional — declared in manifest</div>
   </div>
   <div class="BSP-arrow">
@@ -156,7 +156,6 @@ GET /.well-known/bsp
       }
     },
     "capabilities": [
-      { "name": "io.bsp.agents.registry", "version": "{{BSP_VERSION}}" },
       { "name": "io.bsp.agents.events",   "version": "{{BSP_VERSION}}" },
       { "name": "io.bsp.agents.commands", "version": "{{BSP_VERSION}}" }
     ]
@@ -170,10 +169,9 @@ The minimum set for a functional agent service:
 
 | Method | Path | What it does |
 |---|---|---|
-| `POST` | `/services` | Register a service |
-| `GET` | `/services` | List registered services |
-| `GET` | `/events` | Query published domain events |
+| `POST` | `/commands` | Send a command (CloudEvent) |
 | `GET` | `/commands` | Browse accepted command types |
+| `GET` | `/events` | Query published domain events |
 | `GET` | `/queries` | Browse available query types |
 
 **Step 3 — Validate**
@@ -190,7 +188,6 @@ node scripts/validate-examples.mjs
 ## Next Steps
 
 - [Discovery](./discovery.md) — How agents are discovered
-- [Agent Registry](./agents/registry.md) — How agents are registered and managed
 - [Events](./agents/events.md) — How events are published
 - [Commands](./agents/commands.md) — How commands are accepted
 - [Design Decisions](./design-decisions.md) — Why BSP is shaped the way it is

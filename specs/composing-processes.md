@@ -171,6 +171,69 @@ Both patterns share the same backbone: named commands in, observable facts out,
 tied together by a correlation id. The process is something the caller composes
 from those facts — not something the protocol runs.
 
+## Worked example: a service registry with heartbeat
+
+A registry — a live directory of the services running behind an endpoint — is a
+common need, and a good test of the claim that **service management is just a
+domain**. Here it is, built entirely from core primitives: no bespoke `/services`
+endpoints, everything through `/commands`, `/queries`, and `/events`.
+
+**Commands** (`POST /commands`) — each carries a service descriptor or id in `data`:
+
+| Command | Emits | Purpose |
+|---|---|---|
+| `RegisterService` | `ServiceRegisteredV1` | Add or replace a service (upsert by `id`) |
+| `DeregisterService` | `ServiceDeregisteredV1` | Remove a service |
+| `PauseService` / `ResumeService` | `ServicePausedV1` / `ServiceResumedV1` | Toggle availability |
+| `Heartbeat` | — | Liveness ping (see below) |
+
+The `RegisterService` `data` payload **is** the
+[service descriptor](./discovery.md#service-descriptor): `id`, `name`, `accepts`,
+`produces`, `status`, optional `metadata`.
+
+**Queries** (`GET /queries`) — the read side:
+
+```
+GET /queries/list-services           → all descriptors
+GET /queries/get-service?id=pricing  → one descriptor
+```
+
+**Events** (`GET /events`, or a subscription) — react to fleet changes:
+
+```
+GET /events?type=ServiceRegisteredV1
+GET /events?type=ServiceErroredV1
+```
+
+**Heartbeat.** Each service periodically sends a `Heartbeat` command. The registry
+tracks last-seen; when a service misses its window, the registry emits
+`ServiceErroredV1` and sets the descriptor `status` to `error`. Consumers learn of
+dead services by subscribing to that event — no polling, and nothing the protocol
+had to add.
+
+Register a service:
+
+```json
+POST /commands
+{
+  "type": "RegisterService",
+  "source": "https://pricing.example.com",
+  "dataschema": "register-service/1.0",
+  "data": {
+    "id": "pricing",
+    "name": "Dynamic Pricing",
+    "accepts": ["AdjustPrice"],
+    "produces": ["PriceAdjusted"],
+    "status": "running"
+  }
+}
+→ 201 { "id": "…" }   →  ServiceRegisteredV1
+```
+
+That is a complete registry — register, list, pause, expire — with not one
+resource path. It is the recommended naming vocabulary, not a required capability:
+there is no `io.bsp.*` registry namespace.
+
 ## See also
 
 - [Commands](./agents/commands.md) — command catalogue, correlation, `produces`

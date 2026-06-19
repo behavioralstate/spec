@@ -12,9 +12,9 @@ The `http.endpoint` field in the discovery manifest is the **consumer-facing bas
 
 | `http.endpoint` | Path | Resolved URL |
 |---|---|---|
-| `https://app.example.com/` | `/services` | `https://app.example.com/services` |
-| `https://app.agenthost.example/BSP/` | `/services` | `https://app.agenthost.example/BSP/services` |
-| `https://your.compliant.BSP.endpoint` | `/services` | `https://your.compliant.BSP.endpoint/services` |
+| `https://app.example.com/` | `/commands` | `https://app.example.com/commands` |
+| `https://app.agenthost.example/BSP/` | `/commands` | `https://app.agenthost.example/BSP/commands` |
+| `https://your.compliant.BSP.endpoint` | `/commands` | `https://your.compliant.BSP.endpoint/commands` |
 
 Paths are **never** resolved relative to the domain root unless `http.endpoint` is at the domain root.
 
@@ -29,7 +29,7 @@ A service may declare multiple transport bindings (`http`, `mcp`, `a2a`) for the
 "mcp": { "transport": "stdio", "server": "bsp-mcp" }
 ```
 
-Both HTTP and MCP above provide access to the same services registry, event delivery, and command ingestion. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
+Both HTTP and MCP above provide access to the same command ingestion, event delivery, and queries. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
 
 ## Multi-Tenant Routing
 

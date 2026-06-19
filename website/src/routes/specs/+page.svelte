@@ -77,10 +77,8 @@
 		<section class="index-group">
 			<h2>Agents</h2>
 			<ul>
-				<li><a href="/specs/agents/registry">Global Registry</a><span>Future concept — public BSP directory</span></li>
-				<li><a href="/specs/agents/lifecycle">Lifecycle</a><span>Pause and resume agents</span></li>
-				<li><a href="/specs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/specs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
+				<li><a href="/specs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/specs/agents/queries">Queries</a><span>Synchronous reads of current state</span></li>
 			</ul>
 		</section>

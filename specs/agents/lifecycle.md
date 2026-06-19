@@ -1,25 +1,18 @@
-# Service Lifecycle — `io.bsp.agents.lifecycle`
+# Service Lifecycle — `io.bsp.agents.lifecycle` *(removed)*
 
-The lifecycle capability adds operational controls on a named service. The `{id}` parameter is the service identifier as declared in the discovery manifest (`services[].id`).
+> **This capability has been removed from the BSP specification.** Together with [Registry](./registry.md), it has been absorbed into the core command, query, and event primitives.
 
-## HTTP API
+The lifecycle capability defined bespoke control endpoints — `POST /services/{id}/pause`, `POST /services/{id}/resume`, `POST /services/{id}/heartbeat` — for operating on a registered service. Like the registry, these are resource-shaped management operations, not part of the command/event interaction surface.
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/services/{id}/pause` | Pause a running service |
-| POST | `/services/{id}/resume` | Resume a paused service |
-| POST | `/services/{id}/heartbeat` | Signal that a service is still alive |
+Pausing, resuming, and heart-beating a service are domain operations on the meta-domain of "the fleet." They are expressed with the same primitives as any other operation: commands in, events out.
 
-All return `204 No Content` on success.
+## Where the pieces went
 
-## Heartbeat
+| Removed lifecycle endpoint | Express it instead as |
+|---|---|
+| `POST /services/{id}/pause` | a `PauseService` command → `ServicePausedV1` event |
+| `POST /services/{id}/resume` | a `ResumeService` command → `ServiceResumedV1` event |
+| `POST /services/{id}/heartbeat` | a `Heartbeat` command; a missed heartbeat → `ServiceErroredV1` event |
+| service `status` (`running` / `paused` / `error`) | carried on the service descriptor in the manifest's `agents` array, and changed via the events above |
 
-Agents **should** call `POST /services/{id}/heartbeat` periodically to confirm they are still running. This prevents stale entries accumulating in the registry — if no heartbeat is received within the server-defined window, the server **should** transition the service `status` to `"error"`.
-
-The heartbeat interval is server-defined and should be documented by each implementation. A reasonable default is 60 seconds; agents should call more frequently than the window (e.g. every 30 seconds when the window is 60 seconds).
-
-If an agent process crashes without a clean `DELETE /services/{id}`, the heartbeat mechanism ensures the registry self-corrects over time rather than accumulating ghost entries indefinitely.
-
-## Schema
-
-See [lifecycle.json](../../protocol/v1/schemas/agents/lifecycle.json).
+See [Composing Commands into Processes — a service registry with heartbeat](../composing-processes.md#worked-example-a-service-registry-with-heartbeat) for the worked example (including pause/resume and heartbeat), and [Design Decisions — Registry and Lifecycle removed](../design-decisions.md#registry-and-lifecycle-removed) for the rationale.

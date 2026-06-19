@@ -32,9 +32,9 @@
         },
         "agents": {
           "type": "array",
-          "description": "Snapshot of known agents at manifest-build time (optional). This is a discovery hint only — it is not the authoritative agent list. For the live list, consumers must call GET /agents on the REST endpoint. For dynamic systems where agents are created at runtime, this array may be omitted or contain only representative examples.",
+          "description": "Snapshot of the service descriptors this endpoint hosts (optional). This is a discovery hint, not a live directory — BSP defines no registry endpoint. Implementations that manage services dynamically may expose that as a domain (a list-services query and RegisterService command) under their own namespace. For dynamic systems this array may be omitted or contain only representative examples.",
           "items": {
-            "$ref": "agents/registry.json#/$defs/serviceDescriptor"
+            "$ref": "#/$defs/serviceDescriptor"
           }
         },
         "authentication": {
@@ -49,6 +49,88 @@
   },
   "additionalProperties": false,
   "$defs": {
+    "webhook": {
+      "type": "object",
+      "description": "Callback configuration for push event delivery over HTTP.",
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS endpoint to receive events as CloudEvents (HTTP binding)."
+        },
+        "secret": {
+          "type": "string",
+          "writeOnly": true,
+          "description": "HMAC secret for payload signing. Write-only — accepted on registration, never returned in read responses."
+        }
+      },
+      "additionalProperties": false
+    },
+    "serviceDescriptor": {
+      "type": "object",
+      "description": "The identity card for a BSP-compliant service — what it does, what commands it accepts, what events it produces. Declared in the manifest's agents array.",
+      "required": ["id", "name", "accepts", "produces", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Globally unique service identifier."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name."
+        },
+        "description": {
+          "type": "string",
+          "description": "What this service does."
+        },
+        "version": {
+          "type": "string",
+          "description": "Semver version of the service implementation currently running (e.g. '1.2.0'). Allows consumers to know which version is live and supports gradual rollouts."
+        },
+        "type": {
+          "type": "string",
+          "description": "Service type classification (e.g. negotiation-service, pricing-engine, sensor)."
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL of this service's BSP surface. Consumers append /.well-known/bsp to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
+        },
+        "accepts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "description": "CloudEvent type string in PascalCase (e.g. 'ProposeCounter', 'SubmitOrder')."
+          },
+          "description": "CloudEvent type strings (PascalCase) identifying the command types this service ingests."
+        },
+        "produces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "description": "CloudEvent type string in PascalCase (e.g. 'CounterProposed', 'OrderSubmitted')."
+          },
+          "description": "CloudEvent type strings (PascalCase) identifying the event types this service publishes as a result of processing."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["running", "paused", "stopped", "error"],
+          "description": "Current service status."
+        },
+        "webhook": {
+          "$ref": "#/$defs/webhook"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Opaque, service-defined key-value configuration. Intended for operational settings such as AI model name, system prompt, or provider credentials. The protocol does not interpret or validate the contents. Clients may read this field; the service owns and manages it.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
     "service": {
       "type": "object",
       "description": "A top-level service domain the runtime supports.",
@@ -98,7 +180,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Fully qualified capability name using reverse-domain notation. BSP built-in capabilities use the io.bsp.* prefix (e.g. io.bsp.agents.registry). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
+          "description": "Fully qualified capability name using reverse-domain notation. BSP built-in capabilities use the io.bsp.* prefix (e.g. io.bsp.agents.commands). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
           "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_-]*)*$"
         },
         "version": {
@@ -147,7 +229,7 @@
               },
               "path": {
                 "type": "string",
-                "description": "Path relative to http.endpoint (e.g. /commands, /services/{id})."
+                "description": "Path relative to http.endpoint (e.g. /commands, /events)."
               },
               "description": {
                 "type": "string",

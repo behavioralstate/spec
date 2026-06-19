@@ -37,7 +37,7 @@ Polling `GET /events?correlationId=...` is the fallback and the simplest path. F
 
 | Channel | How declared | Best for |
 |---|---|---|
-| **Webhook** | `webhook.url` on service descriptor at `POST /services` | HTTP clients running their own HTTP server |
+| **Webhook** | `webhook.url` registered via `POST /subscriptions` | HTTP clients running their own HTTP server |
 | **MCP notification** | `"push": true` on `mcp` transport block | LLM tooling with an active MCP session |
 | **A2A message** | implicit when A2A transport is active | Agent-to-agent coordination |
 
@@ -151,13 +151,33 @@ A single service may even expose **multiple auth schemes** — for example, JWT 
 
 ---
 
+## Registry and Lifecycle removed
+
+### The decision
+
+The `io.bsp.agents.registry` and `io.bsp.agents.lifecycle` capabilities have been **removed** from the protocol. The operations they defined — register, deregister, list, get, pause, resume, heartbeat — are now expressed with the core command, query, and event primitives. The service descriptor remains a normative concept, re-homed onto the discovery manifest's `agents` array.
+
+### Why
+
+The registry and lifecycle capabilities were the only part of BSP built on resource CRUD (`POST /services`, `GET /services/{id}`, `DELETE /services/{id}`, `POST /services/{id}/pause`) — the exact noun-and-verbs model the protocol defines itself against (see [BSP vs REST](./comparisons/rest.md)). More fundamentally, managing services is not a protocol concern: it is a **domain**, and BSP already expresses any domain as commands in, queries for reads, and events out. There was no use case these capabilities covered that the core primitives did not cover better — the same argument that earlier retired [`io.bsp.agents.memory`](#service-metadata-vs-memory).
+
+Collapsing them removes bespoke endpoints rather than adding them: registration becomes a `RegisterService` command through the single `POST /commands` entry point, reads become a `list-services` query, and fleet changes (`ServiceRegisteredV1`, `ServicePausedV1`, `ServiceErroredV1`) flow through `GET /events`. The control plane becomes a BSP service that speaks the protocol like any other.
+
+### What stays
+
+- **Discovery** (`/.well-known/bsp`) remains — it is the bootstrap that cannot itself be a command.
+- **The service descriptor** (`id`, `name`, `accepts`, `produces`, `status`, `metadata`, …) remains normative, now declared in the manifest's `agents` array rather than served from a live `GET /services`.
+- **A naming recommendation** (`RegisterService` / `list-services` / `ServiceRegisteredV1`) is documented as a non-normative example in [Registry](./agents/registry.md), for implementers who want a cross-legible service-management vocabulary.
+
+---
+
 ## Service Metadata vs. Memory
 
 ### The decision
 
 The service descriptor carries an optional `metadata` field — an opaque JSON object holding service-defined configuration (e.g. model name, system prompt, provider settings). The `io.bsp.agents.memory` capability has been **removed** from the protocol. The `GET /events` endpoint covers the remaining use case for accumulated historical state.
 
-`POST /services` uses **upsert semantics**: submitting a registration for an existing `id` fully replaces the descriptor. There is no separate `PATCH` or `PUT` endpoint for the service descriptor.
+The descriptor is declared in the discovery manifest's `agents` array. Where a service is registered dynamically, registration uses **upsert semantics** via the `RegisterService` command (see [Registry](./agents/registry.md)): submitting a registration for an existing `id` fully replaces the descriptor.
 
 ### Why metadata on the descriptor
 
@@ -176,9 +196,9 @@ There was no remaining use case that `memory` covered that one of these two didn
 
 `GET /events` with `?type=ChatKitMessageRememberedV1` returns all events of that type across all interactions — ordered, filterable by time range and source, paginated. This is a proper queryable log, not a memory endpoint. The distinction matters: callers can reconstruct any historical view they need without a bespoke memory API.
 
-### Why upsert and not a separate update endpoint
+### Why upsert and not a separate update command
 
-A `PATCH /services/{id}` endpoint would be functionally equivalent to re-registering with the same `id`. Services re-register on restart anyway; making `POST /services` idempotent aligns with reality and eliminates a separate write path. Re-registering preserves existing subscriptions; `DELETE /services/{id}` is the only operation that removes them.
+A distinct "update" command would be functionally equivalent to re-sending `RegisterService` with the same `id`. Services re-register on restart anyway; making registration idempotent by `id` aligns with reality and eliminates a separate write path.
 
 ### Why not `config`, `settings`, or `properties`
 

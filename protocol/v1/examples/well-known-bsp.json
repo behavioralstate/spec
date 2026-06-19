@@ -31,42 +31,17 @@
     },
     "capabilities": [
       {
-        "name": "io.bsp.agents.registry",
-        "version": "{{BSP_VERSION}}",
-        "service": "io.bsp.agents",
-        "description": "Register, remove, list agents",
-        "spec": "https://behavioralstate.io/specs/agents/registry",
-        "schema": "https://behavioralstate.io/v1/schemas/agents/registry.json",
-        "endpoints": [
-          { "method": "GET",    "path": "/services",     "description": "List all registered services" },
-          { "method": "POST",   "path": "/services",     "description": "Register a new service" },
-          { "method": "GET",    "path": "/services/{id}", "description": "Get service detail" },
-          { "method": "DELETE", "path": "/services/{id}", "description": "Remove a service" }
-        ]
-      },
-      {
-        "name": "io.bsp.agents.lifecycle",
-        "version": "{{BSP_VERSION}}",
-        "service": "io.bsp.agents",
-        "description": "Pause, resume agents",
-        "spec": "https://behavioralstate.io/specs/agents/lifecycle",
-        "schema": "https://behavioralstate.io/v1/schemas/agents/lifecycle.json",
-        "extends": "io.bsp.agents.registry",
-        "endpoints": [
-          { "method": "POST", "path": "/services/{id}/pause",  "description": "Pause a service" },
-          { "method": "POST", "path": "/services/{id}/resume", "description": "Resume a service" }
-        ]
-      },
-      {
         "name": "io.bsp.agents.events",
         "version": "{{BSP_VERSION}}",
         "service": "io.bsp.agents",
-        "description": "Send events to agents, list recent events",
+        "description": "List and query domain events, stream them, and register webhook subscriptions",
         "spec": "https://behavioralstate.io/specs/agents/events",
         "schema": "https://behavioralstate.io/v1/schemas/agents/events.json",
         "endpoints": [
-          { "method": "GET",  "path": "/events",        "description": "List domain events published by this service" },
-          { "method": "GET",  "path": "/events/stream", "description": "Server-Sent Events stream of domain events" }
+          { "method": "GET",    "path": "/events",            "description": "List domain events published by this service" },
+          { "method": "GET",    "path": "/events/stream",     "description": "Server-Sent Events stream of domain events" },
+          { "method": "POST",   "path": "/subscriptions",     "description": "Register a webhook subscription for push event delivery" },
+          { "method": "DELETE", "path": "/subscriptions/{id}", "description": "Remove a webhook subscription" }
         ],
         "push": {
           "sse": true,
