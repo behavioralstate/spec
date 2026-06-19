@@ -1,5 +1,5 @@
 <script>
-	import PromptCarousel from '$lib/components/PromptCarousel.svelte';
+	import HeroDiagram from '$lib/components/HeroDiagram.svelte';
 
 	const gitTag = import.meta.env.VITE_GIT_TAG;
 	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
@@ -19,7 +19,7 @@
 		<h1 class="hero-title">
 			Agentic Behaviours.<br /><span class="hero-title-muted">By Design.</span>
 		</h1>
-		<PromptCarousel />
+		<HeroDiagram />
 		<p class="hero-subtitle">
 			Expose a manifest. Any AI agent discovers your service, reads what commands it accepts and what events it produces, and starts interacting — no custom integration required.
 		</p>
