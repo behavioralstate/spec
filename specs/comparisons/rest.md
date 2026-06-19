@@ -21,6 +21,39 @@ Consider a contract being signed:
 
 The REST approach tells you *what changed*. The BSP approach tells you *what happened and why*. That difference compounds across an entire system.
 
+### Routing by URL vs routing by intent
+
+The clearest way to see this difference is to onboard a user. In REST, each
+operation is a `POST` to a different **resource path**; the caller has to know
+each path and thread the new id into the next URL:
+
+```
+REST — many resource paths, routed by URL + verb
+POST /users
+POST /users/u_8f3a/subscription
+POST /users/u_8f3a/roles
+```
+
+In BSP, every operation is a `POST` to the **same** entry point — `/commands` —
+and the operation is named *in the message* (`type`), not in the URL. The id
+rides inside `data`, so the path never changes:
+
+```
+BSP — one entry point, routed by the intent in the message
+POST /commands   { "type": "SubmitUser",            "data": { ... } }
+POST /commands   { "type": "ConfigureSubscription", "data": { ... } }
+POST /commands   { "type": "AssignRoles",           "data": { ... } }
+```
+
+Note what is *not* different: the HTTP verb is `POST` on both sides, and the
+number of calls is the same. BSP does not magically need fewer round-trips. The
+difference is **where the operation lives** — REST encodes it in the URL and verb;
+BSP carries it as a named intent through a single ingestion endpoint
+([Commands — POST /commands](../agents/commands.md#post-commands-command-ingestion)).
+The consequence is that REST consumers must construct resource-shaped paths from
+prior knowledge, while BSP consumers send every command to one place and let the
+`type` field do the routing.
+
 ## API Design Gravity
 
 Because REST normalises everything into CRUD resources, teams building REST APIs tend to produce:
