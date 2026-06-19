@@ -42,6 +42,12 @@
 			]
 		},
 		{
+			label: 'Guides',
+			items: [
+				{ label: 'Composing Processes', href: '/specs/composing-processes' }
+			]
+		},
+		{
 			label: 'Comparisons',
 			items: [
 				{ label: 'BSP vs REST', href: '/specs/comparisons/rest' },
