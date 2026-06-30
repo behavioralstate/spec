@@ -54,8 +54,10 @@ Spec reference: https://behavioralstate.io/docs
 | `get_query_catalogue` | List all read queries this endpoint exposes |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
+| `get_workflows` | List the service's published "descriptive sequence" recipes — an optional vendor extension; returns a note if the service publishes none |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
+Optionally call `get_workflows` first to see if the service publishes a ready-made recipe for a multi-step process.
 
 When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
 

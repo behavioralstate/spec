@@ -488,6 +488,17 @@ const TOOLS: Tool[] = [
       },
       required: ['schema']
     }
+  },
+  {
+    name: 'get_workflows',
+    description:
+      "List the service's published workflows — optional, read-only \"descriptive sequence\" recipes: " +
+      'a named, ordered list of command schemas with per-step guidance for a multi-step process. ' +
+      'Workflows are a vendor extension (BSP does not require them) — many services publish none, ' +
+      'in which case this returns a short note. Each step\'s "schema" is a command from ' +
+      'get_command_catalogue: follow the steps in order, sending each command (and waiting for its ' +
+      'result) before the next. The service does not execute the steps for you — it only describes them.',
+    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
   }
 ];
 // ── Tool handlers ─────────────────────────────────────────────────────────────
@@ -598,6 +609,20 @@ async function handleExecuteQuery(args: Record<string, unknown>, conn: BspConnec
   return JSON.stringify(result, null, 2);
 }
 
+async function handleGetWorkflows(conn: BspConnection): Promise<string> {
+  // Workflows are an optional vendor extension (see the BSP "Composing Commands into Processes"
+  // guide). A service that doesn't publish them simply has no /workflows endpoint — treat that as
+  // "none offered" rather than an error, so the agent can move on.
+  try {
+    const data = await bspGet<{ workflows?: unknown[] }>('/workflows', conn);
+    const workflows = data.workflows ?? [];
+    if (!workflows.length) return 'This endpoint publishes no workflows.';
+    return JSON.stringify(workflows, null, 2);
+  } catch (error) {
+    return `This endpoint does not publish workflows (an optional vendor extension). Details: ${String(error)}`;
+  }
+}
+
 // ── Server factory ────────────────────────────────────────────────────────────
 
 const connectionSummary = MULTI
@@ -638,6 +663,15 @@ CloudEvent envelope rules (enforced by send_command):
 - 'source': read from the schema description. NEVER invent or default this value.
 - 'dataschema': relative URI '{schema}/{version}' (e.g. configure-broker/1.0). Never an absolute or environment-specific URL.
 
+## Following a published workflow (optional)
+
+Some services publish read-only "recipes" for common multi-step processes. Call get_workflows to
+list them. Each workflow is an ordered list of steps; each step names a 'schema' that is a command
+(or query) you already have. Follow the steps in order — send each command and wait for its result
+before the next, threading ids from earlier results into later steps. The service does not run the
+sequence for you; it only describes it. Workflows are optional — if get_workflows reports none, fall
+back to discovering commands/queries directly.
+
 ## Error handling
 
 If a command fails, relay the error message verbatim to the user — it is actionable.
@@ -676,6 +710,7 @@ function createMcpServer(): Server {
         case 'get_query_catalogue':   text = await handleGetQueryCatalogue(conn);              break;
         case 'get_query_schema':      text = await handleGetQuerySchema(safeArgs, conn);       break;
         case 'execute_query':         text = await handleExecuteQuery(safeArgs, conn);         break;
+        case 'get_workflows':         text = await handleGetWorkflows(conn);                   break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }
