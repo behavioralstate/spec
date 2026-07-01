@@ -39,11 +39,33 @@
  *
  * Transports:
  *   stdio — for VS Code Copilot, Cursor, Claude Desktop, and other local clients
- *   http  — for ChatGPT Desktop (Settings → Apps & Connectors → /mcp)
+ *   http  — for ChatGPT Desktop (Settings → Apps & Connectors → /mcp), or a
+ *           multi-user backend that calls bsp-mcp on behalf of many different
+ *           end users (see "Per-request credential overrides" below).
  *           Use ngrok or Cloudflare Tunnel to expose locally over HTTPS.
+ *
+ * ── Per-request credential overrides (HTTP transport only) ──────────────────
+ *   A multi-user backend (e.g. a chat service acting on behalf of whichever
+ *   user is currently logged in) typically cannot bake one fixed API key into
+ *   this server's environment — each incoming request needs its OWN caller's
+ *   credentials. When MCP_TRANSPORT=http, two request headers optionally
+ *   override the resolved connection for that single call only:
+ *
+ *   X-Api-Key    — replaces the connection's configured apiKey for this request.
+ *   X-Tenant-Id  — replaces the tenant segment of the connection's endpoint for
+ *                  this request. Only takes effect on a Mode 1 "<app>/tenant"
+ *                  connection (the one auto-generated from BSP_<APP>_TENANT_ID);
+ *                  ignored otherwise, since other connections have no tenant
+ *                  template to substitute into. Must match ^[A-Za-z0-9_.-]+$ —
+ *                  an invalid value is ignored (logged to stderr) rather than
+ *                  spliced into the URL.
+ *
+ *   Neither header is required — omit both and a request behaves exactly as
+ *   configured via environment variables, same as before this feature existed.
+ *   stdio is unaffected; there is no per-request boundary to attach headers to.
  */
 
-import { createServer as createHttpServer } from 'http';
+import { createServer as createHttpServer, type IncomingHttpHeaders } from 'http';
 import { randomUUID } from 'crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -65,6 +87,10 @@ interface BspConnection {
   authIn: string;      // header | query
   authParam: string;   // query param name when authIn=query
   description?: string;
+  // Only set for a Mode 1 "<app>/tenant" connection: the un-substituted
+  // BSP_<APP>_BASE_URL, so a per-request X-Tenant-Id header (HTTP transport
+  // only) can rebuild `${tenantTemplateBaseUrl}/tenants/${requestTenantId}`.
+  tenantTemplateBaseUrl?: string;
 }
 
 // ── Config parsing ────────────────────────────────────────────────────────────
@@ -123,6 +149,7 @@ function parseConnections(): BspConnection[] {
           ...shared,
           name:        `${app}/tenant`,
           endpoint:    `${baseUrl}/tenants/${tenantId}`,
+          tenantTemplateBaseUrl: baseUrl,
           description: `${app} — tenant-scoped commands and queries`,
         });
         connections.push({
@@ -217,6 +244,45 @@ function resolveConnection(name?: string): BspConnection {
     `Unknown connection '${name}'. Available: ${CONNECTIONS.map(c => c.name).join(', ')}.`
   );
   return conn;
+}
+
+// Tenant IDs are spliced directly into a URL path segment — restrict to a safe
+// charset rather than trusting an arbitrary caller-supplied header value.
+const SAFE_TENANT_ID = /^[A-Za-z0-9_.-]+$/;
+
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  const v = Array.isArray(value) ? value[0] : value;
+  const trimmed = v?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+/**
+ * Applies optional per-request X-Api-Key / X-Tenant-Id header overrides (HTTP
+ * transport only) to an already-resolved connection. Returns the connection
+ * unchanged when neither header is present, so a request that doesn't opt in
+ * behaves exactly as if this feature didn't exist.
+ */
+function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders): BspConnection {
+  const requestApiKey = firstHeaderValue(headers['x-api-key']);
+  const requestTenantId = firstHeaderValue(headers['x-tenant-id']);
+  if (!requestApiKey && !requestTenantId) return conn;
+
+  let endpoint = conn.endpoint;
+  if (requestTenantId && conn.tenantTemplateBaseUrl) {
+    if (SAFE_TENANT_ID.test(requestTenantId)) {
+      endpoint = `${conn.tenantTemplateBaseUrl}/tenants/${requestTenantId}`;
+    } else {
+      process.stderr.write(
+        `[bsp-mcp] WARNING: ignoring X-Tenant-Id header with unexpected characters for connection '${conn.name}'\n`
+      );
+    }
+  }
+
+  return {
+    ...conn,
+    apiKey: requestApiKey ?? conn.apiKey,
+    endpoint,
+  };
 }
 
 // Disable TLS verification for localhost dev endpoints
@@ -677,7 +743,7 @@ back to discovering commands/queries directly.
 If a command fails, relay the error message verbatim to the user — it is actionable.
 `).trim();
 
-function createMcpServer(): Server {
+function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
   const server = new Server(
     { name: 'bsp-mcp', version: '1.0.0' },
     { capabilities: { tools: {} } }
@@ -698,8 +764,10 @@ function createMcpServer(): Server {
         return { content: [{ type: 'text', text: handleListConnections() }] };
       }
 
-      // All other tools resolve their target connection from the optional 'connection' arg
-      const conn = resolveConnection(safeArgs.connection as string | undefined);
+      // All other tools resolve their target connection from the optional 'connection' arg,
+      // then apply any per-request X-Api-Key / X-Tenant-Id header overrides (HTTP only).
+      const baseConn = resolveConnection(safeArgs.connection as string | undefined);
+      const conn = requestHeaders ? applyRequestOverrides(baseConn, requestHeaders) : baseConn;
 
       let text: string;
       switch (name) {
@@ -734,7 +802,7 @@ if (TRANSPORT === 'http') {
       try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch { body = undefined; }
 
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-      const server = createMcpServer();
+      const server = createMcpServer(req.headers);
 
       res.on('close', () => { server.close(); transport.close(); });
       await server.connect(transport);

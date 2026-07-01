@@ -227,6 +227,26 @@ ngrok http 3001
 
 Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app/mcp`
 
+### HTTP — per-request credential overrides (multi-user backends)
+
+A backend that calls bsp-mcp on behalf of many different logged-in users (e.g. a chat assistant) can't bake one fixed API key into the server's environment — it needs to supply the *current* caller's credentials on every request. When `MCP_TRANSPORT=http`, two optional request headers override the resolved connection for that single call only:
+
+| Header | Effect |
+|---|---|
+| `X-Api-Key` | Replaces the connection's configured `apiKey` for this request. |
+| `X-Tenant-Id` | Replaces the tenant segment of the endpoint for this request. Only applies to a Mode 1 `<app>/tenant` connection (the one generated from `BSP_<APP>_TENANT_ID`) — ignored on connections with no tenant template. Must match `^[A-Za-z0-9_.-]+$`; an invalid value is ignored (and logged) rather than spliced into the URL. |
+
+Neither header is required — omit both and a request behaves exactly as configured via environment variables. This has no effect on stdio (there's no per-request boundary to attach headers to).
+
+```bash
+curl -X POST http://localhost:3001/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "X-Api-Key: <the current user's api key>" \
+  -H "X-Tenant-Id: <the current user's tenant>" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"execute_query","arguments":{"connection":"trading/tenant","schema":"list-brokers","params":{}}}}'
+```
+
 ---
 
 ## CloudEvent `source` field
