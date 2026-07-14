@@ -30,16 +30,7 @@ UCP uses the same approach: merchants can expose UCP capabilities via an MCP ser
 
 ### A2A Compatibility
 
-Both protocols define a mapping to Google's Agent-to-Agent (A2A) communication structures. In BSP:
-
-| A2A Concept | BSP Mapping |
-|---|---|
-| Agent Card | Agent descriptor |
-| Task | Execution trace |
-| Message | Event or Command |
-| Artifact | Execution trace output |
-
-UCP maps shopping tasks (cart, checkout, fulfilment) to the A2A task model in the same structural way.
+UCP defines a mapping of shopping tasks (cart, checkout, fulfilment) to Google's Agent-to-Agent (A2A) task model. BSP does not define an A2A binding — an earlier draft did, but it was removed because it added spec surface without adding capability (see [Design Decisions — A2A transport removed](../design-decisions.md#a2a-transport-removed)). An A2A-speaking agent reaches a BSP service through the HTTP binding, which A2A itself rides on.
 
 ## Where BSP Diverges
 
@@ -103,10 +94,10 @@ The consumer reads this block, acquires a token from `tokenUrl`, and includes it
 | Primary actor | Merchant / virtual sales associate | Any agent (human, AI, IoT, service) |
 | Payment | Built-in (AP2) | Domain convention (events + commands) |
 | Product catalogue | Core primitive | Not in scope |
-| Transport | HTTP, MCP, A2A | HTTP (baseline), MCP, A2A |
+| Transport | HTTP, MCP, A2A | HTTP (baseline), MCP |
 | Discovery | `/.well-known/ucp` | `/.well-known/bsp` |
 | Schema format | Protobuf / JSON | JSON Schema |
 
 ## Summary
 
-BSP and UCP share the same architectural thinking — well-known discovery, optional MCP and A2A transports, and schema-first contracts. The difference is intentional: UCP solves the specific problem of agentic commerce (including payments and merchant identity); BSP solves the general problem of agent interoperability across any domain. A commerce platform could implement BSP and model UCP-style interactions purely through the event/command vocabulary, deferring payment and identity concerns to the services that specialise in them.
+BSP and UCP share the same architectural thinking — well-known discovery, an optional MCP transport, and schema-first contracts. The difference is intentional: UCP solves the specific problem of agentic commerce (including payments and merchant identity); BSP solves the general problem of agent interoperability across any domain. A commerce platform could implement BSP and model UCP-style interactions purely through the event/command vocabulary, deferring payment and identity concerns to the services that specialise in them.

@@ -20,7 +20,7 @@
 		<p class="section-eyebrow">Capabilities</p>
 		<h2 class="section-title">Built for agent interoperability</h2>
 		<p class="section-subtitle">
-			Expose what your service does — the operations it accepts and the facts it produces — in a standard form any caller can discover and use. Over HTTP, MCP, or A2A.
+			Expose what your service does — the operations it accepts and the facts it produces — in a standard form any caller can discover and use. Over HTTP or MCP.
 		</p>
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			<FeatureCard
@@ -116,7 +116,7 @@
 			</div>
 			<div class="audience-card">
 				<h3>For AI Platforms</h3>
-				<p>Discover and interact with any BSP-compliant agent using MCP, A2A, or simple HTTP. Compatible with existing agent frameworks.</p>
+				<p>Discover and interact with any BSP-compliant agent using MCP or simple HTTP. Compatible with existing agent frameworks.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For IoT &amp; Sensors</h3>

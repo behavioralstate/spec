@@ -78,8 +78,8 @@ GET /events?correlationId=XCSFIFR04763087
   → UserOnboardedV1
 ```
 
-To avoid polling, the caller can subscribe to a push channel (webhook, MCP
-notification, or A2A message) and react the moment each event is published — see
+To avoid polling, the caller can subscribe to a push channel (webhook or MCP
+notification) and react the moment each event is published — see
 [Design Decisions — Polling vs push](./design-decisions.md#polling-vs-push).
 
 > **Make the next step discoverable.** A command schema may declare the events it

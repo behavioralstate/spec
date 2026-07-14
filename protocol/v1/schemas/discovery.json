@@ -155,9 +155,6 @@
         "mcp": {
           "$ref": "#/$defs/mcpTransport"
         },
-        "a2a": {
-          "$ref": "#/$defs/a2aTransport"
-        },
         "grpc": {
           "$ref": "#/$defs/grpcTransport"
         }
@@ -270,10 +267,6 @@
           "type": "boolean",
           "description": "Server-to-client MCP notifications are supported."
         },
-        "a2a": {
-          "type": "boolean",
-          "description": "A2A message delivery to the caller agent is supported."
-        },
         "webhook": {
           "type": "boolean",
           "description": "Webhook callback delivery is supported — callers may register via POST /subscriptions."
@@ -308,18 +301,6 @@
         },
         "authentication": {
           "$ref": "#/$defs/mcpAuthentication"
-        }
-      },
-      "additionalProperties": false
-    },
-    "a2aTransport": {
-      "type": "object",
-      "required": ["agent_card_url"],
-      "properties": {
-        "agent_card_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL to the A2A Agent Card."
         }
       },
       "additionalProperties": false

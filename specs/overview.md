@@ -24,9 +24,9 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 ## Design Principles
 
 1. **Protocol-first** — define the spec before the implementation; derive code from the protocol, not the other way around
-2. **Compose, don't invent** — build on existing standards (MCP, A2A, JSON Schema) rather than creating proprietary wire formats
+2. **Compose, don't invent** — build on existing standards (MCP, JSON Schema) rather than creating proprietary wire formats
 3. **Discoverable by default** — every BSP endpoint exposes a `/.well-known/bsp` manifest so consumers can dynamically discover capabilities
-4. **Transport-agnostic** — the same agent semantics work over HTTP, MCP, A2A, or gRPC
+4. **Transport-agnostic** — the same agent semantics work over HTTP, MCP, or gRPC
 5. **Modular capabilities** — implementers choose which capabilities to support; consumers discover what's available at runtime
 6. **LLM-readable** — JSON Schema is the canonical format because LLMs can read, generate, and reason about JSON natively
 7. **Implementation-agnostic** — BSP defines the interaction surface (commands in, events out); it never prescribes how a service processes commands internally
@@ -34,12 +34,9 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 ## Protocol Stack
 
 ```
-Layer 4: BSP Agent Semantics
+Layer 3: BSP Agent Semantics
          Service, Event, Command
          Defined as JSON Schema
-
-Layer 3: Agent Coordination
-         A2A (Google Agent-to-Agent) for multi-agent collaboration
 
 Layer 2: LLM / Tool Interface
          MCP (Model Context Protocol) for LLM access
@@ -68,7 +65,7 @@ Layer 1: Transport
 - Service taxonomy — `io.bsp.agents`
 - Capability model — composable capabilities with extensions
 - HTTP API surface — HTTP endpoints for service management and event/command delivery
-- Transport bindings — how services map to HTTP, MCP, and A2A
+- Transport bindings — how services map to HTTP and MCP
 - Conformance requirements — what it means to be BSP-compliant
 
 ### What BSP Does NOT Own
@@ -126,7 +123,7 @@ Not everything in the BSP spec carries equal weight. Understanding which parts a
 | **Domain** | Commerce | Agent interoperability |
 | **Discovery** | `/.well-known/ucp` | `/.well-known/bsp` |
 | **Canonical format** | JSON Schema | JSON Schema |
-| **Transports** | HTTP, MCP, A2A | HTTP, MCP, A2A |
+| **Transports** | HTTP, MCP, A2A | HTTP, MCP |
 | **Namespace convention** | `dev.ucp.*` | `io.bsp.*` |
 
 ## Versioning
@@ -191,5 +188,5 @@ node scripts/validate-examples.mjs
 - [Events](./agents/events.md) — How events are published
 - [Commands](./agents/commands.md) — How commands are accepted
 - [Design Decisions](./design-decisions.md) — Why BSP is shaped the way it is
-- [Transports](./transports/http.md) — HTTP, MCP, and A2A bindings
+- [Transports](./transports/http.md) — HTTP and MCP bindings
 - [Conformance](./conformance.md) — What it means to be BSP-compliant

@@ -88,7 +88,6 @@
 			<ul>
 				<li><a href="/specs/transports/http">HTTP</a><span>HTTP/JSON API reference</span></li>
 				<li><a href="/specs/transports/mcp">MCP</a><span>Model Context Protocol binding</span></li>
-				<li><a href="/specs/transports/a2a">A2A</a><span>Agent-to-Agent protocol binding</span></li>
 			</ul>
 		</section>
 

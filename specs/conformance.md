@@ -67,5 +67,5 @@ A `401` response **must** be returned when a request lacks valid credentials and
 - A specific programming language or framework
 - A specific internal architecture
 - A specific event transport (Kafka, RabbitMQ, etc.)
-- MCP or A2A support (HTTP is the baseline)
+- MCP support (HTTP is the baseline)
 - AI/LLM capabilities (agents can be purely deterministic, human-operated, or anything else)

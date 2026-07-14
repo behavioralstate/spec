@@ -26,8 +26,7 @@
 			label: 'Transports',
 			items: [
 				{ label: 'HTTP', href: '/specs/transports/http' },
-				{ label: 'MCP', href: '/specs/transports/mcp' },
-				{ label: 'A2A', href: '/specs/transports/a2a' }
+				{ label: 'MCP', href: '/specs/transports/mcp' }
 			]
 		},
 		{

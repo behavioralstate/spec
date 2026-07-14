@@ -18,7 +18,7 @@ The result of processing is a **published domain event** — an immutable fact t
 
 > **Event Sourcing is an internal server pattern, not a client capability.** A service *may* use Event Sourcing internally — storing state as a replayable log of events. But clients do not get Event Sourcing semantics. `GET /events` returns whatever the server currently exposes from its event log at the time of the query. That might be a full historical log, a recent window, or a current-state view mapped to the BSP event shape (the protocol explicitly allows any of these). Clients cannot assume they can reconstruct state by replaying events from `GET /events` — the endpoint does not guarantee completeness, ordering, or replay fidelity.
 
-The practical implication: if a caller polls `GET /events?correlationId=...` some time after submitting a command, they receive the server's current view at that moment — which may or may not include the event they are looking for, depending on how long the server retains event history. **For reliable point-in-time delivery, use a push channel** (webhook, MCP notification, or A2A message), which fires at the moment of publication.
+The practical implication: if a caller polls `GET /events?correlationId=...` some time after submitting a command, they receive the server's current view at that moment — which may or may not include the event they are looking for, depending on how long the server retains event history. **For reliable point-in-time delivery, use a push channel** (webhook or MCP notification), which fires at the moment of publication.
 
 ### How to retrieve results
 
@@ -39,7 +39,6 @@ Polling `GET /events?correlationId=...` is the fallback and the simplest path. F
 |---|---|---|
 | **Webhook** | `webhook.url` registered via `POST /subscriptions` | HTTP clients running their own HTTP server |
 | **MCP notification** | `"push": true` on `mcp` transport block | LLM tooling with an active MCP session |
-| **A2A message** | implicit when A2A transport is active | Agent-to-agent coordination |
 
 The service declares which push channels it supports in the `io.bsp.agents.events` capability's `push` object. Callers should check this before choosing a channel.
 
@@ -168,6 +167,25 @@ Collapsing them removes bespoke endpoints rather than adding them: registration 
 - **Discovery** (`/.well-known/bsp`) remains — it is the bootstrap that cannot itself be a command.
 - **The service descriptor** (`id`, `name`, `accepts`, `produces`, `status`, `metadata`, …) remains normative, now declared in the manifest's `agents` array rather than served from a live `GET /services`.
 - **A naming recommendation** (`RegisterService` / `list-services` / `ServiceRegisteredV1`) is documented as a non-normative example in [Registry](./agents/registry.md), for implementers who want a cross-legible service-management vocabulary.
+
+---
+
+## A2A Transport removed
+
+### The decision
+
+The A2A (Google Agent-to-Agent) transport binding has been **removed** from the protocol. BSP defines two consumer-facing transport bindings — HTTP (the baseline) and MCP — plus an optional gRPC binding for internal runtimes. The `a2a` transport block and the `push.a2a` delivery channel are gone from the discovery manifest schema.
+
+### Why
+
+The binding added spec surface without adding capability. A2A is itself HTTP/JSON: an A2A-speaking agent that wants to call a BSP service can already do so through the HTTP binding, and LLM-tooling consumers are served by MCP. The A2A mapping (Agent Card ↔ manifest, Task ↔ execution trace, Message ↔ command/event) duplicated semantics the existing bindings already carry, while dragging in A2A's own task lifecycle — a coordination model BSP deliberately does not own (commands in, events out; see [Command Result Retrieval](#command-result-retrieval)).
+
+The binding also never had an implementation or a known consumer. Keeping an untested normative surface alive costs every implementer conformance ambiguity ("do I need an Agent Card?") for zero interoperability gain. If a concrete multi-agent deployment ever needs A2A-native delivery, the binding can be reintroduced as an extension informed by that real use — the manifest's `transports` object is deliberately open to new bindings.
+
+### What stays
+
+- **HTTP** remains the baseline every conformant service must expose; **MCP** remains the LLM-tooling binding; **gRPC** remains optional for internal runtimes.
+- Push delivery keeps its three channels: SSE, webhook, and MCP notifications.
 
 ---
 

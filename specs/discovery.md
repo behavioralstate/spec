@@ -152,7 +152,6 @@ The `io.bsp.agents.events` capability **may** include a `push` object declaring 
   "push": {
     "sse": true,
     "mcp": true,
-    "a2a": true,
     "webhook": true
   }
 }
@@ -162,7 +161,6 @@ The `io.bsp.agents.events` capability **may** include a `push` object declaring 
 |---|---|---|
 | `push.sse` | boolean | Server-Sent Events stream supported at `GET /events/stream` — recommended for browser apps, CLI tools, and locally-running agents that cannot expose a public webhook endpoint |
 | `push.mcp` | boolean | Server-to-client MCP notifications are supported — see [MCP transport](../transports/mcp.md) |
-| `push.a2a` | boolean | A2A message delivery to caller agent is supported — see [A2A transport](../transports/a2a.md) |
 | `push.webhook` | boolean | Webhook callback delivery is supported — callers may register via `POST /subscriptions` |
 
 ### Capability Status
@@ -212,9 +210,6 @@ Each service declares how it can be reached:
 "mcp": {
   "transport": "stdio",
   "server": "bsp-mcp"
-},
-"a2a": {
-  "agent_card_url": "https://your.compliant.BSP.endpoint/.well-known/agent.json"
 }
 ```
 
@@ -222,7 +217,6 @@ Each service declares how it can be reached:
 |---|---|---|
 | **HTTP** | Web UIs, traditional services, monitoring tools | HTTP/JSON |
 | **MCP** | LLM clients (ChatGPT, Copilot, Gemini, Claude) | JSON-RPC over stdio/SSE |
-| **A2A** | Other agents (Google Agent-to-Agent protocol) | HTTP/JSON |
 | **gRPC** | Internal native runtime (optional) | Protocol Buffers |
 
 ### Multi-Tenant Routing
@@ -488,7 +482,7 @@ The `http.endpoint` value is the **consumer-facing base URL**. All HTTP API path
 
 > **`http.endpoint` must be a publicly reachable consumer address** — never an internal backend or private service URL. If the implementation sits behind a proxy or API gateway, `http.endpoint` is the outermost address consumers hit.
 
-> **Multiple transports describe the same capability surface.** When both `http` and `mcp` (or `a2a`) are declared, they each provide access to the same logical capabilities — they are alternative access methods, not separate operation sets. Consumers choose one transport; they do not infer separate capabilities from the presence of multiple transports.
+> **Multiple transports describe the same capability surface.** When both `http` and `mcp` are declared, they each provide access to the same logical capabilities — they are alternative access methods, not separate operation sets. Consumers choose one transport; they do not infer separate capabilities from the presence of multiple transports.
 
 ## Schema
 

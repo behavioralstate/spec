@@ -22,7 +22,7 @@ Paths are **never** resolved relative to the domain root unless `http.endpoint` 
 
 ## Multiple Transports, One Capability Surface
 
-A service may declare multiple transport bindings (`http`, `mcp`, `a2a`) for the same capability surface. All transports expose the same logical operations — the transports are alternative access methods, not separate operation sets.
+A service may declare multiple transport bindings (`http`, `mcp`) for the same capability surface. All transports expose the same logical operations — the transports are alternative access methods, not separate operation sets.
 
 ```json
 "http": { "endpoint": "https://api.example.com/" },

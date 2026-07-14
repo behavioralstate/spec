@@ -137,8 +137,7 @@ SSE clients reconnect automatically after a dropped connection. On reconnect, cl
 "push": {
   "sse": true,
   "webhook": true,
-  "mcp": true,
-  "a2a": true
+  "mcp": true
 }
 ```
 
@@ -149,7 +148,6 @@ SSE clients reconnect automatically after a dropped connection. On reconnect, cl
 > | Browser app, CLI tool, local agent | **SSE** — no public endpoint required |
 > | HTTP service with a reachable endpoint | **Webhook** — fire-and-forget delivery |
 > | LLM client with active MCP session | **MCP push** — native to the session |
-> | Agent connected via A2A | **A2A** — natural to the protocol |
 > | Any caller with no persistent connection | **Polling** (`GET /events`) — always available as fallback |
 
 ### GET /events — Historical Query
@@ -242,10 +240,6 @@ To signal that an MCP endpoint supports push event delivery, add `"push": true` 
 ```
 
 When `"push": true` is present, callers should prefer this channel over polling.
-
-### A2A — Agent-to-Agent Event Delivery
-
-When a caller is connected via A2A, domain events produced by the service are delivered as A2A Messages to the caller agent. The A2A task associated with a command submission receives the resulting event(s) as message artifacts. This is the natural push mechanism for A2A-connected agents.
 
 ### Webhook — HTTP Clients (optional)
 

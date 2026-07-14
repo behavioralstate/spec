@@ -32,7 +32,7 @@ If you are new to BSP, start with the [Overview](specs/overview.md) for the prot
 | **Transport Bindings:** | | |
 | [HTTP](specs/transports/http.md) | [v0.7.1](https://github.com/behavioralstate/spec/blob/spec/v0.7.1/specs/transports/http.md) | [WIP](specs/transports/http.md) |
 | [MCP](specs/transports/mcp.md) | [v0.7.1](https://github.com/behavioralstate/spec/blob/spec/v0.7.1/specs/transports/mcp.md) | [WIP](specs/transports/mcp.md) |
-| [A2A](specs/transports/a2a.md) | [v0.7.1](https://github.com/behavioralstate/spec/blob/spec/v0.7.1/specs/transports/a2a.md) | [WIP](specs/transports/a2a.md) |
+| ~~A2A~~ | *(removed — see changelog)* | — |
 
 > The most recent stable release is [v0.7.1](https://github.com/behavioralstate/spec/releases/tag/spec/v0.7.1).
 
