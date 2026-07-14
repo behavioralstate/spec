@@ -29,7 +29,7 @@ An intermediary that sits between end callers and a BSP endpoint (an MCP server,
 - Intermediaries **MUST NOT** log or persist forwarded credentials. Diagnostics (e.g. warning that a bearer token was ignored because passthrough is disabled) **MUST** omit the credential value.
 - Multi-user intermediaries **SHOULD** fail closed: configure the connection's static credential as a deliberately invalid placeholder so a request that arrives without per-caller credentials is rejected by the BSP service rather than silently executing under a shared identity.
 
-The reference MCP server (`@behavioralstate/bsp-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](../mcp-server/README.md).
+The reference MCP server (`@behavioralstate/bsp-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](https://github.com/behavioralstate/spec/tree/main/mcp-server#http--per-request-credential-overrides-multi-user-backends).
 
 ## Command Ingestion — `dataschema` Validation
 
