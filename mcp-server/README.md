@@ -99,6 +99,7 @@ One set of `BSP_<APP>_*` variables per application. The app name is a single upp
 | `BSP_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name — only used when `AUTH_TYPE=apikey` and `AUTH_IN=header` |
 | `BSP_<APP>_AUTH_IN` | `header` | Where the key is sent when `AUTH_TYPE=apikey`: `header` or `query` |
 | `BSP_<APP>_AUTH_PARAM` | `apikey` | Query parameter name — only used when `AUTH_IN=query` |
+| `BSP_<APP>_ALLOW_BEARER_PASSTHROUGH` | `false` | Allow a per-request `Authorization: Bearer <token>` header to be forwarded to the BSP endpoint as the caller's own credential — see [Per-request credential overrides](#http--per-request-credential-overrides-multi-user-backends). |
 
 #### Auth types
 
@@ -186,6 +187,7 @@ Each object:
 | `authHeader` | no | `X-Api-Key` | Header name when `authType=apikey` and `authIn=header` |
 | `authIn` | no | `header` | `header` or `query` |
 | `authParam` | no | `apikey` | Query param name when `authIn=query` |
+| `allowBearerPassthrough` | no | `false` | Allow a per-request `Authorization: Bearer <token>` header to be forwarded to the BSP endpoint — see [Per-request credential overrides](#http--per-request-credential-overrides-multi-user-backends) |
 | `description` | no | — | Human-readable description surfaced to the LLM for connection selection |
 
 ---
@@ -202,6 +204,7 @@ For simple single-endpoint setups. Use the flat `BSP_*` variables:
 | `BSP_AUTH_HEADER` | no | `X-Api-Key` | Header name when `AUTH_TYPE=apikey` |
 | `BSP_AUTH_IN` | no | `header` | `header` or `query` |
 | `BSP_AUTH_PARAM` | no | `apikey` | Query param name when `AUTH_IN=query` |
+| `BSP_ALLOW_BEARER_PASSTHROUGH` | no | `false` | Allow a per-request `Authorization: Bearer <token>` header to be forwarded to the BSP endpoint — see [Per-request credential overrides](#http--per-request-credential-overrides-multi-user-backends) |
 
 ---
 
@@ -229,20 +232,38 @@ Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connecto
 
 ### HTTP — per-request credential overrides (multi-user backends)
 
-A backend that calls bsp-mcp on behalf of many different logged-in users (e.g. a chat assistant) can't bake one fixed API key into the server's environment — it needs to supply the *current* caller's credentials on every request. When `MCP_TRANSPORT=http`, two optional request headers override the resolved connection for that single call only:
+A backend that calls bsp-mcp on behalf of many different logged-in users (e.g. a chat assistant) can't bake one fixed API key into the server's environment — it needs to supply the *current* caller's credentials on every request. When `MCP_TRANSPORT=http`, three optional request headers override the resolved connection for that single call only:
 
 | Header | Effect |
 |---|---|
 | `X-Api-Key` | Replaces the connection's configured `apiKey` for this request. |
 | `X-Tenant-Id` | Replaces the tenant segment of the endpoint for this request. Only applies to a Mode 1 `<app>/tenant` connection (the one generated from `BSP_<APP>_TENANT_ID`) — ignored on connections with no tenant template. Must match `^[A-Za-z0-9_.-]+$`; an invalid value is ignored (and logged) rather than spliced into the URL. |
+| `Authorization: Bearer <token>` | Forwarded verbatim to the BSP endpoint as the caller's own credential (e.g. a session JWT for a BSP surface that accepts JWTs) — **only when the connection is explicitly configured with `allowBearerPassthrough`** (`BSP_<APP>_ALLOW_BEARER_PASSTHROUGH=true` / `allowBearerPassthrough: true` / `BSP_ALLOW_BEARER_PASSTHROUGH=true`). Bearer scheme only. When forwarded, the effective auth for that request becomes `Authorization: Bearer <token>` regardless of the configured `authType`, so the token can never land in a query string or custom header. |
 
-Neither header is required — omit both and a request behaves exactly as configured via environment variables. This has no effect on stdio (there's no per-request boundary to attach headers to).
+No override header is required — omit them all and a request behaves exactly as configured via environment variables. This has no effect on stdio (there's no per-request boundary to attach headers to).
+
+**Precedence:** an explicit per-request `X-Api-Key` always wins; the `Authorization` Bearer token is only used when no `X-Api-Key` is present. This mirrors BSP dual-auth gates, where a present API key is authoritative and never falls through to the JWT.
+
+**Security — why Bearer passthrough is opt-in (default off):** on the MCP HTTP transport, the `Authorization` header may carry a credential intended for *this server* (e.g. MCP OAuth between the client and bsp-mcp). Forwarding it upstream by default would leak that credential across a trust boundary. Enable passthrough only when the MCP caller and the BSP endpoint share one trust domain — i.e. the token the caller sends *is* the credential the BSP service expects. The token is only ever sent to the connection's configured endpoint, over the transport that endpoint's URL specifies (use HTTPS), and is never logged. If a request carries a Bearer token while passthrough is disabled, bsp-mcp falls back to the configured credential and logs a one-time warning per connection (without the token) so the misconfiguration is diagnosable.
+
+**Fail-closed tip:** for a multi-user deployment where *every* request must carry per-caller credentials, keep the connection's configured `apiKey` set to a deliberately invalid placeholder (e.g. `invalid-set-x-api-key-per-request`). A request that arrives without credentials then fails authentication at the BSP service instead of silently acting as a shared identity.
 
 ```bash
 curl -X POST http://localhost:3001/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "X-Api-Key: <the current user's api key>" \
+  -H "X-Tenant-Id: <the current user's tenant>" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"execute_query","arguments":{"connection":"trading/tenant","schema":"list-brokers","params":{}}}}'
+```
+
+Or, with `BSP_TRADING_ALLOW_BEARER_PASSTHROUGH=true`, authenticating the caller with their session JWT instead of an API key:
+
+```bash
+curl -X POST http://localhost:3001/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Authorization: Bearer <the current user's session JWT>" \
   -H "X-Tenant-Id: <the current user's tenant>" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"execute_query","arguments":{"connection":"trading/tenant","schema":"list-brokers","params":{}}}}'
 ```

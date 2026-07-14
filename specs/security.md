@@ -19,6 +19,18 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 
 `GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read domain events.
 
+## Credential Passthrough at Intermediaries
+
+An intermediary that sits between end callers and a BSP endpoint (an MCP server, a gateway, a multi-user chat backend) may need to forward each caller's *own* credential upstream instead of authenticating with a single fixed identity. Per-caller credentials are preferable to a shared key — the BSP service can then apply per-user authorisation and audit — but forwarding creates a credential-leakage risk that implementations must control:
+
+- Passthrough **MUST** be opt-in per upstream connection, disabled by default. An inbound `Authorization` header may carry a credential intended for the *intermediary itself* (e.g. OAuth between an MCP client and an MCP server); forwarding it by default would leak that credential across a trust boundary. The operator enabling passthrough is asserting that the caller's token and the upstream BSP credential belong to the same trust domain.
+- A forwarded credential **MUST** be sent only to the connection's configured endpoint — never to a URL derived from request content — and only over transports satisfying the [TLS requirements](#tls).
+- Where an explicit per-request credential (e.g. an `X-Api-Key` override) and an ambient `Authorization` header are both present, the explicit credential **SHOULD** take precedence. This mirrors dual-auth BSP gates, where a present API key is authoritative and never falls through to a bearer token.
+- Intermediaries **MUST NOT** log or persist forwarded credentials. Diagnostics (e.g. warning that a bearer token was ignored because passthrough is disabled) **MUST** omit the credential value.
+- Multi-user intermediaries **SHOULD** fail closed: configure the connection's static credential as a deliberately invalid placeholder so a request that arrives without per-caller credentials is rejected by the BSP service rather than silently executing under a shared identity.
+
+The reference MCP server (`@behavioralstate/bsp-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](../mcp-server/README.md).
+
 ## Command Ingestion — `dataschema` Validation
 
 The `dataschema` field in an inbound command is informational metadata — it documents which schema the client used when constructing the payload. It is not an instruction to the server. Servers select the validation schema using the `type` field, by looking up the command type in their own catalogue.

@@ -25,6 +25,9 @@
  *                       authHeader  (string, optional, default "X-Api-Key")
  *                       authIn      (string, optional, default "header") — header | query
  *                       authParam   (string, optional, default "apikey")
+ *                       allowBearerPassthrough (boolean, optional, default false) — allow a
+ *                                     per-request Authorization Bearer token to replace the
+ *                                     configured credential (see below)
  *                       description (string, optional)  — human-readable description surfaced to the LLM
  *
  *                     Example:
@@ -59,10 +62,25 @@
  *                  template to substitute into. Must match ^[A-Za-z0-9_.-]+$ —
  *                  an invalid value is ignored (logged to stderr) rather than
  *                  spliced into the URL.
+ *   Authorization: Bearer <token>
+ *                — forwarded verbatim to the BSP endpoint as the caller's own
+ *                  credential, but ONLY when the connection was explicitly
+ *                  configured with BSP_<APP>_ALLOW_BEARER_PASSTHROUGH=true
+ *                  (BSP_CONNECTIONS: allowBearerPassthrough, legacy:
+ *                  BSP_ALLOW_BEARER_PASSTHROUGH). Off by default for a reason:
+ *                  the MCP transport's Authorization header may carry a
+ *                  credential meant for THIS server (e.g. MCP OAuth), which
+ *                  must never leak upstream unless the operator states both
+ *                  hops share one trust domain. A per-request X-Api-Key takes
+ *                  precedence — the Bearer token is only used when no explicit
+ *                  key override is present (mirrors BSP dual-auth gates, where
+ *                  a present API key is authoritative). Bearer scheme only;
+ *                  the token is never logged.
  *
- *   Neither header is required — omit both and a request behaves exactly as
- *   configured via environment variables, same as before this feature existed.
- *   stdio is unaffected; there is no per-request boundary to attach headers to.
+ *   No override header is required — omit them all and a request behaves
+ *   exactly as configured via environment variables, same as before this
+ *   feature existed. stdio is unaffected; there is no per-request boundary to
+ *   attach headers to.
  */
 
 import { createServer as createHttpServer, type IncomingHttpHeaders } from 'http';
@@ -86,6 +104,12 @@ interface BspConnection {
   authHeader: string;  // used when authType=apikey, authIn=header
   authIn: string;      // header | query
   authParam: string;   // query param name when authIn=query
+  // Opt-in (default false): allow a per-request `Authorization: Bearer <token>` header
+  // (HTTP transport only) to be forwarded to the BSP endpoint in place of the connection's
+  // configured credential. Off by default because the MCP transport's Authorization header
+  // may carry a credential meant for THIS server (e.g. OAuth), which must never leak to the
+  // upstream BSP service unless the operator explicitly says these are the same trust domain.
+  allowBearerPassthrough: boolean;
   description?: string;
   // Only set for a Mode 1 "<app>/tenant" connection: the un-substituted
   // BSP_<APP>_BASE_URL, so a per-request X-Tenant-Id header (HTTP transport
@@ -134,6 +158,7 @@ function parseConnections(): BspConnection[] {
       const authHeader = process.env[`${p}_AUTH_HEADER`] ?? 'X-Api-Key';
       const authIn    = process.env[`${p}_AUTH_IN`]     ?? 'header';
       const authParam = process.env[`${p}_AUTH_PARAM`]  ?? 'apikey';
+      const allowBearerPassthrough = (process.env[`${p}_ALLOW_BEARER_PASSTHROUGH`] ?? '').toLowerCase() === 'true';
       const app       = appName.toLowerCase();
 
       if (!apiKey && authType !== 'none') {
@@ -141,7 +166,7 @@ function parseConnections(): BspConnection[] {
         process.exit(1);
       }
 
-      const shared = { apiKey, authType, authHeader, authIn, authParam };
+      const shared = { apiKey, authType, authHeader, authIn, authParam, allowBearerPassthrough };
 
       if (tenantId) {
         // Auto-generate two connections from one set of vars
@@ -201,6 +226,7 @@ function parseConnections(): BspConnection[] {
         authHeader:  c.authHeader  ? String(c.authHeader)  : 'X-Api-Key',
         authIn:      c.authIn      ? String(c.authIn)      : 'header',
         authParam:   c.authParam   ? String(c.authParam)   : 'apikey',
+        allowBearerPassthrough: c.allowBearerPassthrough === true,
         description: c.description ? String(c.description) : undefined,
       } satisfies BspConnection;
     });
@@ -226,6 +252,7 @@ function parseConnections(): BspConnection[] {
     authHeader: process.env.BSP_AUTH_HEADER ?? 'X-Api-Key',
     authIn:     process.env.BSP_AUTH_IN     ?? 'header',
     authParam:  process.env.BSP_AUTH_PARAM  ?? 'apikey',
+    allowBearerPassthrough: (process.env.BSP_ALLOW_BEARER_PASSTHROUGH ?? '').toLowerCase() === 'true',
   }];
 }
 
@@ -256,16 +283,33 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
   return trimmed ? trimmed : undefined;
 }
 
+// Strict RFC 6750 shape: scheme "Bearer" (case-insensitive) + one non-empty token.
+// Anything else (Basic, multiple tokens, empty) is not a passthrough candidate.
+const BEARER_TOKEN = /^Bearer\s+(\S+)$/i;
+
+// Connections we've already warned about ignoring an Authorization header for, so a
+// misconfigured deployment (caller sends a JWT but passthrough is off) is diagnosable
+// from the logs without emitting one line per request. Never logs the token itself.
+const warnedBearerIgnored = new Set<string>();
+
 /**
- * Applies optional per-request X-Api-Key / X-Tenant-Id header overrides (HTTP
- * transport only) to an already-resolved connection. Returns the connection
- * unchanged when neither header is present, so a request that doesn't opt in
- * behaves exactly as if this feature didn't exist.
+ * Applies optional per-request X-Api-Key / X-Tenant-Id / Authorization header
+ * overrides (HTTP transport only) to an already-resolved connection. Returns
+ * the connection unchanged when no override header is present, so a request
+ * that doesn't opt in behaves exactly as if this feature didn't exist.
+ *
+ * Credential precedence (mirrors typical BSP dual-auth gates, where a present
+ * API key is authoritative): an explicit per-request X-Api-Key always wins; the
+ * Authorization Bearer token is used only when there is no X-Api-Key AND the
+ * connection was explicitly configured with allowBearerPassthrough. The token
+ * is forwarded verbatim as `Authorization: Bearer <token>` to the connection's
+ * configured endpoint only, and is never logged or persisted.
  */
 function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders): BspConnection {
   const requestApiKey = firstHeaderValue(headers['x-api-key']);
   const requestTenantId = firstHeaderValue(headers['x-tenant-id']);
-  if (!requestApiKey && !requestTenantId) return conn;
+  const requestBearer = firstHeaderValue(headers['authorization'])?.match(BEARER_TOKEN)?.[1];
+  if (!requestApiKey && !requestTenantId && !requestBearer) return conn;
 
   let endpoint = conn.endpoint;
   if (requestTenantId && conn.tenantTemplateBaseUrl) {
@@ -274,6 +318,25 @@ function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders
     } else {
       process.stderr.write(
         `[bsp-mcp] WARNING: ignoring X-Tenant-Id header with unexpected characters for connection '${conn.name}'\n`
+      );
+    }
+  }
+
+  // Bearer passthrough: only when the caller sent no explicit X-Api-Key override
+  // and the operator opted this connection in. Forwarding switches the effective
+  // auth to `Authorization: Bearer <token>` regardless of the configured authType,
+  // so the token can never end up in a query string or a custom header.
+  if (!requestApiKey && requestBearer) {
+    if (conn.allowBearerPassthrough) {
+      return { ...conn, endpoint, authType: 'bearer', apiKey: requestBearer };
+    }
+    if (!warnedBearerIgnored.has(conn.name)) {
+      warnedBearerIgnored.add(conn.name);
+      process.stderr.write(
+        `[bsp-mcp] WARNING: request carried an Authorization Bearer token but connection '${conn.name}' ` +
+        `has bearer passthrough disabled — falling back to the configured credential. ` +
+        `Set allowBearerPassthrough (BSP_<APP>_ALLOW_BEARER_PASSTHROUGH=true) if this connection ` +
+        `should authenticate upstream with the caller's own token. (Logged once per connection.)\n`
       );
     }
   }
