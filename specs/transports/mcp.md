@@ -28,6 +28,15 @@ MCP (Model Context Protocol) allows any LLM client to interact with an BSP-compl
   </div>
 </div>
 
+## Choosing a Transport
+
+> **MCP is an adapter for clients you don't control — not the recommended path for code you own.** HTTP is the baseline transport, and the BSP HTTP surface is deliberately self-describing: catalogues, schemas and workflows are designed to be consumed by an agent directly, with no adapter in between.
+>
+> - **Off-the-shelf MCP-capable client** (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop, CLI agents): use MCP. It is the only plug-in mechanism those clients offer, and `bsp-mcp` gives them the full command/query surface with zero bespoke code.
+> - **Your own code** (a bespoke agent, a backend, tooling you build and deploy): call the BSP HTTP surface directly. Every `bsp-mcp` tool is a thin wrapper over exactly one HTTP endpoint, so placing the MCP server between your own client and the service adds a network hop and a deployment to operate, flattens structured BSP error responses (HTTP status + error code) into prose strings, and widens your supply chain — while providing nothing a small HTTP client in your own codebase wouldn't.
+>
+> Rule of thumb: **never put `bsp-mcp` between a first-party client and a BSP service.** Declaring the `mcp` transport in your manifest is for the consumers you don't ship code to.
+
 ## Mapping
 
 | BSP Concept | MCP Concept |
@@ -52,6 +61,8 @@ Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes
 ```bash
 npx @behavioralstate/bsp-mcp
 ```
+
+> **Pin a version in production.** Unversioned `npx @behavioralstate/bsp-mcp` resolves `latest` from npm at start-up — convenient on a workstation, but a server deployment then silently picks up new code (including any compromise of the npm package) on its next cold start, with your callers' credentials flowing through it. Production deployments should pin an exact version (e.g. `npx @behavioralstate/bsp-mcp@1.7.0`) and upgrade deliberately.
 
 ### Configuration
 

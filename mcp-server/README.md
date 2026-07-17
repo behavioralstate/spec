@@ -4,6 +4,14 @@ MCP server for any [BSP-compliant](https://behavioralstate.io) endpoint. Exposes
 
 Supports **multiple named connections** in a single server instance — useful for admins who need to operate across tenant-scoped and platform-level surfaces, or across entirely separate BSP applications.
 
+## Who this is for
+
+bsp-mcp is an **adapter for clients you don't control**. If you use an off-the-shelf MCP-capable client, this server is the right integration: it is the only plug-in mechanism those clients offer.
+
+If you are writing **your own** agent, backend, or tooling, you don't need it — call the BSP HTTP surface directly. BSP endpoints are self-describing (command/query catalogues, JSON Schemas, workflows), and every tool below is a thin wrapper over exactly one HTTP call. Putting bsp-mcp between your own code and the service adds a network hop and a deployment to operate, flattens structured BSP error responses into prose, and widens your supply chain — while providing nothing a small HTTP client in your codebase wouldn't. See [Choosing a Transport](https://behavioralstate.io/docs/transports/mcp) in the spec docs.
+
+Running it as a shared server in production? **Pin a version** (`npx @behavioralstate/bsp-mcp@1.7.0`, or your package manager's equivalent) rather than resolving `latest` at start-up — callers' credentials flow through this process, so upgrades should be deliberate.
+
 ---
 
 ## Start with AI
