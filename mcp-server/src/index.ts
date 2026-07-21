@@ -613,6 +613,11 @@ const TOOLS: Tool[] = [
           type: 'object',
           description: 'Optional query parameters as key-value pairs matching the parameters schema from get_query_schema. Omit or pass {} if no parameters are needed.',
           additionalProperties: true
+        },
+        parameters: {
+          type: 'object',
+          description: "Alias of 'params' — both are accepted; if both are present, 'params' wins.",
+          additionalProperties: true
         }
       },
       required: ['schema']
@@ -689,7 +694,7 @@ async function handleSendCommandAndWait(args: Record<string, unknown>, conn: Bsp
   const pollQuery = args.poll_query as string | undefined;
   if (!pollQuery) return commandResult;
 
-  const pollParams = (args.poll_params ?? {}) as Record<string, unknown>;
+  const pollParams = (args.poll_params ?? args.poll_parameters ?? {}) as Record<string, unknown>;
   const pollUntilContains = args.poll_until_contains as string | undefined;
   const timeoutSeconds = (args.timeout_seconds as number) ?? 30;
   const intervalMs = 2000;
@@ -726,7 +731,10 @@ async function handleGetQuerySchema(args: Record<string, unknown>, conn: BspConn
 
 async function handleExecuteQuery(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
   const schema = args.schema as string;
-  const params = (args.params ?? {}) as Record<string, unknown>;
+  // Models routinely name this argument 'parameters' (the tool description itself speaks of
+  // "parameters"), and unknown keys are not rejected — before the alias, such calls silently
+  // ran the query UNFILTERED, which servers can surface as misleading authorisation errors.
+  const params = (args.params ?? args.parameters ?? {}) as Record<string, unknown>;
 
   const queryString = Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null)
