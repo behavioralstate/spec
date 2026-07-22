@@ -4,7 +4,7 @@
   "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/commands/ProposeCounter.json",
+  "dataschema": "https://api.example.com/commands/propose-counter/1.0",
   "time": "2025-07-01T10:30:00Z",
   "data": {
     "salary": 100000,

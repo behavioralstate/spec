@@ -261,6 +261,242 @@
         }
       }
     },
+    "/events/stream": {
+      "get": {
+        "operationId": "streamEvents",
+        "summary": "Subscribe to live events (SSE)",
+        "description": "Opens a persistent Server-Sent Events connection. The server pushes events as they are produced — no polling required. Delivers only events produced after the connection is opened; use GET /events for history. Each event is delivered as an SSE data field containing the CloudEvent JSON payload, with the CloudEvent id echoed as the SSE event id for reconnection via Last-Event-ID.",
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "name": "correlationId",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Receive only events produced by a specific command submission — pass the id returned by POST /commands."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by CloudEvent type (PascalCase). Receive only events of this type across all interactions."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by publishing service — matches the CloudEvent source field."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persistent SSE stream. Each event is an SSE data field containing a CloudEvent JSON payload.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/events/{schema}/{version}": {
+      "parameters": [
+        {
+          "name": "schema",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Event schema name in kebab-case, matching the 'schema' field of the catalogue entry (e.g. counter-proposed)"
+        },
+        {
+          "name": "version",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Schema version string (e.g. 1.0, 2.1)"
+        }
+      ],
+      "get": {
+        "operationId": "getEventSchema",
+        "summary": "Get a versioned event schema",
+        "description": "Returns the JSON Schema document for a specific event type and version. Mirrors GET /commands/{schema}/{version}. The full URL of this endpoint is the canonical value for the dataschema URI in an event catalogue entry.",
+        "tags": [
+          "Events"
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON Schema document",
+            "content": {
+              "application/schema+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Schema or version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queries": {
+      "get": {
+        "operationId": "listQueryCatalogue",
+        "summary": "List available query types",
+        "description": "Returns the catalogue of query types this service supports, each with its dataschema URI. Same discovery pattern as GET /commands: callers use this to learn what queries they can execute and how to construct the parameters.",
+        "tags": [
+          "Queries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Query catalogue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/queries.json#/$defs/queryCatalogue"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/queries/{schema}/{version}": {
+      "parameters": [
+        {
+          "name": "schema",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Query schema name in kebab-case, matching the 'schema' field of the catalogue entry (e.g. list-brokers)"
+        },
+        {
+          "name": "version",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Schema version string (e.g. 1.0, 2.1)"
+        }
+      ],
+      "get": {
+        "operationId": "getQuerySchema",
+        "summary": "Get a versioned query schema",
+        "description": "Returns the JSON Schema document for a specific query type and version, describing the accepted query string parameters and the response body shape.",
+        "tags": [
+          "Queries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Query schema document",
+            "content": {
+              "application/schema+json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/queries.json#/$defs/querySchemaDocument"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Schema or version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queries/{schema}": {
+      "parameters": [
+        {
+          "name": "schema",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Query schema name in kebab-case, matching the 'schema' field of the catalogue entry (e.g. list-brokers)"
+        }
+      ],
+      "get": {
+        "operationId": "executeQuery",
+        "summary": "Execute a query",
+        "description": "Executes the query synchronously and returns current domain state. Parameters (if any) are passed as query string key-value pairs matching the 'parameters' schema in the query schema document. The response body matches the 'response' schema in that document.",
+        "tags": [
+          "Queries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Query result — shape defined by the 'response' schema in the query schema document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Required parameters missing or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Query schema name not supported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/commands/{schema}/{version}": {
       "parameters": [
         {
@@ -328,7 +564,11 @@
     },
     {
       "name": "Events",
-      "description": "io.bsp.agents.events — List and query published domain events"
+      "description": "io.bsp.agents.events — Query published domain events (GET /events), subscribe to live events (GET /events/stream), fetch versioned event schemas (GET /events/{schema}/{version}), and manage webhook subscriptions"
+    },
+    {
+      "name": "Queries",
+      "description": "io.bsp.agents.queries — Discover query types (GET /queries), fetch versioned query schemas (GET /queries/{schema}/{version}), and execute queries (GET /queries/{schema})"
     }
   ],
   "components": {

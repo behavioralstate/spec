@@ -4,7 +4,7 @@
   "source": "https://api.example.com/negotiation",
   "type": "CounterProposed",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/events/CounterProposed.json",
+  "dataschema": "https://api.example.com/events/counter-proposed/1.0",
   "time": "2025-07-01T10:30:01Z",
   "data": {
     "salary": 100000,
