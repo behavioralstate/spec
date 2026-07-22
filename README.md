@@ -10,7 +10,7 @@ BSP is a specification for service interoperability: how domain services expose 
 
 The same content is browsable per-topic at [behavioralstate.io](https://behavioralstate.io/), rendered from the pages under [`specs/`](specs/).
 
-> The most recent stable release is [v0.8.0](https://github.com/behavioralstate/spec/releases/tag/spec/v0.8.0). To read the spec exactly as released, browse the repo at tag [v0.8.0](https://github.com/behavioralstate/spec/blob/spec/v0.8.0/README.md); the `main` branch is the work in progress.
+> The most recent stable release is [v0.8.1](https://github.com/behavioralstate/spec/releases/tag/spec/v0.8.1). To read the spec exactly as released, browse the repo at tag [v0.8.1](https://github.com/behavioralstate/spec/blob/spec/v0.8.1/README.md); the `main` branch is the work in progress.
 
 ## Protocol Artifacts
 
