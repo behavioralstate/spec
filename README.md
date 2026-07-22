@@ -62,7 +62,7 @@ npx @behavioralstate/best-mcp
 }
 ```
 
-Per-app `BEST_<APP>_*` variables are the recommended configuration mode (default auth: `X-Api-Key` header). Multi-tenant endpoints, multiple connections, bearer/query-param auth, HTTP transport for ChatGPT Desktop, and per-request credential overrides are all covered in the [mcp-server README](mcp-server/README.md). Production deployments should pin an exact version (e.g. `@behavioralstate/best-mcp@1.7.0`).
+Per-app `BEST_<APP>_*` variables are the recommended configuration mode (default auth: `X-Api-Key` header). Multi-tenant endpoints, multiple connections, bearer/query-param auth, HTTP transport for ChatGPT Desktop, and per-request credential overrides are all covered in the [mcp-server README](mcp-server/README.md). Production deployments should pin an exact version (e.g. `@behavioralstate/best-mcp@2.0.0`).
 
 ## Cutting a Release
 
