@@ -1,24 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://behavioralstate.io/v1/schemas/discovery.json",
-  "title": "BSP Discovery Manifest",
-  "description": "Schema for the /.well-known/bsp discovery manifest. Every BSP-compliant endpoint must expose this at GET /.well-known/bsp.",
+  "title": "BEST Discovery Manifest",
+  "description": "Schema for the /.well-known/best discovery manifest. Every BEST-compliant endpoint must expose this at GET /.well-known/best.",
   "type": "object",
-  "required": ["bsp"],
+  "required": ["best"],
   "properties": {
-    "bsp": {
+    "best": {
       "type": "object",
       "required": ["version", "services", "capabilities"],
       "properties": {
         "version": {
           "type": "string",
-          "description": "BSP spec version (semver: MAJOR.MINOR.PATCH)",
+          "description": "BEST spec version (semver: MAJOR.MINOR.PATCH)",
           "pattern": "^\\d+\\.\\d+\\.\\d+$",
           "examples": ["0.4.0"]
         },
         "services": {
           "type": "object",
-          "description": "Service definitions with transport bindings. Keys are fully qualified service names (e.g. io.bsp.agents).",
+          "description": "Service definitions with transport bindings. Keys are fully qualified service names (e.g. io.best.agents).",
           "additionalProperties": {
             "$ref": "#/$defs/service"
           }
@@ -32,7 +32,7 @@
         },
         "agents": {
           "type": "array",
-          "description": "Snapshot of the service descriptors this endpoint hosts (optional). This is a discovery hint, not a live directory — BSP defines no registry endpoint. Implementations that manage services dynamically may expose that as a domain (a list-services query and RegisterService command) under their own namespace. For dynamic systems this array may be omitted or contain only representative examples.",
+          "description": "Snapshot of the service descriptors this endpoint hosts (optional). This is a discovery hint, not a live directory — BEST defines no registry endpoint. Implementations that manage services dynamically may expose that as a domain (a list-services query and RegisterService command) under their own namespace. For dynamic systems this array may be omitted or contain only representative examples.",
           "items": {
             "$ref": "#/$defs/serviceDescriptor"
           }
@@ -69,7 +69,7 @@
     },
     "serviceDescriptor": {
       "type": "object",
-      "description": "The identity card for a BSP-compliant service — what it does, what commands it accepts, what events it produces. Declared in the manifest's agents array.",
+      "description": "The identity card for a BEST-compliant service — what it does, what commands it accepts, what events it produces. Declared in the manifest's agents array.",
       "required": ["id", "name", "accepts", "produces", "status"],
       "properties": {
         "id": {
@@ -95,7 +95,7 @@
         "endpoint": {
           "type": "string",
           "format": "uri",
-          "description": "Base URL of this service's BSP surface. Consumers append /.well-known/bsp to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
+          "description": "Base URL of this service's BEST surface. Consumers append /.well-known/best to discover transport bindings and send commands. Optional — omit if the service is not directly addressable."
         },
         "accepts": {
           "type": "array",
@@ -167,7 +167,7 @@
       "required": ["name", "version", "description"],
       "if": {
         "properties": {
-          "name": { "pattern": "^io\\.bsp\\." }
+          "name": { "pattern": "^io\\.best\\." }
         },
         "required": ["name"]
       },
@@ -177,7 +177,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Fully qualified capability name using reverse-domain notation. BSP built-in capabilities use the io.bsp.* prefix (e.g. io.bsp.agents.commands). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
+          "description": "Fully qualified capability name using reverse-domain notation. BEST built-in capabilities use the io.best.* prefix (e.g. io.best.agents.commands). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
           "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_-]*)*$"
         },
         "version": {
@@ -192,12 +192,12 @@
         "spec": {
           "type": "string",
           "format": "uri",
-          "description": "URL to the capability specification. Required for io.bsp.* capabilities. Custom capabilities should host their own specification page and link it here when available."
+          "description": "URL to the capability specification. Required for io.best.* capabilities. Custom capabilities should host their own specification page and link it here when available."
         },
         "schema": {
           "type": "string",
           "format": "uri",
-          "description": "URL to the JSON Schema for this capability. Required for io.bsp.* capabilities. Custom capabilities should host their own schema and link it here when available."
+          "description": "URL to the JSON Schema for this capability. Required for io.best.* capabilities. Custom capabilities should host their own schema and link it here when available."
         },
         "extends": {
           "type": "string",
@@ -205,7 +205,7 @@
         },
         "service": {
           "type": "string",
-          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard BSP capability (io.bsp.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.bsp.agents.* capabilities under the io.bsp.agents service)."
+          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard BEST capability (io.best.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.best.agents.* capabilities under the io.best.agents service)."
         },
         "status": {
           "type": "string",
@@ -250,14 +250,14 @@
         "manifest": {
           "type": "string",
           "format": "uri-template",
-          "description": "RFC 6570 URI template for tenant manifest discovery (e.g. https://api.example.com/.well-known/bsp/{tenantId}). {tenantId} is the only defined variable. Consumers expand this template with a known tenant ID to obtain a fully-resolved, self-contained manifest."
+          "description": "RFC 6570 URI template for tenant manifest discovery (e.g. https://api.example.com/.well-known/best/{tenantId}). {tenantId} is the only defined variable. Consumers expand this template with a known tenant ID to obtain a fully-resolved, self-contained manifest."
         }
       },
       "additionalProperties": false
     },
     "pushChannels": {
       "type": "object",
-      "description": "Push channels this capability supports for delivering events to callers. All fields are optional — absence means the channel is not supported. Typically declared on the io.bsp.agents.events capability.",
+      "description": "Push channels this capability supports for delivering events to callers. All fields are optional — absence means the channel is not supported. Typically declared on the io.best.agents.events capability.",
       "properties": {
         "sse": {
           "type": "boolean",
@@ -323,7 +323,7 @@
     },
     "authentication": {
       "type": "object",
-      "description": "Authentication requirements for accessing this BSP endpoint. Consumers must present credentials according to the declared scheme before calling any protected endpoint.",
+      "description": "Authentication requirements for accessing this BEST endpoint. Consumers must present credentials according to the declared scheme before calling any protected endpoint.",
       "required": ["type"],
       "properties": {
         "type": {

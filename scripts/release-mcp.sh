@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# bsp-mcp Release Script
+# best-mcp Release Script
 # Usage: ./scripts/release-mcp.sh [<version>]
 #
 # If no version is given, the script reads the latest mcp/v* tag and
@@ -78,7 +78,7 @@ if [ "$CURRENT_VERSION" = "$VERSION" ]; then
 fi
 
 echo ""
-echo "=== bsp-mcp Release ==="
+echo "=== best-mcp Release ==="
 echo "  Current version: $CURRENT_VERSION"
 echo "  New version:     $VERSION"
 echo "  Tag:             $TAG"
@@ -111,5 +111,5 @@ git push origin "$TAG"
 echo ""
 echo "=== Done ==="
 echo "Tag:    $TAG"
-echo "npm:    https://www.npmjs.com/package/@behavioralstate/bsp-mcp/v/${VERSION}"
+echo "npm:    https://www.npmjs.com/package/@behavioralstate/best-mcp/v/${VERSION}"
 echo "CI:     ${REPO_URL}/actions"

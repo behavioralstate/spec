@@ -1,8 +1,8 @@
-# Service Memory — `io.bsp.agents.memory` *(removed)*
+# Service Memory — `io.best.agents.memory` *(removed)*
 
-> **This capability has been removed from the BSP specification.**
+> **This capability has been removed from the BEST specification.**
 
-The `io.bsp.agents.memory` capability has been removed. The use cases it was intended to cover are now better served by two existing parts of the protocol:
+The `io.best.agents.memory` capability has been removed. The use cases it was intended to cover are now better served by two existing parts of the protocol:
 
 - **Static operational configuration** (model name, system prompt, provider settings): use the `metadata` field on the service descriptor — declared in the discovery manifest's `agents` array.
 

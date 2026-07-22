@@ -1,45 +1,45 @@
 # MCP Transport
 
-MCP (Model Context Protocol) allows any LLM client to interact with an BSP-compliant service directly — discovering commands and queries, reading state, and sending commands — without any bespoke integration.
+MCP (Model Context Protocol) allows any LLM client to interact with a BEST-compliant service directly — discovering commands and queries, reading state, and sending commands — without any bespoke integration.
 
-<div class="BSP-diagram">
-  <div class="BSP-node">
-    <div class="BSP-node-title">LLM Client</div>
-    <div class="BSP-node-box">Copilot / Claude / ChatGPT</div>
-    <div class="BSP-node-sub">any MCP-capable client</div>
+<div class="BEST-diagram">
+  <div class="BEST-node">
+    <div class="BEST-node-title">LLM Client</div>
+    <div class="BEST-node-box">Copilot / Claude / ChatGPT</div>
+    <div class="BEST-node-sub">any MCP-capable client</div>
   </div>
-  <div class="BSP-arrow">
-    <div class="BSP-arrow-label">MCP tools</div>
-    <div class="BSP-arrow-track">→</div>
+  <div class="BEST-arrow">
+    <div class="BEST-arrow-label">MCP tools</div>
+    <div class="BEST-arrow-track">→</div>
   </div>
-  <div class="BSP-node">
-    <div class="BSP-node-title">bsp-mcp</div>
-    <div class="BSP-node-box accent">MCP Server</div>
-    <div class="BSP-node-sub">stdio or http transport</div>
+  <div class="BEST-node">
+    <div class="BEST-node-title">best-mcp</div>
+    <div class="BEST-node-box accent">MCP Server</div>
+    <div class="BEST-node-sub">stdio or http transport</div>
   </div>
-  <div class="BSP-arrow">
-    <div class="BSP-arrow-label">BSP HTTP</div>
-    <div class="BSP-arrow-track">→</div>
+  <div class="BEST-arrow">
+    <div class="BEST-arrow-label">BEST HTTP</div>
+    <div class="BEST-arrow-track">→</div>
   </div>
-  <div class="BSP-node">
-    <div class="BSP-node-title">Service</div>
-    <div class="BSP-node-box">BSP Endpoint</div>
-    <div class="BSP-node-sub">any compliant API</div>
+  <div class="BEST-node">
+    <div class="BEST-node-title">Service</div>
+    <div class="BEST-node-box">BEST Endpoint</div>
+    <div class="BEST-node-sub">any compliant API</div>
   </div>
 </div>
 
 ## Choosing a Transport
 
-> **MCP is an adapter for clients you don't control — not the recommended path for code you own.** HTTP is the baseline transport, and the BSP HTTP surface is deliberately self-describing: catalogues, schemas and workflows are designed to be consumed by an agent directly, with no adapter in between.
+> **MCP is an adapter for clients you don't control — not the recommended path for code you own.** HTTP is the baseline transport, and the BEST HTTP surface is deliberately self-describing: catalogues, schemas and workflows are designed to be consumed by an agent directly, with no adapter in between.
 >
-> - **Off-the-shelf MCP-capable client** (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop, CLI agents): use MCP. It is the only plug-in mechanism those clients offer, and `bsp-mcp` gives them the full command/query surface with zero bespoke code.
-> - **Your own code** (a bespoke agent, a backend, tooling you build and deploy): call the BSP HTTP surface directly. Every `bsp-mcp` tool is a thin wrapper over exactly one HTTP endpoint, so placing the MCP server between your own client and the service adds a network hop and a deployment to operate, flattens structured BSP error responses (HTTP status + error code) into prose strings, and widens your supply chain — while providing nothing a small HTTP client in your own codebase wouldn't.
+> - **Off-the-shelf MCP-capable client** (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop, CLI agents): use MCP. It is the only plug-in mechanism those clients offer, and `best-mcp` gives them the full command/query surface with zero bespoke code.
+> - **Your own code** (a bespoke agent, a backend, tooling you build and deploy): call the BEST HTTP surface directly. Every `best-mcp` tool is a thin wrapper over exactly one HTTP endpoint, so placing the MCP server between your own client and the service adds a network hop and a deployment to operate, flattens structured BEST error responses (HTTP status + error code) into prose strings, and widens your supply chain — while providing nothing a small HTTP client in your own codebase wouldn't.
 >
-> Rule of thumb: **never put `bsp-mcp` between a first-party client and a BSP service.** Declaring the `mcp` transport in your manifest is for the consumers you don't ship code to.
+> Rule of thumb: **never put `best-mcp` between a first-party client and a BEST service.** Declaring the `mcp` transport in your manifest is for the consumers you don't ship code to.
 
 ## Mapping
 
-| BSP Concept | MCP Concept |
+| BEST Concept | MCP Concept |
 |---|---|
 | Connection list (multi-connection mode) | MCP tool: `list_connections` |
 | Command catalogue (`GET /commands`) | MCP tool: `get_command_catalogue` |
@@ -52,48 +52,48 @@ MCP (Model Context Protocol) allows any LLM client to interact with an BSP-compl
 
 ## Result
 
-Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes a capable caller of any BSP-compliant service — with full command and query discovery, no hardcoded integration.
+Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes a capable caller of any BEST-compliant service — with full command and query discovery, no hardcoded integration.
 
-## Reference Implementation — `bsp-mcp`
+## Reference Implementation — `best-mcp`
 
-`bsp-mcp` is the reference MCP server for BSP. It is generic — it works with any BSP-compliant endpoint. Point it at any BSP HTTP surface and it exposes the full command and query surface as MCP tools.
+`best-mcp` is the reference MCP server for BEST. It is generic — it works with any BEST-compliant endpoint. Point it at any BEST HTTP surface and it exposes the full command and query surface as MCP tools.
 
 ```bash
-npx @behavioralstate/bsp-mcp
+npx @behavioralstate/best-mcp
 ```
 
-> **Pin a version in production.** Unversioned `npx @behavioralstate/bsp-mcp` resolves `latest` from npm at start-up — convenient on a workstation, but a server deployment then silently picks up new code (including any compromise of the npm package) on its next cold start, with your callers' credentials flowing through it. Production deployments should pin an exact version (e.g. `npx @behavioralstate/bsp-mcp@1.7.0`) and upgrade deliberately.
+> **Pin a version in production.** Unversioned `npx @behavioralstate/best-mcp` resolves `latest` from npm at start-up — convenient on a workstation, but a server deployment then silently picks up new code (including any compromise of the npm package) on its next cold start, with your callers' credentials flowing through it. Production deployments should pin an exact version (e.g. `npx @behavioralstate/best-mcp@1.7.0`) and upgrade deliberately.
 
 ### Configuration
 
-`bsp-mcp` supports three configuration modes, checked in priority order.
+`best-mcp` supports three configuration modes, checked in priority order.
 
 ---
 
 #### Mode 1 — Per-app env vars *(recommended)*
 
-One set of `BSP_<APP>_*` variables per application. The app name must be a single uppercase word (letters and digits only, e.g. `TRADING`, `HR`).
+One set of `BEST_<APP>_*` variables per application. The app name must be a single uppercase word (letters and digits only, e.g. `TRADING`, `HR`).
 
 **Required:**
 
 | Variable | Description |
 |---|---|
-| `BSP_<APP>_BASE_URL` | Root URL of the BSP HTTP surface |
-| `BSP_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
+| `BEST_<APP>_BASE_URL` | Root URL of the BEST HTTP surface |
+| `BEST_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
 
 **Optional:**
 
 | Variable | Default | Description |
 |---|---|---|
-| `BSP_<APP>_TENANT_ID` | — | When set, auto-generates two named connections: `<app>/tenant` → `BASE_URL/tenants/TENANT_ID` and `<app>/platform` → `BASE_URL`. When omitted, generates one connection: `<app>`. |
-| `BSP_<APP>_AUTH_TYPE` | `apikey`* | `bearer` · `apikey` · `none` — **defaults to `apikey` in Mode 1** (Modes 2 & 3 default to `bearer`) |
-| `BSP_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name when `AUTH_TYPE=apikey` and `AUTH_IN=header` |
-| `BSP_<APP>_AUTH_IN` | `header` | `header` or `query` — where the key is sent when `AUTH_TYPE=apikey` |
-| `BSP_<APP>_AUTH_PARAM` | `apikey` | Query parameter name when `AUTH_IN=query` |
+| `BEST_<APP>_TENANT_ID` | — | When set, auto-generates two named connections: `<app>/tenant` → `BASE_URL/tenants/TENANT_ID` and `<app>/platform` → `BASE_URL`. When omitted, generates one connection: `<app>`. |
+| `BEST_<APP>_AUTH_TYPE` | `apikey`* | `bearer` · `apikey` · `none` — **defaults to `apikey` in Mode 1** (Modes 2 & 3 default to `bearer`) |
+| `BEST_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name when `AUTH_TYPE=apikey` and `AUTH_IN=header` |
+| `BEST_<APP>_AUTH_IN` | `header` | `header` or `query` — where the key is sent when `AUTH_TYPE=apikey` |
+| `BEST_<APP>_AUTH_PARAM` | `apikey` | Query parameter name when `AUTH_IN=query` |
 
 **Auth types:**
 
-> **Default differs by mode.** Mode 1 defaults to `apikey` because BSP services typically use API key headers. Modes 2 and 3 default to `bearer` for backward compatibility.
+> **Default differs by mode.** Mode 1 defaults to `apikey` because BEST services typically use API key headers. Modes 2 and 3 default to `bearer` for backward compatibility.
 
 | `AUTH_TYPE` | Credential transport | Extra vars |
 |---|---|---|
@@ -104,25 +104,25 @@ One set of `BSP_<APP>_*` variables per application. The app name must be a singl
 Example — admin with tenant + platform surfaces (generates two connections from one config block):
 
 ```
-BSP_TRADING_BASE_URL=https://api.example.com/bsp
-BSP_TRADING_API_KEY=your-api-key
-BSP_TRADING_TENANT_ID=your-tenant-id
-BSP_TRADING_AUTH_TYPE=apikey
+BEST_TRADING_BASE_URL=https://api.example.com/best
+BEST_TRADING_API_KEY=your-api-key
+BEST_TRADING_TENANT_ID=your-tenant-id
+BEST_TRADING_AUTH_TYPE=apikey
 ```
 
 Connections produced: `trading/tenant` and `trading/platform`.
 
 ---
 
-#### Mode 2 — `BSP_CONNECTIONS` JSON array
+#### Mode 2 — `BEST_CONNECTIONS` JSON array
 
-For cases where per-app vars are not flexible enough. Set `BSP_CONNECTIONS` to a JSON array of fully-explicit connection objects (`name`, `endpoint`, `apiKey`, `authType`, `authHeader`, `authIn`, `authParam`, `description`).
+For cases where per-app vars are not flexible enough. Set `BEST_CONNECTIONS` to a JSON array of fully-explicit connection objects (`name`, `endpoint`, `apiKey`, `authType`, `authHeader`, `authIn`, `authParam`, `description`).
 
 ---
 
 #### Mode 3 — Legacy single connection
 
-For simple single-endpoint setups. Set `BSP_ENDPOINT`, `BSP_API_KEY`, and optionally `BSP_AUTH_TYPE`, `BSP_AUTH_HEADER`, `BSP_AUTH_IN`, `BSP_AUTH_PARAM`.
+For simple single-endpoint setups. Set `BEST_ENDPOINT`, `BEST_API_KEY`, and optionally `BEST_AUTH_TYPE`, `BEST_AUTH_HEADER`, `BEST_AUTH_IN`, `BEST_AUTH_PARAM`.
 
 ---
 
@@ -138,21 +138,21 @@ For simple single-endpoint setups. Set `BSP_ENDPOINT`, `BSP_API_KEY`, and option
 ```json
 {
   "mcpServers": {
-    "bsp": {
+    "best": {
       "command": "npx",
-      "args": ["@behavioralstate/bsp-mcp"],
+      "args": ["@behavioralstate/best-mcp"],
       "env": {
-        "BSP_TRADING_BASE_URL": "https://api.example.com/bsp",
-        "BSP_TRADING_API_KEY": "<your-api-key>",
-        "BSP_TRADING_TENANT_ID": "<your-tenant-id>",
-        "BSP_TRADING_AUTH_TYPE": "apikey"
+        "BEST_TRADING_BASE_URL": "https://api.example.com/best",
+        "BEST_TRADING_API_KEY": "<your-api-key>",
+        "BEST_TRADING_TENANT_ID": "<your-tenant-id>",
+        "BEST_TRADING_AUTH_TYPE": "apikey"
       }
     }
   }
 }
 ```
 
-For multiple apps, add more `BSP_<APP>_*` variable groups to the same `env` block.
+For multiple apps, add more `BEST_<APP>_*` variable groups to the same `env` block.
 
 ### HTTP — ChatGPT Desktop
 
@@ -160,9 +160,9 @@ Start in HTTP mode and expose via a tunnel:
 
 ```bash
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
-  BSP_ENDPOINT=https://api.example.com/BSP \
-  BSP_API_KEY=<key> \
-  npx @behavioralstate/bsp-mcp
+  BEST_ENDPOINT=https://api.example.com/BEST \
+  BEST_API_KEY=<key> \
+  npx @behavioralstate/best-mcp
 
 ngrok http 3001
 ```
@@ -208,7 +208,7 @@ The `mcp` block in the service definition declares how to reach the MCP server:
 | `push` | boolean | no | When `true`, the server supports server-to-client push notifications for domain events. Callers should prefer this channel over polling `GET /events`. |
 | `authentication` | object | no | Authentication requirements for connecting to this MCP server |
 
-MCP transport is **optional** — HTTP is the baseline. MCP is declared in the `/.well-known/bsp` manifest only if the endpoint supports it.
+MCP transport is **optional** — HTTP is the baseline. MCP is declared in the `/.well-known/best` manifest only if the endpoint supports it.
 
 ## Authentication
 
@@ -314,4 +314,4 @@ When a caller maintains an active MCP session and `"push": true` is declared on 
 }
 ```
 
-When `"push": true` is present, callers **should** prefer this channel over polling `GET /events`. The `io.bsp.agents.events` capability in the manifest declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#push-channel-declaration).
+When `"push": true` is present, callers **should** prefer this channel over polling `GET /events`. The `io.best.agents.events` capability in the manifest declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#push-channel-declaration).

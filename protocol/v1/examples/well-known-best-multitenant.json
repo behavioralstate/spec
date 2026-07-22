@@ -1,17 +1,17 @@
 {
-  "bsp": {
-    "version": "{{BSP_VERSION}}",
+  "best": {
+    "version": "{{BEST_VERSION}}",
     "authentication": {
       "type": "bearer",
       "scheme": "Bearer",
       "docs": "https://docs.example.com/authentication"
     },
     "tenants": {
-      "manifest": "https://api.example.com/.well-known/bsp/{tenantId}"
+      "manifest": "https://api.example.com/.well-known/best/{tenantId}"
     },
     "services": {
-      "io.bsp.agents": {
-        "version": "{{BSP_VERSION}}",
+      "io.best.agents": {
+        "version": "{{BEST_VERSION}}",
         "description": "Platform-level routing for the multi-tenant host",
         "spec": "https://behavioralstate.io/specs/agents",
         "http": {

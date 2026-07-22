@@ -1,10 +1,10 @@
 {
-  "name": "@behavioralstate/bsp-mcp",
+  "name": "@behavioralstate/best-mcp",
   "version": "1.7.1",
-  "description": "MCP server for any BSP-compliant endpoint — exposes commands and queries as tools for LLM clients",
+  "description": "MCP server for any BEST-compliant endpoint — exposes commands and queries as tools for LLM clients",
   "type": "module",
   "bin": {
-    "bsp-mcp": "dist/index.js"
+    "best-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

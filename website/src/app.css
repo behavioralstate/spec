@@ -261,9 +261,9 @@ body {
 	background: rgba(99, 102, 241, 0.05);
 }
 
-/* ─── BSP flow diagrams (embedded HTML in spec markdown) ─── */
+/* ─── BEST flow diagrams (embedded HTML in spec markdown) ─── */
 
-.BSP-diagram {
+.BEST-diagram {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -276,7 +276,7 @@ body {
 	margin: 1.5rem 0;
 }
 
-.BSP-node {
+.BEST-node {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -284,7 +284,7 @@ body {
 	min-width: 130px;
 }
 
-.BSP-node-title {
+.BEST-node-title {
 	font-size: 0.6875rem;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -292,7 +292,7 @@ body {
 	color: var(--color-text-muted);
 }
 
-.BSP-node-box {
+.BEST-node-box {
 	padding: 0.6rem 1.25rem;
 	border: 1.5px solid var(--color-border);
 	border-radius: 8px;
@@ -305,21 +305,21 @@ body {
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-.BSP-node-box.accent {
+.BEST-node-box.accent {
 	background: var(--color-accent);
 	border-color: var(--color-accent);
 	color: #ffffff;
 	box-shadow: 0 2px 12px rgba(79, 70, 229, 0.25);
 }
 
-.BSP-node-sub {
+.BEST-node-sub {
 	font-size: 0.71875rem;
 	color: var(--color-text-muted);
 	text-align: center;
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-.BSP-arrow {
+.BEST-arrow {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -327,7 +327,7 @@ body {
 	padding: 0 0.25rem;
 }
 
-.BSP-arrow-label {
+.BEST-arrow-label {
 	font-size: 0.6875rem;
 	font-weight: 600;
 	color: var(--color-accent);
@@ -336,18 +336,18 @@ body {
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-.BSP-arrow-track {
+.BEST-arrow-track {
 	font-size: 1.25rem;
 	color: var(--color-border);
 	line-height: 1;
 }
 
 @media (max-width: 600px) {
-	.BSP-diagram {
+	.BEST-diagram {
 		flex-direction: column;
 		padding: 1.25rem;
 	}
-	.BSP-arrow {
+	.BEST-arrow {
 		transform: rotate(90deg);
 	}
 }

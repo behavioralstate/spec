@@ -47,8 +47,8 @@
 		{
 			label: 'Comparisons',
 			items: [
-				{ label: 'BSP vs REST', href: '/specs/comparisons/rest' },
-				{ label: 'BSP vs UCP', href: '/specs/comparisons/ucp' }
+				{ label: 'BEST vs REST', href: '/specs/comparisons/rest' },
+				{ label: 'BEST vs UCP', href: '/specs/comparisons/ucp' }
 			]
 		}
 	];

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# BSP Release Script
+# BEST Release Script
 # Usage: ./scripts/release.sh <version> [--prerelease] [--protocol-version <MAJOR.MINOR.PATCH>]
 #
-# --protocol-version  Semver string to write to version.json as the BSP protocol version.
+# --protocol-version  Semver string to write to version.json as the BEST protocol version.
 #                     Defaults to the release version argument.
 #                     version.json is the single source of truth — the build pipeline
-#                     stamps {{BSP_VERSION}} placeholders at build time, so no other
+#                     stamps {{BEST_VERSION}} placeholders at build time, so no other
 #                     files need to be edited.
 #
 # Examples:
@@ -85,7 +85,7 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
 fi
 
 echo ""
-echo "=== BSP Release ==="
+echo "=== BEST Release ==="
 echo "  Version:          $TAG"
 echo "  Pre-release:      $PRERELEASE"
 echo "  Protocol version: $PROTOCOL_VERSION"
@@ -99,7 +99,7 @@ fi
 
 # Step 1: Update version.json — the single source of truth for the protocol version.
 # The build pipeline (copy-protocol.mjs, +page.server.ts) reads this at build time
-# and stamps {{BSP_VERSION}} placeholders in protocol files and spec pages.
+# and stamps {{BEST_VERSION}} placeholders in protocol files and spec pages.
 CURRENT_PROTO_VERSION=$(node -e "process.stdout.write(require('./version.json').version)")
 
 if [ "$CURRENT_PROTO_VERSION" = "$PROTOCOL_VERSION" ]; then
@@ -145,9 +145,9 @@ fi
 
 # Step 3: Create and push the tag
 if [ "$PRERELEASE" = true ]; then
-  git tag -a "$TAG" -m "BSP Specification $TAG (pre-release)"
+  git tag -a "$TAG" -m "BEST Specification $TAG (pre-release)"
 else
-  git tag -a "$TAG" -m "BSP Specification $TAG"
+  git tag -a "$TAG" -m "BEST Specification $TAG"
 fi
 
 echo "Pushing tag $TAG..."
@@ -157,9 +157,9 @@ git push origin "$TAG"
 if command -v gh &>/dev/null; then
   echo "Creating GitHub Release..."
   if [ "$PRERELEASE" = true ]; then
-    gh release create "$TAG" --title "BSP $VERSION_TAG" --notes "Pre-release of the Behavioral State Protocol specification." --prerelease
+    gh release create "$TAG" --title "BEST $VERSION_TAG" --notes "Pre-release of the Behavioral State Protocol specification." --prerelease
   else
-    gh release create "$TAG" --title "BSP $VERSION_TAG" --notes "Release of the Behavioral State Protocol specification."
+    gh release create "$TAG" --title "BEST $VERSION_TAG" --notes "Release of the Behavioral State Protocol specification."
   fi
   echo "GitHub Release created."
 else
@@ -168,12 +168,12 @@ else
   echo "  ${REPO_URL}/releases/new?tag=${TAG}&prerelease=$PRERELEASE"
 fi
 
-# Step 5: Update BSP@stable tag for stable releases
+# Step 5: Update BEST@stable tag for stable releases
 if [ "$PRERELEASE" = false ]; then
-  echo "Updating BSP@stable tag..."
-  git tag -f -a BSP@stable "$TAG" -m "Stable pointer to $TAG"
-  git push origin BSP@stable --force
-  echo "BSP@stable now points to $TAG"
+  echo "Updating BEST@stable tag..."
+  git tag -f -a BEST@stable "$TAG" -m "Stable pointer to $TAG"
+  git push origin BEST@stable --force
+  echo "BEST@stable now points to $TAG"
 fi
 
 echo ""

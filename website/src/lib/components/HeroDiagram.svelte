@@ -10,9 +10,9 @@
 			<span class="da-sym">→</span>
 		</div>
 		<div class="dn">
-			<div class="dn-lbl">BSP Endpoint</div>
+			<div class="dn-lbl">BEST Endpoint</div>
 			<div class="dn-box dn-box--brand">Your Implementation</div>
-			<div class="dn-sub">/.well-known/bsp</div>
+			<div class="dn-sub">/.well-known/best</div>
 		</div>
 		<div class="da">
 			<span class="da-lbl">Event</span>

@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "BSP Agent Service",
-    "description": "HTTP API for the io.bsp.agents service — command ingestion, command discovery, event log, and queries.",
-    "version": "{{BSP_VERSION}}",
+    "title": "BEST Agent Service",
+    "description": "HTTP API for the io.best.agents service — command ingestion, command discovery, event log, and queries.",
+    "version": "{{BEST_VERSION}}",
     "license": {
       "name": "Apache-2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0"
@@ -12,10 +12,10 @@
   "servers": [
     {
       "url": "{endpoint}",
-      "description": "BSP-compliant endpoint base URL (from the http.endpoint field in the /.well-known/bsp manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/BSP/, then GET /commands resolves to https://app.example.com/BSP/commands.",
+      "description": "BEST-compliant endpoint base URL (from the http.endpoint field in the /.well-known/best manifest). All API paths below are appended to this base URL. For example, if http.endpoint is https://app.example.com/BEST/, then GET /commands resolves to https://app.example.com/BEST/commands.",
       "variables": {
         "endpoint": {
-          "default": "https://your.compliant.BSP.endpoint"
+          "default": "https://your.compliant.BEST.endpoint"
         }
       }
     }
@@ -26,11 +26,11 @@
     }
   ],
   "paths": {
-    "/.well-known/bsp": {
+    "/.well-known/best": {
       "get": {
         "operationId": "getDiscoveryManifest",
         "summary": "Discovery manifest",
-        "description": "Returns the BSP discovery manifest describing available services, capabilities, and transport bindings.",
+        "description": "Returns the BEST discovery manifest describing available services, capabilities, and transport bindings.",
         "tags": [
           "Discovery"
         ],
@@ -560,15 +560,15 @@
     },
     {
       "name": "Commands",
-      "description": "io.bsp.agents.commands — Discover command types (GET /commands), fetch versioned schemas (GET /commands/{schema}/{version}), and send commands (POST /commands)"
+      "description": "io.best.agents.commands — Discover command types (GET /commands), fetch versioned schemas (GET /commands/{schema}/{version}), and send commands (POST /commands)"
     },
     {
       "name": "Events",
-      "description": "io.bsp.agents.events — Query published domain events (GET /events), subscribe to live events (GET /events/stream), fetch versioned event schemas (GET /events/{schema}/{version}), and manage webhook subscriptions"
+      "description": "io.best.agents.events — Query published domain events (GET /events), subscribe to live events (GET /events/stream), fetch versioned event schemas (GET /events/{schema}/{version}), and manage webhook subscriptions"
     },
     {
       "name": "Queries",
-      "description": "io.bsp.agents.queries — Discover query types (GET /queries), fetch versioned query schemas (GET /queries/{schema}/{version}), and execute queries (GET /queries/{schema})"
+      "description": "io.best.agents.queries — Discover query types (GET /queries), fetch versioned query schemas (GET /queries/{schema}/{version}), and execute queries (GET /queries/{schema})"
     }
   ],
   "components": {

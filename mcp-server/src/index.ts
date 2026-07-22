@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 /**
- * bsp-mcp — MCP server for any BSP-compliant endpoint
+ * best-mcp — MCP server for any BEST-compliant endpoint
  *
- * Exposes the BSP command and query surface as MCP tools so any LLM client
- * can discover, read, and send commands to a BSP-compliant service.
+ * Exposes the BEST command and query surface as MCP tools so any LLM client
+ * can discover, read, and send commands to a BEST-compliant service.
  *
  * ── Single connection (backwards-compatible) ─────────────────────────────────
- *   BSP_ENDPOINT    — Base URL of the BSP HTTP surface (required)
- *                     e.g. https://api.example.com/bsp  or  https://api.example.com/bsp/tenants/<id>
- *   BSP_API_KEY     — Credential value (required unless BSP_AUTH_TYPE=none)
- *   BSP_AUTH_TYPE   — bearer (default) | apikey | none
- *   BSP_AUTH_HEADER — Header name when BSP_AUTH_TYPE=apikey, BSP_AUTH_IN=header (default: X-Api-Key)
- *   BSP_AUTH_IN     — header (default) | query
- *   BSP_AUTH_PARAM  — Query param name when BSP_AUTH_IN=query (default: apikey)
+ *   BEST_ENDPOINT    — Base URL of the BEST HTTP surface (required)
+ *                     e.g. https://api.example.com/best  or  https://api.example.com/best/tenants/<id>
+ *   BEST_API_KEY     — Credential value (required unless BEST_AUTH_TYPE=none)
+ *   BEST_AUTH_TYPE   — bearer (default) | apikey | none
+ *   BEST_AUTH_HEADER — Header name when BEST_AUTH_TYPE=apikey, BEST_AUTH_IN=header (default: X-Api-Key)
+ *   BEST_AUTH_IN     — header (default) | query
+ *   BEST_AUTH_PARAM  — Query param name when BEST_AUTH_IN=query (default: apikey)
  *
  * ── Multiple named connections ────────────────────────────────────────────────
- *   BSP_CONNECTIONS — JSON array of connection objects. Takes precedence over
- *                     the individual BSP_* variables above.
+ *   BEST_CONNECTIONS — JSON array of connection objects. Takes precedence over
+ *                     the individual BEST_* variables above.
  *                     Each object:
  *                       name        (string, required)  — identifier used in the 'connection' tool param
- *                       endpoint    (string, required)  — base URL of the BSP HTTP surface
+ *                       endpoint    (string, required)  — base URL of the BEST HTTP surface
  *                       apiKey      (string, optional)  — required unless authType is "none"
  *                       authType    (string, optional, default "bearer") — bearer | apikey | none
  *                       authHeader  (string, optional, default "X-Api-Key")
@@ -32,8 +32,8 @@
  *
  *                     Example:
  *                     [
- *                       { "name": "trading",   "endpoint": "https://api.example.com/bsp/tenants/<id>", "apiKey": "...", "authType": "apikey", "description": "Tenant trading commands and queries" },
- *                       { "name": "platform",  "endpoint": "https://api.example.com/bsp",              "apiKey": "...", "authType": "apikey", "description": "Cross-tenant platform queries" }
+ *                       { "name": "trading",   "endpoint": "https://api.example.com/best/tenants/<id>", "apiKey": "...", "authType": "apikey", "description": "Tenant trading commands and queries" },
+ *                       { "name": "platform",  "endpoint": "https://api.example.com/best",              "apiKey": "...", "authType": "apikey", "description": "Cross-tenant platform queries" }
  *                     ]
  *
  * ── Transport ─────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@
  * Transports:
  *   stdio — for VS Code Copilot, Cursor, Claude Desktop, and other local clients
  *   http  — for ChatGPT Desktop (Settings → Apps & Connectors → /mcp), or a
- *           multi-user backend that calls bsp-mcp on behalf of many different
+ *           multi-user backend that calls best-mcp on behalf of many different
  *           end users (see "Per-request credential overrides" below).
  *           Use ngrok or Cloudflare Tunnel to expose locally over HTTPS.
  *
@@ -57,23 +57,23 @@
  *   X-Api-Key    — replaces the connection's configured apiKey for this request.
  *   X-Tenant-Id  — replaces the tenant segment of the connection's endpoint for
  *                  this request. Only takes effect on a Mode 1 "<app>/tenant"
- *                  connection (the one auto-generated from BSP_<APP>_TENANT_ID);
+ *                  connection (the one auto-generated from BEST_<APP>_TENANT_ID);
  *                  ignored otherwise, since other connections have no tenant
  *                  template to substitute into. Must match ^[A-Za-z0-9_.-]+$ —
  *                  an invalid value is ignored (logged to stderr) rather than
  *                  spliced into the URL.
  *   Authorization: Bearer <token>
- *                — forwarded verbatim to the BSP endpoint as the caller's own
+ *                — forwarded verbatim to the BEST endpoint as the caller's own
  *                  credential, but ONLY when the connection was explicitly
- *                  configured with BSP_<APP>_ALLOW_BEARER_PASSTHROUGH=true
- *                  (BSP_CONNECTIONS: allowBearerPassthrough, legacy:
- *                  BSP_ALLOW_BEARER_PASSTHROUGH). Off by default for a reason:
+ *                  configured with BEST_<APP>_ALLOW_BEARER_PASSTHROUGH=true
+ *                  (BEST_CONNECTIONS: allowBearerPassthrough, legacy:
+ *                  BEST_ALLOW_BEARER_PASSTHROUGH). Off by default for a reason:
  *                  the MCP transport's Authorization header may carry a
  *                  credential meant for THIS server (e.g. MCP OAuth), which
  *                  must never leak upstream unless the operator states both
  *                  hops share one trust domain. A per-request X-Api-Key takes
  *                  precedence — the Bearer token is only used when no explicit
- *                  key override is present (mirrors BSP dual-auth gates, where
+ *                  key override is present (mirrors BEST dual-auth gates, where
  *                  a present API key is authoritative). Bearer scheme only;
  *                  the token is never logged.
  *
@@ -96,7 +96,7 @@ import {
 
 // ── Connection model ──────────────────────────────────────────────────────────
 
-interface BspConnection {
+interface BestConnection {
   name: string;
   endpoint: string;
   apiKey: string;
@@ -105,14 +105,14 @@ interface BspConnection {
   authIn: string;      // header | query
   authParam: string;   // query param name when authIn=query
   // Opt-in (default false): allow a per-request `Authorization: Bearer <token>` header
-  // (HTTP transport only) to be forwarded to the BSP endpoint in place of the connection's
+  // (HTTP transport only) to be forwarded to the BEST endpoint in place of the connection's
   // configured credential. Off by default because the MCP transport's Authorization header
   // may carry a credential meant for THIS server (e.g. OAuth), which must never leak to the
-  // upstream BSP service unless the operator explicitly says these are the same trust domain.
+  // upstream BEST service unless the operator explicitly says these are the same trust domain.
   allowBearerPassthrough: boolean;
   description?: string;
   // Only set for a Mode 1 "<app>/tenant" connection: the un-substituted
-  // BSP_<APP>_BASE_URL, so a per-request X-Tenant-Id header (HTTP transport
+  // BEST_<APP>_BASE_URL, so a per-request X-Tenant-Id header (HTTP transport
   // only) can rebuild `${tenantTemplateBaseUrl}/tenants/${requestTenantId}`.
   tenantTemplateBaseUrl?: string;
 }
@@ -122,35 +122,35 @@ interface BspConnection {
 const TRANSPORT = process.env.MCP_TRANSPORT ?? 'stdio';
 const HTTP_PORT = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
 
-function parseConnections(): BspConnection[] {
+function parseConnections(): BestConnection[] {
 
   // ── Mode 1: per-app env vars ─────────────────────────────────────────────
-  // Detected by the presence of one or more BSP_<APP>_BASE_URL variables.
+  // Detected by the presence of one or more BEST_<APP>_BASE_URL variables.
   // APP must be a single uppercase word (letters and digits only, e.g. TRADING, HR).
   //
   // Required per app:
-  //   BSP_<APP>_BASE_URL   — root URL of the BSP HTTP surface
-  //   BSP_<APP>_API_KEY    — credential (not required when AUTH_TYPE=none)
+  //   BEST_<APP>_BASE_URL   — root URL of the BEST HTTP surface
+  //   BEST_<APP>_API_KEY    — credential (not required when AUTH_TYPE=none)
   //
   // Optional per app:
-  //   BSP_<APP>_TENANT_ID  — when set, auto-generates two connections:
+  //   BEST_<APP>_TENANT_ID  — when set, auto-generates two connections:
   //                            <app>/tenant   → BASE_URL/tenants/TENANT_ID
   //                            <app>/platform → BASE_URL
   //                          when omitted, generates one connection: <app>
-  //   BSP_<APP>_AUTH_TYPE  — bearer (default) | apikey | none
-  //   BSP_<APP>_AUTH_HEADER — header name when AUTH_TYPE=apikey, AUTH_IN=header (default: X-Api-Key)
-  //   BSP_<APP>_AUTH_IN    — header (default) | query
-  //   BSP_<APP>_AUTH_PARAM — query param name when AUTH_IN=query (default: apikey)
+  //   BEST_<APP>_AUTH_TYPE  — bearer (default) | apikey | none
+  //   BEST_<APP>_AUTH_HEADER — header name when AUTH_TYPE=apikey, AUTH_IN=header (default: X-Api-Key)
+  //   BEST_<APP>_AUTH_IN    — header (default) | query
+  //   BEST_<APP>_AUTH_PARAM — query param name when AUTH_IN=query (default: apikey)
 
   const appNames = Object.keys(process.env)
-    .map(key => key.match(/^BSP_([A-Z][A-Z0-9]*)_BASE_URL$/)?.[1])
+    .map(key => key.match(/^BEST_([A-Z][A-Z0-9]*)_BASE_URL$/)?.[1])
     .filter((name): name is string => name !== undefined);
 
   if (appNames.length > 0) {
-    const connections: BspConnection[] = [];
+    const connections: BestConnection[] = [];
 
     for (const appName of appNames) {
-      const p        = `BSP_${appName}`;
+      const p        = `BEST_${appName}`;
       const baseUrl  = (process.env[`${p}_BASE_URL`] ?? '').replace(/\/$/, '');
       const apiKey   = process.env[`${p}_API_KEY`]    ?? '';
       const tenantId = process.env[`${p}_TENANT_ID`];
@@ -162,7 +162,7 @@ function parseConnections(): BspConnection[] {
       const app       = appName.toLowerCase();
 
       if (!apiKey && authType !== 'none') {
-        process.stderr.write(`[bsp-mcp] ERROR: BSP_${appName}_API_KEY is required (or set BSP_${appName}_AUTH_TYPE=none)\n`);
+        process.stderr.write(`[best-mcp] ERROR: BEST_${appName}_API_KEY is required (or set BEST_${appName}_AUTH_TYPE=none)\n`);
         process.exit(1);
       }
 
@@ -188,7 +188,7 @@ function parseConnections(): BspConnection[] {
           ...shared,
           name:        app,
           endpoint:    baseUrl,
-          description: `${app} — BSP service`,
+          description: `${app} — BEST service`,
         });
       }
     }
@@ -196,26 +196,26 @@ function parseConnections(): BspConnection[] {
     return connections;
   }
 
-  // ── Mode 2: BSP_CONNECTIONS JSON array ───────────────────────────────────
-  const raw = process.env.BSP_CONNECTIONS;
+  // ── Mode 2: BEST_CONNECTIONS JSON array ───────────────────────────────────
+  const raw = process.env.BEST_CONNECTIONS;
 
   if (raw) {
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch (e) {
-      process.stderr.write(`[bsp-mcp] ERROR: BSP_CONNECTIONS is not valid JSON: ${e}\n`);
+      process.stderr.write(`[best-mcp] ERROR: BEST_CONNECTIONS is not valid JSON: ${e}\n`);
       process.exit(1);
     }
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      process.stderr.write('[bsp-mcp] ERROR: BSP_CONNECTIONS must be a non-empty JSON array\n');
+      process.stderr.write('[best-mcp] ERROR: BEST_CONNECTIONS must be a non-empty JSON array\n');
       process.exit(1);
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (parsed as any[]).map((c, i) => {
-      if (!c.name)     { process.stderr.write(`[bsp-mcp] ERROR: BSP_CONNECTIONS[${i}] missing required field 'name'\n`);     process.exit(1); }
-      if (!c.endpoint) { process.stderr.write(`[bsp-mcp] ERROR: BSP_CONNECTIONS[${i}] missing required field 'endpoint'\n`); process.exit(1); }
+      if (!c.name)     { process.stderr.write(`[best-mcp] ERROR: BEST_CONNECTIONS[${i}] missing required field 'name'\n`);     process.exit(1); }
+      if (!c.endpoint) { process.stderr.write(`[best-mcp] ERROR: BEST_CONNECTIONS[${i}] missing required field 'endpoint'\n`); process.exit(1); }
       const authType = c.authType ?? 'bearer';
       if (!c.apiKey && authType !== 'none') {
-        process.stderr.write(`[bsp-mcp] ERROR: BSP_CONNECTIONS[${i}] ('${c.name}') missing required field 'apiKey' (or set authType: "none")\n`);
+        process.stderr.write(`[best-mcp] ERROR: BEST_CONNECTIONS[${i}] ('${c.name}') missing required field 'apiKey' (or set authType: "none")\n`);
         process.exit(1);
       }
       return {
@@ -228,20 +228,20 @@ function parseConnections(): BspConnection[] {
         authParam:   c.authParam   ? String(c.authParam)   : 'apikey',
         allowBearerPassthrough: c.allowBearerPassthrough === true,
         description: c.description ? String(c.description) : undefined,
-      } satisfies BspConnection;
+      } satisfies BestConnection;
     });
   }
 
-  // ── Mode 3: legacy single-connection — BSP_ENDPOINT / BSP_API_KEY ────────
-  const endpoint = (process.env.BSP_ENDPOINT ?? '').replace(/\/$/, '');
-  const apiKey   = process.env.BSP_API_KEY ?? '';
-  const authType = process.env.BSP_AUTH_TYPE ?? 'bearer';
+  // ── Mode 3: legacy single-connection — BEST_ENDPOINT / BEST_API_KEY ────────
+  const endpoint = (process.env.BEST_ENDPOINT ?? '').replace(/\/$/, '');
+  const apiKey   = process.env.BEST_API_KEY ?? '';
+  const authType = process.env.BEST_AUTH_TYPE ?? 'bearer';
   const missing: string[] = [];
-  if (!endpoint) missing.push('BSP_ENDPOINT');
-  if (!apiKey && authType !== 'none') missing.push('BSP_API_KEY');
+  if (!endpoint) missing.push('BEST_ENDPOINT');
+  if (!apiKey && authType !== 'none') missing.push('BEST_API_KEY');
   if (missing.length) {
-    process.stderr.write(`[bsp-mcp] ERROR: missing required environment variables: ${missing.join(', ')}\n`);
-    process.stderr.write(`[bsp-mcp] See README for configuration options.\n`);
+    process.stderr.write(`[best-mcp] ERROR: missing required environment variables: ${missing.join(', ')}\n`);
+    process.stderr.write(`[best-mcp] See README for configuration options.\n`);
     process.exit(1);
   }
   return [{
@@ -249,20 +249,20 @@ function parseConnections(): BspConnection[] {
     endpoint,
     apiKey,
     authType,
-    authHeader: process.env.BSP_AUTH_HEADER ?? 'X-Api-Key',
-    authIn:     process.env.BSP_AUTH_IN     ?? 'header',
-    authParam:  process.env.BSP_AUTH_PARAM  ?? 'apikey',
-    allowBearerPassthrough: (process.env.BSP_ALLOW_BEARER_PASSTHROUGH ?? '').toLowerCase() === 'true',
+    authHeader: process.env.BEST_AUTH_HEADER ?? 'X-Api-Key',
+    authIn:     process.env.BEST_AUTH_IN     ?? 'header',
+    authParam:  process.env.BEST_AUTH_PARAM  ?? 'apikey',
+    allowBearerPassthrough: (process.env.BEST_ALLOW_BEARER_PASSTHROUGH ?? '').toLowerCase() === 'true',
   }];
 }
 
 const CONNECTIONS = parseConnections();
 const MULTI       = CONNECTIONS.length > 1;
 
-function resolveConnection(name?: string): BspConnection {
+function resolveConnection(name?: string): BestConnection {
   if (!MULTI) return CONNECTIONS[0];
   if (!name) throw new Error(
-    `Multiple BSP connections are configured — you must specify a 'connection' parameter. ` +
+    `Multiple BEST connections are configured — you must specify a 'connection' parameter. ` +
     `Available connections: ${CONNECTIONS.map(c => c.name).join(', ')}. ` +
     `Call list_connections to see full details, then confirm the correct connection with the user before proceeding.`
   );
@@ -298,14 +298,14 @@ const warnedBearerIgnored = new Set<string>();
  * the connection unchanged when no override header is present, so a request
  * that doesn't opt in behaves exactly as if this feature didn't exist.
  *
- * Credential precedence (mirrors typical BSP dual-auth gates, where a present
+ * Credential precedence (mirrors typical BEST dual-auth gates, where a present
  * API key is authoritative): an explicit per-request X-Api-Key always wins; the
  * Authorization Bearer token is used only when there is no X-Api-Key AND the
  * connection was explicitly configured with allowBearerPassthrough. The token
  * is forwarded verbatim as `Authorization: Bearer <token>` to the connection's
  * configured endpoint only, and is never logged or persisted.
  */
-function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders): BspConnection {
+function applyRequestOverrides(conn: BestConnection, headers: IncomingHttpHeaders): BestConnection {
   const requestApiKey = firstHeaderValue(headers['x-api-key']);
   const requestTenantId = firstHeaderValue(headers['x-tenant-id']);
   const requestBearer = firstHeaderValue(headers['authorization'])?.match(BEARER_TOKEN)?.[1];
@@ -317,7 +317,7 @@ function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders
       endpoint = `${conn.tenantTemplateBaseUrl}/tenants/${requestTenantId}`;
     } else {
       process.stderr.write(
-        `[bsp-mcp] WARNING: ignoring X-Tenant-Id header with unexpected characters for connection '${conn.name}'\n`
+        `[best-mcp] WARNING: ignoring X-Tenant-Id header with unexpected characters for connection '${conn.name}'\n`
       );
     }
   }
@@ -333,9 +333,9 @@ function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders
     if (!warnedBearerIgnored.has(conn.name)) {
       warnedBearerIgnored.add(conn.name);
       process.stderr.write(
-        `[bsp-mcp] WARNING: request carried an Authorization Bearer token but connection '${conn.name}' ` +
+        `[best-mcp] WARNING: request carried an Authorization Bearer token but connection '${conn.name}' ` +
         `has bearer passthrough disabled — falling back to the configured credential. ` +
-        `Set allowBearerPassthrough (BSP_<APP>_ALLOW_BEARER_PASSTHROUGH=true) if this connection ` +
+        `Set allowBearerPassthrough (BEST_<APP>_ALLOW_BEARER_PASSTHROUGH=true) if this connection ` +
         `should authenticate upstream with the caller's own token. (Logged once per connection.)\n`
       );
     }
@@ -352,21 +352,21 @@ function applyRequestOverrides(conn: BspConnection, headers: IncomingHttpHeaders
 for (const conn of CONNECTIONS) {
   if (/^https:\/\/localhost(:\d+)?/.test(conn.endpoint)) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    process.stderr.write(`[bsp-mcp] WARNING: TLS verification disabled for localhost (connection: ${conn.name})\n`);
+    process.stderr.write(`[best-mcp] WARNING: TLS verification disabled for localhost (connection: ${conn.name})\n`);
     break;
   }
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
-function authHeaders(conn: BspConnection): Record<string, string> {
+function authHeaders(conn: BestConnection): Record<string, string> {
   if (conn.authType === 'none')   return {};
   if (conn.authType === 'bearer') return { Authorization: `Bearer ${conn.apiKey}` };
   if (conn.authType === 'apikey' && conn.authIn === 'header') return { [conn.authHeader]: conn.apiKey };
   return {}; // apikey in query — credentials go in the URL, not headers
 }
 
-function withAuthQuery(path: string, conn: BspConnection): string {
+function withAuthQuery(path: string, conn: BestConnection): string {
   if (conn.authType === 'apikey' && conn.authIn === 'query') {
     const sep = path.includes('?') ? '&' : '?';
     return `${path}${sep}${encodeURIComponent(conn.authParam)}=${encodeURIComponent(conn.apiKey)}`;
@@ -387,7 +387,7 @@ async function parseErrorMessage(response: Response): Promise<string> {
   }
 }
 
-async function bspGet<T>(path: string, conn: BspConnection): Promise<T> {
+async function bestGet<T>(path: string, conn: BestConnection): Promise<T> {
   const response = await fetch(`${conn.endpoint}${withAuthQuery(path, conn)}`, {
     headers: { ...authHeaders(conn), Accept: 'application/json' }
   });
@@ -398,7 +398,7 @@ async function bspGet<T>(path: string, conn: BspConnection): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function bspPost<T>(path: string, body: unknown, conn: BspConnection): Promise<T> {
+async function bestPost<T>(path: string, body: unknown, conn: BestConnection): Promise<T> {
   const response = await fetch(`${conn.endpoint}${withAuthQuery(path, conn)}`, {
     method: 'POST',
     headers: {
@@ -424,7 +424,7 @@ const CONNECTION_PROP: Record<string, object> = MULTI ? {
   connection: {
     type: 'string',
     description:
-      `Name of the BSP connection to target. Available: ${CONNECTIONS.map(c => c.name).join(', ')}. ` +
+      `Name of the BEST connection to target. Available: ${CONNECTIONS.map(c => c.name).join(', ')}. ` +
       'Call list_connections to see full details (endpoint, description) for each. ' +
       'If you are not certain which connection the user intends, call list_connections ' +
       'and ask the user to confirm before proceeding — a wrong connection may silently ' +
@@ -437,7 +437,7 @@ const TOOLS: Tool[] = [
   ...(MULTI ? [{
     name: 'list_connections',
     description:
-      'List all configured BSP connections with their names, endpoints, and descriptions. ' +
+      'List all configured BEST connections with their names, endpoints, and descriptions. ' +
       'Call this when you are unsure which connection to use for a given request, ' +
       'then confirm the correct connection with the user before calling any operation tool.',
     inputSchema: { type: 'object', properties: {}, required: [] }
@@ -445,7 +445,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_command_catalogue',
     description:
-      'List all commands this BSP endpoint accepts. ' +
+      'List all commands this BEST endpoint accepts. ' +
       'Returns the command catalogue: every command type with its schema name, version, dataschema URI, and description. ' +
       'Call this first to discover what you can send. ' +
       'Examples: configure-broker, configure-indicator-alert, submit-signal, archive-broker.',
@@ -476,7 +476,7 @@ const TOOLS: Tool[] = [
   {
     name: 'send_command',
     description:
-      'Send a command to the BSP endpoint. ' +
+      'Send a command to the BEST endpoint. ' +
       'Use get_command_catalogue to discover available commands, ' +
       'then get_command_schema to learn the required payload fields and the required source value, ' +
       'then call this with the schema name, version, source, and data payload. ' +
@@ -513,7 +513,7 @@ const TOOLS: Tool[] = [
   {
     name: 'send_command_and_wait',
     description:
-      'Send a command to the BSP endpoint and wait for it to be processed by polling a query. ' +
+      'Send a command to the BEST endpoint and wait for it to be processed by polling a query. ' +
       'Use this instead of send_command when you need to confirm the command was processed before proceeding, ' +
       'for example subscribing a price feed and then verifying it appears in the list. ' +
       'Provide poll_query (query schema name from get_query_catalogue) and poll_until_contains ' +
@@ -565,7 +565,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_query_catalogue',
     description:
-      'List all read queries available at this BSP endpoint. ' +
+      'List all read queries available at this BEST endpoint. ' +
       'Returns the query catalogue: every query type with its schema name, version, dataschema URI, and description. ' +
       'Call this to discover what current-state data you can read. ' +
       'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds).',
@@ -596,7 +596,7 @@ const TOOLS: Tool[] = [
   {
     name: 'execute_query',
     description:
-      'Execute a read query against the BSP endpoint and return current state data synchronously. ' +
+      'Execute a read query against the BEST endpoint and return current state data synchronously. ' +
       'Use get_query_catalogue to discover available queries, ' +
       'then get_query_schema to learn the accepted parameters and response shape, ' +
       'then call this with the schema name and any parameters. ' +
@@ -628,7 +628,7 @@ const TOOLS: Tool[] = [
     description:
       "List the service's published workflows — optional, read-only \"descriptive sequence\" recipes: " +
       'a named, ordered list of command schemas with per-step guidance for a multi-step process. ' +
-      'Workflows are a vendor extension (BSP does not require them) — many services publish none, ' +
+      'Workflows are a vendor extension (BEST does not require them) — many services publish none, ' +
       'in which case this returns a short note. Each step\'s "schema" is a command from ' +
       'get_command_catalogue: follow the steps in order, sending each command (and waiting for its ' +
       'result) before the next. The service does not execute the steps for you — it only describes them.',
@@ -648,20 +648,20 @@ function handleListConnections(): string {
   );
 }
 
-async function handleGetCommandCatalogue(conn: BspConnection): Promise<string> {
-  const data = await bspGet<{ commands: unknown[] }>('/commands', conn);
+async function handleGetCommandCatalogue(conn: BestConnection): Promise<string> {
+  const data = await bestGet<{ commands: unknown[] }>('/commands', conn);
   if (!data.commands.length) return 'No commands available at this endpoint.';
   return JSON.stringify(data.commands, null, 2);
 }
 
-async function handleGetCommandSchema(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
+async function handleGetCommandSchema(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await bspGet<unknown>(`/commands/${schema}/${version}`, conn);
+  const doc = await bestGet<unknown>(`/commands/${schema}/${version}`, conn);
   return JSON.stringify(doc, null, 2);
 }
 
-async function handleSendCommand(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
+async function handleSendCommand(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
   const source  = args.source as string;
@@ -684,11 +684,11 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BspConnect
     data
   };
 
-  const result = await bspPost<{ id: string }>('/commands', cloudEvent, conn);
+  const result = await bestPost<{ id: string }>('/commands', cloudEvent, conn);
   return `Command accepted. ID: ${result.id}`;
 }
 
-async function handleSendCommandAndWait(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
+async function handleSendCommandAndWait(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const commandResult = await handleSendCommand(args, conn);
 
   const pollQuery = args.poll_query as string | undefined;
@@ -716,20 +716,20 @@ async function handleSendCommandAndWait(args: Record<string, unknown>, conn: Bsp
   return `${commandResult}\n\nWarning: timed out after ${timeoutSeconds}s waiting for '${pollUntilContains ?? 'any result'}' in ${pollQuery}.`;
 }
 
-async function handleGetQueryCatalogue(conn: BspConnection): Promise<string> {
-  const data = await bspGet<{ queries: unknown[] }>('/queries', conn);
+async function handleGetQueryCatalogue(conn: BestConnection): Promise<string> {
+  const data = await bestGet<{ queries: unknown[] }>('/queries', conn);
   if (!data.queries.length) return 'No queries available at this endpoint.';
   return JSON.stringify(data.queries, null, 2);
 }
 
-async function handleGetQuerySchema(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
+async function handleGetQuerySchema(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await bspGet<unknown>(`/queries/${schema}/${version}`, conn);
+  const doc = await bestGet<unknown>(`/queries/${schema}/${version}`, conn);
   return JSON.stringify(doc, null, 2);
 }
 
-async function handleExecuteQuery(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
+async function handleExecuteQuery(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema = args.schema as string;
   // Models routinely name this argument 'parameters' (the tool description itself speaks of
   // "parameters"), and unknown keys are not rejected — before the alias, such calls silently
@@ -742,16 +742,16 @@ async function handleExecuteQuery(args: Record<string, unknown>, conn: BspConnec
     .join('&');
 
   const path = queryString ? `/queries/${schema}?${queryString}` : `/queries/${schema}`;
-  const result = await bspGet<unknown>(path, conn);
+  const result = await bestGet<unknown>(path, conn);
   return JSON.stringify(result, null, 2);
 }
 
-async function handleGetWorkflows(conn: BspConnection): Promise<string> {
-  // Workflows are an optional vendor extension (see the BSP "Composing Commands into Processes"
+async function handleGetWorkflows(conn: BestConnection): Promise<string> {
+  // Workflows are an optional vendor extension (see the BEST "Composing Commands into Processes"
   // guide). A service that doesn't publish them simply has no /workflows endpoint — treat that as
   // "none offered" rather than an error, so the agent can move on.
   try {
-    const data = await bspGet<{ workflows?: unknown[] }>('/workflows', conn);
+    const data = await bestGet<{ workflows?: unknown[] }>('/workflows', conn);
     const workflows = data.workflows ?? [];
     if (!workflows.length) return 'This endpoint publishes no workflows.';
     return JSON.stringify(workflows, null, 2);
@@ -763,7 +763,7 @@ async function handleGetWorkflows(conn: BspConnection): Promise<string> {
 // ── Server factory ────────────────────────────────────────────────────────────
 
 const connectionSummary = MULTI
-  ? `\n\n## Connections\n\nMultiple BSP connections are configured:\n` +
+  ? `\n\n## Connections\n\nMultiple BEST connections are configured:\n` +
     CONNECTIONS.map(c =>
       `- **${c.name}**: ${c.endpoint}${c.description ? ` — ${c.description}` : ''}`
     ).join('\n') +
@@ -773,12 +773,12 @@ const connectionSummary = MULTI
   : `\n\nConnected to: ${CONNECTIONS[0].endpoint}`;
 
 const SERVER_INSTRUCTIONS = (`
-You are connected to one or more BSP-compliant service endpoints.
+You are connected to one or more BEST-compliant service endpoints.
 ${connectionSummary}
 
 ## Discovering running services
 
-Service management is a domain like any other — BSP has no dedicated registry endpoint. If an endpoint exposes a directory of its services, it does so as queries (e.g. a 'list-services' query) and commands (e.g. 'RegisterService'). Use the query tools below to discover and read it.
+Service management is a domain like any other — BEST has no dedicated registry endpoint. If an endpoint exposes a directory of its services, it does so as queries (e.g. a 'list-services' query) and commands (e.g. 'RegisterService'). Use the query tools below to discover and read it.
 
 ## Reading current state (queries)
 
@@ -816,7 +816,7 @@ If a command fails, relay the error message verbatim to the user — it is actio
 
 function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
   const server = new Server(
-    { name: 'bsp-mcp', version: '1.0.0' },
+    { name: 'best-mcp', version: '1.0.0' },
     { capabilities: { tools: {} } }
   );
 
@@ -888,10 +888,10 @@ if (TRANSPORT === 'http') {
   });
 
   httpServer.listen(HTTP_PORT, () => {
-    process.stderr.write(`[bsp-mcp] HTTP server listening on port ${HTTP_PORT}\n`);
-    process.stderr.write(`[bsp-mcp] MCP endpoint: http://localhost:${HTTP_PORT}/mcp\n`);
+    process.stderr.write(`[best-mcp] HTTP server listening on port ${HTTP_PORT}\n`);
+    process.stderr.write(`[best-mcp] MCP endpoint: http://localhost:${HTTP_PORT}/mcp\n`);
     for (const c of CONNECTIONS) {
-      process.stderr.write(`[bsp-mcp] Connection '${c.name}': ${c.endpoint}\n`);
+      process.stderr.write(`[best-mcp] Connection '${c.name}': ${c.endpoint}\n`);
     }
   });
 } else {

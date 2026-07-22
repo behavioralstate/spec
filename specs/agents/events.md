@@ -1,6 +1,6 @@
-# Events — `io.bsp.agents.events`
+# Events — `io.best.agents.events`
 
-Domain events are **immutable facts** published by an BSP-compliant service as the result of processing a command. They are the **output** of the service. Callers (Process Managers, synchronisers, other services) subscribe to events to react and keep read models up to date.
+Domain events are **immutable facts** published by a BEST-compliant service as the result of processing a command. They are the **output** of the service. Callers (Process Managers, synchronisers, other services) subscribe to events to react and keep read models up to date.
 
 ## Event Wire Format
 
@@ -26,7 +26,7 @@ Events are:
 
 ## Typed vs Untyped Events
 
-BSP supports two event patterns. Services choose per event type; both can coexist in the same service.
+BEST supports two event patterns. Services choose per event type; both can coexist in the same service.
 
 ### Typed event — `dataschema` present
 
@@ -87,7 +87,7 @@ This pattern suits services that emit dynamic, loosely-structured payloads (e.g.
 > GET /events/stream?correlationId=abc123 → what happens next
 > ```
 
-> **Two tiers: the domain surface vs. the delivery tier.** `GET /events` and `GET /events/{schema}/{version}` are the **domain surface** — they expose the facts a service produces, the read half of the command/event model. `GET /events/stream` and `POST` / `DELETE /subscriptions` are the **delivery tier** — transport plumbing for *receiving* those facts over HTTP, nothing more. That is why these two are resource-shaped (`/subscriptions/{id}`) rather than commands: registering a delivery channel is connection setup, not a domain intent, and it wants synchronous request/response — you cannot be notified of a subscription's creation over the channel you are still establishing. They are the HTTP-callback peer of the SSE stream, not an exception to BSP's behaviour-oriented design.
+> **Two tiers: the domain surface vs. the delivery tier.** `GET /events` and `GET /events/{schema}/{version}` are the **domain surface** — they expose the facts a service produces, the read half of the command/event model. `GET /events/stream` and `POST` / `DELETE /subscriptions` are the **delivery tier** — transport plumbing for *receiving* those facts over HTTP, nothing more. That is why these two are resource-shaped (`/subscriptions/{id}`) rather than commands: registering a delivery channel is connection setup, not a domain intent, and it wants synchronous request/response — you cannot be notified of a subscription's creation over the channel you are still establishing. They are the HTTP-callback peer of the SSE stream, not an exception to BEST's behaviour-oriented design.
 
 ### GET /events/stream — Live Event Stream (SSE)
 
@@ -131,7 +131,7 @@ SSE clients reconnect automatically after a dropped connection. On reconnect, cl
 - The server **should** send periodic SSE comment lines (`: keepalive`) to prevent proxy timeouts on long-lived connections.
 - Clients **must** handle reconnection via `Last-Event-ID` — do not assume the stream is lossless.
 
-**Declare SSE support** in the capability's `push` block in `/.well-known/bsp`:
+**Declare SSE support** in the capability's `push` block in `/.well-known/best`:
 
 ```json
 "push": {
@@ -223,7 +223,7 @@ Returns `404` if not found.
 
 ## Push Notification Channels
 
-Polling `GET /events` is a fallback. BSP defines push channels per transport binding so callers receive events as they are produced.
+Polling `GET /events` is a fallback. BEST defines push channels per transport binding so callers receive events as they are produced.
 
 ### MCP — Server-to-Client Notifications
 
@@ -251,7 +251,7 @@ For callers using the HTTP binding, a webhook callback URL can be registered to 
 {
   "serviceId": "invoice-comparison-agent",
   "webhook": {
-    "url": "https://my-agent.example.com/BSP/events",
+    "url": "https://my-agent.example.com/BEST/events",
     "secret": "hmac-signing-secret"
   },
   "filter": {
@@ -270,9 +270,9 @@ Response: `201 Created` with the subscription descriptor (`secret` omitted, plus
 
 > **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/specs/security#webhook-ssrf-protection).
 
-## Mapping Domain Records to BSP Events
+## Mapping Domain Records to BEST Events
 
-Many implementations do not have a native BSP event store — they have domain-specific records (audit entries, trade history, sensor readings, etc.). Implementers may map these to the BSP event shape at query time.
+Many implementations do not have a native BEST event store — they have domain-specific records (audit entries, trade history, sensor readings, etc.). Implementers may map these to the BEST event shape at query time.
 
 The protocol only requires that the response conforms to the events schema — it does not prescribe how events are stored internally.
 

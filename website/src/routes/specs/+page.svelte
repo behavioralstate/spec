@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Documentation — BSP</title>
+	<title>Documentation — BEST</title>
 </svelte:head>
 
 <div class="index-page">
@@ -22,9 +22,9 @@
 		</div>
 
 		<div class="flow-node">
-			<div class="node-title">BSP Endpoint</div>
+			<div class="node-title">BEST Endpoint</div>
 			<div class="node-box node-box--brand">Your Implementation</div>
-			<div class="node-sub">/.well-known/bsp</div>
+			<div class="node-sub">/.well-known/best</div>
 		</div>
 
 		<div class="flow-arrow">
@@ -44,7 +44,7 @@
 		<div class="step">
 			<span class="step-num">1</span>
 			<div class="step-body">
-				<strong>Expose <code>/.well-known/bsp</code></strong>
+				<strong>Expose <code>/.well-known/best</code></strong>
 				<p>Serve a discovery manifest describing your agents, capabilities, and transport bindings. Consumers read it once and know everything.</p>
 			</div>
 		</div>
@@ -68,8 +68,8 @@
 		<section class="index-group">
 			<h2>Getting Started</h2>
 			<ul>
-				<li><a href="/specs/overview">Protocol Overview</a><span>What BSP is and how it works</span></li>
-				<li><a href="/specs/discovery">Discovery</a><span>The <code>/.well-known/bsp</code> manifest</span></li>
+				<li><a href="/specs/overview">Protocol Overview</a><span>What BEST is and how it works</span></li>
+				<li><a href="/specs/discovery">Discovery</a><span>The <code>/.well-known/best</code> manifest</span></li>
 				<li><a href="/specs/quickstart">Quick start with AI</a><span>Copy-paste prompts to get started fast</span></li>
 			</ul>
 		</section>
@@ -95,15 +95,15 @@
 			<h2>Reference</h2>
 			<ul>
 				<li><a href="/specs/versioning">Versioning</a><span>How versions work</span></li>
-				<li><a href="/specs/conformance">Conformance</a><span>What it means to be BSP-compliant</span></li>
-				<li><a href="/specs/design-decisions">Design Decisions</a><span>Why BSP is shaped the way it is</span></li>
+				<li><a href="/specs/conformance">Conformance</a><span>What it means to be BEST-compliant</span></li>
+				<li><a href="/specs/design-decisions">Design Decisions</a><span>Why BEST is shaped the way it is</span></li>
 			</ul>
 		</section>
 
 		<section class="index-group">
 			<h2>Comparisons</h2>
 			<ul>
-				<li><a href="/specs/comparisons/ucp">BSP vs UCP</a><span>How BSP relates to Google's Universal Commerce Protocol</span></li>
+				<li><a href="/specs/comparisons/ucp">BEST vs UCP</a><span>How BEST relates to Google's Universal Commerce Protocol</span></li>
 			</ul>
 		</section>
 	</div>

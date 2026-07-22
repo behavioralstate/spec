@@ -1,25 +1,25 @@
 # Versioning
 
-BSP uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](https://semver.org) rules.
+BEST uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](https://semver.org) rules.
 
 ## Release Version
 
-The release version is the git tag — `v{{BSP_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
+The release version is the git tag — `v{{BEST_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
 
 The version string (without the `v` prefix) appears in:
-- The `/.well-known/bsp` manifest root — `bsp.version`
-- Each service definition — `services["io.bsp.*"].version`
+- The `/.well-known/best` manifest root — `best.version`
+- Each service definition — `services["io.best.*"].version`
 - Each capability definition — `capabilities[*].version`
 
 ```json
 {
-  "bsp": {
-    "version": "{{BSP_VERSION}}",
+  "best": {
+    "version": "{{BEST_VERSION}}",
     "services": {
-      "io.bsp.agents": { "version": "{{BSP_VERSION}}", "..." : "..." }
+      "io.best.agents": { "version": "{{BEST_VERSION}}", "..." : "..." }
     },
     "capabilities": [
-      { "name": "io.bsp.agents.commands", "version": "{{BSP_VERSION}}", "..." : "..." }
+      { "name": "io.best.agents.commands", "version": "{{BEST_VERSION}}", "..." : "..." }
     ]
   }
 }
@@ -39,11 +39,11 @@ The version string (without the `v` prefix) appears in:
 
 ## Namespace Convention
 
-All BSP identifiers use reverse domain notation: `io.bsp.{service}.{capability}`.
+All BEST identifiers use reverse domain notation: `io.best.{service}.{capability}`.
 
 Examples:
-- `io.bsp.agents.commands`
-- `io.bsp.agents.events`
-- `io.bsp.agents.queries`
+- `io.best.agents.commands`
+- `io.best.agents.events`
+- `io.best.agents.queries`
 
 Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).

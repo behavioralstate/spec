@@ -1,7 +1,7 @@
 <footer class="footer">
 	<div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
 		<div class="text-sm text-[var(--color-text-muted)]">
-			&copy; {new Date().getFullYear()} BSP Authors. Licensed under
+			&copy; {new Date().getFullYear()} BEST Authors. Licensed under
 			<a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener" class="text-[var(--color-accent)] hover:underline">Apache-2.0</a>.
 		</div>
 		<div class="flex gap-6 text-sm text-[var(--color-text-muted)]">

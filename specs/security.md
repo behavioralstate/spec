@@ -1,14 +1,14 @@
 # Security Considerations
 
-BSP is an open protocol with a broad attack surface. This page catalogues the security requirements that every conformant implementation must observe.
+BEST is an open protocol with a broad attack surface. This page catalogues the security requirements that every conformant implementation must observe.
 
 ## TLS
 
-All BSP HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying BSP traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
+All BEST HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
 
 ## Authentication and Authorisation
 
-Only `GET /.well-known/bsp` is unauthenticated by design — it is the public discovery endpoint. Every other endpoint **MUST** require authentication.
+Only `GET /.well-known/best` is unauthenticated by design — it is the public discovery endpoint. Every other endpoint **MUST** require authentication.
 
 Implementations **SHOULD** define distinct authorisation scopes or roles:
 
@@ -21,15 +21,15 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 
 ## Credential Passthrough at Intermediaries
 
-An intermediary that sits between end callers and a BSP endpoint (an MCP server, a gateway, a multi-user chat backend) may need to forward each caller's *own* credential upstream instead of authenticating with a single fixed identity. Per-caller credentials are preferable to a shared key — the BSP service can then apply per-user authorisation and audit — but forwarding creates a credential-leakage risk that implementations must control:
+An intermediary that sits between end callers and a BEST endpoint (an MCP server, a gateway, a multi-user chat backend) may need to forward each caller's *own* credential upstream instead of authenticating with a single fixed identity. Per-caller credentials are preferable to a shared key — the BEST service can then apply per-user authorisation and audit — but forwarding creates a credential-leakage risk that implementations must control:
 
-- Passthrough **MUST** be opt-in per upstream connection, disabled by default. An inbound `Authorization` header may carry a credential intended for the *intermediary itself* (e.g. OAuth between an MCP client and an MCP server); forwarding it by default would leak that credential across a trust boundary. The operator enabling passthrough is asserting that the caller's token and the upstream BSP credential belong to the same trust domain.
+- Passthrough **MUST** be opt-in per upstream connection, disabled by default. An inbound `Authorization` header may carry a credential intended for the *intermediary itself* (e.g. OAuth between an MCP client and an MCP server); forwarding it by default would leak that credential across a trust boundary. The operator enabling passthrough is asserting that the caller's token and the upstream BEST credential belong to the same trust domain.
 - A forwarded credential **MUST** be sent only to the connection's configured endpoint — never to a URL derived from request content — and only over transports satisfying the [TLS requirements](#tls).
-- Where an explicit per-request credential (e.g. an `X-Api-Key` override) and an ambient `Authorization` header are both present, the explicit credential **SHOULD** take precedence. This mirrors dual-auth BSP gates, where a present API key is authoritative and never falls through to a bearer token.
+- Where an explicit per-request credential (e.g. an `X-Api-Key` override) and an ambient `Authorization` header are both present, the explicit credential **SHOULD** take precedence. This mirrors dual-auth BEST gates, where a present API key is authoritative and never falls through to a bearer token.
 - Intermediaries **MUST NOT** log or persist forwarded credentials. Diagnostics (e.g. warning that a bearer token was ignored because passthrough is disabled) **MUST** omit the credential value.
-- Multi-user intermediaries **SHOULD** fail closed: configure the connection's static credential as a deliberately invalid placeholder so a request that arrives without per-caller credentials is rejected by the BSP service rather than silently executing under a shared identity.
+- Multi-user intermediaries **SHOULD** fail closed: configure the connection's static credential as a deliberately invalid placeholder so a request that arrives without per-caller credentials is rejected by the BEST service rather than silently executing under a shared identity.
 
-The reference MCP server (`@behavioralstate/bsp-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](https://github.com/behavioralstate/spec/tree/main/mcp-server#http--per-request-credential-overrides-multi-user-backends).
+The reference MCP server (`@behavioralstate/best-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](https://github.com/behavioralstate/spec/tree/main/mcp-server#http--per-request-credential-overrides-multi-user-backends).
 
 ## Command Ingestion — `dataschema` Validation
 
@@ -90,7 +90,7 @@ Servers **SHOULD** apply rate limits and quotas per authenticated client and per
 
 ## Manifest Content
 
-The `/.well-known/bsp` manifest is publicly accessible by design. Its content **MUST** be limited to information intended for unauthenticated disclosure:
+The `/.well-known/best` manifest is publicly accessible by design. Its content **MUST** be limited to information intended for unauthenticated disclosure:
 
 - Service descriptions, capability names, and transport endpoints — yes
 - Internal-only endpoint addresses, tenant metadata, credential hints, or sensitive integration names — **MUST NOT** appear

@@ -14,7 +14,7 @@
 	viewBox="0 0 48 32"
 	fill="none"
 	xmlns="http://www.w3.org/2000/svg"
-	aria-label="BSP"
+	aria-label="BEST"
 	role="img"
 	class={className}
 >
@@ -28,15 +28,15 @@
 		stroke-width="1"
 	/>
 
-	<!-- BSP text — tight tracking, bold, white -->
+	<!-- BEST text — tight tracking, bold, white -->
 	<text
 		x="24"
-		y="22.5"
+		y="21.5"
 		text-anchor="middle"
 		fill="white"
 		font-family="'Inter', system-ui, -apple-system, sans-serif"
 		font-weight="800"
-		font-size="15"
+		font-size="12.5"
 		letter-spacing="-0.5"
-	>BSP</text>
+	>BEST</text>
 </svg>

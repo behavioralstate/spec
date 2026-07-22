@@ -1,4 +1,4 @@
-# BSP � Behavioral State Protocol (spec repo)
+# BEST � Behavioral State Protocol (spec repo)
 
 The authoritative protocol documentation lives in `specs/`. Do not duplicate it here.
 Read `specs/` to understand the protocol. These instructions cover only repo conventions and tooling.
@@ -13,7 +13,7 @@ Read `specs/` to understand the protocol. These instructions cover only repo con
 | `protocol/v1/examples/` | Example manifests and payloads |
 | `website/` | SvelteKit documentation site |
 | `scripts/` | Release and validation scripts |
-| `mcp-server/` | Generic BSP MCP server (`bsp-mcp`) |
+| `mcp-server/` | Generic BEST MCP server (`best-mcp`) |
 
 ## Commands
 
@@ -34,9 +34,9 @@ cd mcp-server && npm install && npm run build
 ## Version Stamping
 
 - **Single source of truth**: `version.json` at repo root
-- Spec and example files use the placeholder `{{BSP_VERSION}}` � never hardcode a version string
-- Files using the placeholder: `protocol/v1/examples/well-known-bsp.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
-- Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{BSP_VERSION}}` when copying `protocol/v1/` ? `website/static/v1/`
+- Spec and example files use the placeholder `{{BEST_VERSION}}` � never hardcode a version string
+- Files using the placeholder: `protocol/v1/examples/well-known-best.json`, `protocol/v1/services/agents/openapi.json`, `specs/versioning.md`, `specs/overview.md`, `specs/discovery.md`
+- Stamping at build time: `website/scripts/copy-protocol.mjs` replaces `{{BEST_VERSION}}` when copying `protocol/v1/` ? `website/static/v1/`
 
 ## Cutting a Release
 
@@ -49,9 +49,9 @@ The script bumps `version.json`, commits, tags, and pushes. Never manually edit 
 
 ## MCP Server (`mcp-server/`)
 
-Generic MCP server for **any** BSP-compliant endpoint. Published to npm as `@behavioralstate/bsp-mcp`.
+Generic MCP server for **any** BEST-compliant endpoint. Published to npm as `@behavioralstate/best-mcp`.
 
-> **`bsp-mcp` must stay implementation-agnostic.** It works with any BSP endpoint — do not hardcode headers, paths, or auth schemes specific to a single service. Authentication is fully configurable via environment variables; the defaults follow the BSP HTTP transport spec.
+> **`best-mcp` must stay implementation-agnostic.** It works with any BEST endpoint — do not hardcode headers, paths, or auth schemes specific to a single service. Authentication is fully configurable via environment variables; the defaults follow the BEST HTTP transport spec.
 
 ### Environment variables
 
@@ -59,34 +59,34 @@ Three configuration modes, checked in priority order:
 
 #### Mode 1 — Per-app env vars *(recommended)*
 
-One `BSP_<APP>_*` block per application. App name = single uppercase word (letters and digits, no underscores).
+One `BEST_<APP>_*` block per application. App name = single uppercase word (letters and digits, no underscores).
 
 **Required per app:**
 
 | Variable | Description |
 |---|---|
-| `BSP_<APP>_BASE_URL` | Root URL of the BSP HTTP surface |
-| `BSP_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
+| `BEST_<APP>_BASE_URL` | Root URL of the BEST HTTP surface |
+| `BEST_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
 
 **Optional per app:**
 
 | Variable | Default | Description |
 |---|---|---|
-| `BSP_<APP>_TENANT_ID` | — | When set, auto-generates two connections: `<app>/tenant` and `<app>/platform`. When omitted, generates one: `<app>`. |
-| `BSP_<APP>_AUTH_TYPE` | `bearer` | `bearer` · `apikey` · `none` |
-| `BSP_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name when `AUTH_TYPE=apikey`, `AUTH_IN=header` |
-| `BSP_<APP>_AUTH_IN` | `header` | `header` or `query` |
-| `BSP_<APP>_AUTH_PARAM` | `apikey` | Query param name when `AUTH_IN=query` |
+| `BEST_<APP>_TENANT_ID` | — | When set, auto-generates two connections: `<app>/tenant` and `<app>/platform`. When omitted, generates one: `<app>`. |
+| `BEST_<APP>_AUTH_TYPE` | `bearer` | `bearer` · `apikey` · `none` |
+| `BEST_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name when `AUTH_TYPE=apikey`, `AUTH_IN=header` |
+| `BEST_<APP>_AUTH_IN` | `header` | `header` or `query` |
+| `BEST_<APP>_AUTH_PARAM` | `apikey` | Query param name when `AUTH_IN=query` |
 
-**Auth types:** Mode 1 defaults to `apikey` (BSP services typically use API key headers). Modes 2 & 3 default to `bearer` for backward compatibility. Values: `apikey` → custom header (`X-Api-Key`) or query param · `bearer` → `Authorization: Bearer <key>` · `none` → no credentials.
+**Auth types:** Mode 1 defaults to `apikey` (BEST services typically use API key headers). Modes 2 & 3 default to `bearer` for backward compatibility. Values: `apikey` → custom header (`X-Api-Key`) or query param · `bearer` → `Authorization: Bearer <key>` · `none` → no credentials.
 
-#### Mode 2 — `BSP_CONNECTIONS` JSON array
+#### Mode 2 — `BEST_CONNECTIONS` JSON array
 
-Set `BSP_CONNECTIONS` to a JSON array of fully-explicit connection objects. Each object: `name`, `endpoint`, `apiKey`, `authType`, `authHeader`, `authIn`, `authParam`, `description` (optional).
+Set `BEST_CONNECTIONS` to a JSON array of fully-explicit connection objects. Each object: `name`, `endpoint`, `apiKey`, `authType`, `authHeader`, `authIn`, `authParam`, `description` (optional).
 
 #### Mode 3 — Legacy single connection
 
-`BSP_ENDPOINT` + `BSP_API_KEY` + optional `BSP_AUTH_TYPE`, `BSP_AUTH_HEADER`, `BSP_AUTH_IN`, `BSP_AUTH_PARAM`.
+`BEST_ENDPOINT` + `BEST_API_KEY` + optional `BEST_AUTH_TYPE`, `BEST_AUTH_HEADER`, `BEST_AUTH_IN`, `BEST_AUTH_PARAM`.
 
 **Transport (all modes):** `MCP_TRANSPORT` (`stdio` default · `http`) · `MCP_HTTP_PORT` (default `3000`).
 

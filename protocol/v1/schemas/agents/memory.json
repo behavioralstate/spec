@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://behavioralstate.io/v1/schemas/agents/memory.json",
-  "title": "BSP Agent Memory",
-  "description": "Schema for the removed agent memory capability (io.bsp.agents.memory). Retained for historical reference only — the capability has been removed from the protocol. The memory response body is opaque — different runtimes return different formats.",
+  "title": "BEST Agent Memory",
+  "description": "Schema for the removed agent memory capability (io.best.agents.memory). Retained for historical reference only — the capability has been removed from the protocol. The memory response body is opaque — different runtimes return different formats.",
   "$defs": {
     "agentMemory": {
       "type": "object",

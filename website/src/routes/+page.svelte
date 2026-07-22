@@ -4,11 +4,11 @@
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
 
 	// injected at build time from version.json via vite.config.ts define
-	const bspVersion = __BSP_VERSION__;
+	const bestVersion = __BEST_VERSION__;
 </script>
 
 <svelte:head>
-	<title>BSP — Behavioral State Protocol</title>
+	<title>BEST — Behavioral State Protocol</title>
 </svelte:head>
 
 <!-- Hero -->
@@ -26,17 +26,17 @@
 			<FeatureCard
 				icon="🌐"
 				title="Discoverable by Default"
-				description="Expose /.well-known/bsp and your service becomes immediately usable by any agent or LLM client — no custom integration, no bespoke connector, no onboarding docs. Capabilities, schemas, and transport bindings are all self-describing."
+				description="Expose /.well-known/best and your service becomes immediately usable by any agent or LLM client — no custom integration, no bespoke connector, no onboarding docs. Capabilities, schemas, and transport bindings are all self-describing."
 			/>
 			<FeatureCard
 				icon="⚡"
 				title="Behaviour, Not Resources"
-				description="BSP is not REST. There are no resources to manipulate. Callers express named intents — commands like SignContract or SubmitOrder — and observe the facts that result. The domain language lives in the protocol, not buried in status-field patches."
+				description="BEST is not REST. There are no resources to manipulate. Callers express named intents — commands like SignContract or SubmitOrder — and observe the facts that result. The domain language lives in the protocol, not buried in status-field patches."
 			/>
 			<FeatureCard
 				icon="📡"
 				title="Observable Event Log"
-				description="Every BSP service exposes a queryable event log — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
+				description="Every BEST service exposes a queryable event log — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
 			/>
 			<FeatureCard
 				icon="🔍"
@@ -46,7 +46,7 @@
 			<FeatureCard
 				icon="🤖"
 				title="Instant LLM Integration"
-				description="Implement BSP and get MCP for free. Point bsp-mcp at any BSP-compliant endpoint and every LLM client — Copilot, Claude, ChatGPT — immediately discovers commands, reads state, and sends requests. No custom tool definitions required."
+				description="Implement BEST and get MCP for free. Point best-mcp at any BEST-compliant endpoint and every LLM client — Copilot, Claude, ChatGPT — immediately discovers commands, reads state, and sends requests. No custom tool definitions required."
 			/>
 			<FeatureCard
 				icon="🔁"
@@ -63,14 +63,14 @@
 		<p class="section-eyebrow">See it in action</p>
 		<h2 class="section-title">Discovery manifest</h2>
 		<p class="section-subtitle">
-			Every BSP endpoint exposes a <code class="code-inline">/.well-known/bsp</code> manifest. Consumers discover agents, capabilities, and transports in a single request.
+			Every BEST endpoint exposes a <code class="code-inline">/.well-known/best</code> manifest. Consumers discover agents, capabilities, and transports in a single request.
 		</p>
 		<CodeBlock code={`{
-  "bsp": {
-    "version": "${bspVersion}",
+  "best": {
+    "version": "${bestVersion}",
     "services": {
-      "io.bsp.agents": {
-        "version": "${bspVersion}",
+      "io.best.agents": {
+        "version": "${bestVersion}",
         "description": "Service registry, command ingestion, published events",
         "http": {
           "endpoint": "https://api.example.com/"
@@ -79,8 +79,8 @@
     },
     "capabilities": [
       {
-        "name": "io.bsp.agents.commands",
-        "version": "${bspVersion}",
+        "name": "io.best.agents.commands",
+        "version": "${bestVersion}",
         "description": "Command catalogue and ingestion",
         "spec": "https://behavioralstate.io/specs/agents/commands",
         "schema": "https://behavioralstate.io/v1/schemas/agents/commands.json"
@@ -104,11 +104,11 @@
 <section id="audience" class="features-section">
 	<div class="max-w-6xl mx-auto">
 		<p class="section-eyebrow">Designed for everyone</p>
-		<h2 class="section-title">Who is BSP for?</h2>
+		<h2 class="section-title">Who is BEST for?</h2>
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 			<div class="audience-card">
 				<h3>For Developers</h3>
-				<p>Build command-and-event services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement BSP.</p>
+				<p>Build command-and-event services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement BEST.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For Businesses</h3>
@@ -116,11 +116,11 @@
 			</div>
 			<div class="audience-card">
 				<h3>For AI Platforms</h3>
-				<p>Discover and interact with any BSP-compliant agent using MCP or simple HTTP. Compatible with existing agent frameworks.</p>
+				<p>Discover and interact with any BEST-compliant agent using MCP or simple HTTP. Compatible with existing agent frameworks.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For IoT &amp; Sensors</h3>
-				<p>Even a temperature sensor can be an BSP service — it accepts commands and publishes events, and any caller can discover it via the manifest.</p>
+				<p>Even a temperature sensor can be a BEST service — it accepts commands and publishes events, and any caller can discover it via the manifest.</p>
 			</div>
 		</div>
 	</div>
@@ -131,7 +131,7 @@
 	<div class="max-w-4xl mx-auto text-center">
 		<h2 class="section-title">Get started today</h2>
 		<p class="section-subtitle mx-auto">
-			BSP is open-source under Apache 2.0. Explore the spec, read the schemas, and start building.
+			BEST is open-source under Apache 2.0. Explore the spec, read the schemas, and start building.
 		</p>
 		<div class="cta-actions">
 			<a href="/specs" class="btn-primary">Read the docs</a>

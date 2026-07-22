@@ -103,15 +103,15 @@
 		return normalizedBase;
 	}
 
-	// Accept both the canonical lowercase "bsp" envelope and the legacy
-	// uppercase "BSP" casing emitted by pre-erratum implementations.
+	// Accept both the canonical lowercase "best" envelope and the legacy
+	// uppercase "BEST" casing emitted by pre-erratum implementations.
 	function unwrapManifest(json) {
-		return json?.bsp ?? json?.BSP ?? json;
+		return json?.best ?? json?.BEST ?? json;
 	}
 
 	function assertManifest(m) {
 		if (!m || typeof m !== 'object' || !(m.version || m.capabilities || m.services || m.tenants)) {
-			throw new Error('Response does not look like a BSP manifest (expected a "bsp" root object).');
+			throw new Error('Response does not look like a BEST manifest (expected a "best" root object).');
 		}
 	}
 
@@ -143,7 +143,7 @@
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
-			activePath = `/.well-known/bsp/${tenantId}`;
+			activePath = `/.well-known/best/${tenantId}`;
 			activeEndpointBase = normalizedBase;
 			activeDescription = `Tenant manifest (${tenantId})`;
 			syncQueryString();
@@ -171,14 +171,14 @@
 		tenantId = '';
 		tenantError = '';
 		try {
-			// Accept a bare base URL, a full /.well-known/bsp URL, or a tenant
-			// manifest URL (/.well-known/bsp/{tenantId}) pasted straight in.
-			const match = normalizedBase.match(/^(.*?)\/\.well-known\/bsp(?:\/([^/?#]+))?$/);
+			// Accept a bare base URL, a full /.well-known/best URL, or a tenant
+			// manifest URL (/.well-known/best/{tenantId}) pasted straight in.
+			const match = normalizedBase.match(/^(.*?)\/\.well-known\/best(?:\/([^/?#]+))?$/);
 			const base = match ? match[1] : normalizedBase;
 			const tenantFromUrl = match?.[2] ? decodeURIComponent(match[2]) : '';
 			if (match) baseUrl = base;
 
-			const res = await fetch(`${base}/.well-known/bsp`);
+			const res = await fetch(`${base}/.well-known/best`);
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 			const json = await res.json();
 			const unwrapped = unwrapManifest(json);
@@ -188,7 +188,7 @@
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
-			activePath = '/.well-known/bsp';
+			activePath = '/.well-known/best';
 			activeEndpointBase = base;
 			activeDescription = 'Discovery manifest';
 			syncQueryString();
@@ -210,7 +210,7 @@
 		const url = params.get('url');
 		const tenant = params.get('tenant');
 		if (!url) return;
-		baseUrl = tenant ? `${url.replace(/\/+$/, '')}/.well-known/bsp/${tenant}` : url;
+		baseUrl = tenant ? `${url.replace(/\/+$/, '')}/.well-known/best/${tenant}` : url;
 		discover();
 	});
 
@@ -338,7 +338,7 @@
 </script>
 
 <svelte:head>
-	<title>Playground — BSP</title>
+	<title>Playground — BEST</title>
 </svelte:head>
 
 <div class="playground-shell">
@@ -349,7 +349,7 @@
 				<p class="overline">Interactive</p>
 				<h1 class="playground-title">Playground</h1>
 				<p class="playground-subtitle">
-					Point the playground at any BSP-compliant endpoint to explore its manifest, browse capabilities, and send commands — all from the browser.
+					Point the playground at any BEST-compliant endpoint to explore its manifest, browse capabilities, and send commands — all from the browser.
 				</p>
 			</div>
 
@@ -358,7 +358,7 @@
 				<input
 					class="url-input"
 					type="url"
-					placeholder="https://your.compliant.BSP.endpoint"
+					placeholder="https://your.compliant.BEST.endpoint"
 					bind:value={baseUrl}
 					spellcheck="false"
 					autocomplete="off"
@@ -450,11 +450,11 @@
 					{@const capBase = resolveEndpointBase(cap)}
 					<details class="cap-group" open>
 						<summary class="cap-name">
-							{cap.name.replace('io.bsp.', '')}
+							{cap.name.replace('io.best.', '')}
 							{#if cap.status && cap.status !== 'full'}<span class="cap-badge">{cap.status}</span>{/if}
 						</summary>
 						{#if cap.extends}
-							<p class="cap-extends">extends {cap.extends.replace('io.bsp.', '')}</p>
+							<p class="cap-extends">extends {cap.extends.replace('io.best.', '')}</p>
 						{/if}
 						{#if cap.endpoints && cap.endpoints.length > 0}
 							{#each cap.endpoints as ep}
@@ -613,8 +613,8 @@
 		</div>
 	{:else if !discovering && !discoverError}
 		<div class="empty-landing">
-			<p>Enter the base URL of a BSP-compliant endpoint and click <strong>Discover</strong>.</p>
-			<p class="hint">The playground fetches <code>/.well-known/bsp</code> and builds the capabilities tree from the manifest. You can also paste a manifest URL directly — including a tenant manifest like <code>/.well-known/bsp/&#123;tenantId&#125;</code>.</p>
+			<p>Enter the base URL of a BEST-compliant endpoint and click <strong>Discover</strong>.</p>
+			<p class="hint">The playground fetches <code>/.well-known/best</code> and builds the capabilities tree from the manifest. You can also paste a manifest URL directly — including a tenant manifest like <code>/.well-known/best/&#123;tenantId&#125;</code>.</p>
 		</div>
 	{/if}
 </div>

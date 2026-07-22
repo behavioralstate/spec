@@ -1,6 +1,6 @@
 # HTTP Transport
 
-HTTP is the primary transport for web-based consumers including the BSP web UI. The HTTP API surface is fully described by the capability `endpoints` arrays in the discovery manifest — no separate OpenAPI document is required from implementers.
+HTTP is the primary transport for web-based consumers including the BEST web UI. The HTTP API surface is fully described by the capability `endpoints` arrays in the discovery manifest — no separate OpenAPI document is required from implementers.
 
 ## Content Type
 
@@ -13,8 +13,8 @@ The `http.endpoint` field in the discovery manifest is the **consumer-facing bas
 | `http.endpoint` | Path | Resolved URL |
 |---|---|---|
 | `https://app.example.com/` | `/commands` | `https://app.example.com/commands` |
-| `https://app.agenthost.example/BSP/` | `/commands` | `https://app.agenthost.example/BSP/commands` |
-| `https://your.compliant.BSP.endpoint` | `/commands` | `https://your.compliant.BSP.endpoint/commands` |
+| `https://app.agenthost.example/BEST/` | `/commands` | `https://app.agenthost.example/BEST/commands` |
+| `https://your.compliant.BEST.endpoint` | `/commands` | `https://your.compliant.BEST.endpoint/commands` |
 
 Paths are **never** resolved relative to the domain root unless `http.endpoint` is at the domain root.
 
@@ -26,14 +26,14 @@ A service may declare multiple transport bindings (`http`, `mcp`) for the same c
 
 ```json
 "http": { "endpoint": "https://api.example.com/" },
-"mcp": { "transport": "stdio", "server": "bsp-mcp" }
+"mcp": { "transport": "stdio", "server": "best-mcp" }
 ```
 
 Both HTTP and MCP above provide access to the same command ingestion, event delivery, and queries. Consumers choose the transport that fits their platform; they do not infer separate capabilities from the transport list.
 
 ## Multi-Tenant Routing
 
-Many production BSP endpoints are multi-tenant — they serve multiple tenants under one host. The standard pattern is to include a `{tenantId}` segment in the path:
+Many production BEST endpoints are multi-tenant — they serve multiple tenants under one host. The standard pattern is to include a `{tenantId}` segment in the path:
 
 ```
 GET  https://api.example.com/{tenantId}/events
@@ -50,7 +50,7 @@ For machine-actionable tenant discovery (letting consumers resolve a tenant mani
 
 ## Authentication
 
-When the discovery manifest declares an `authentication` block, consumers must include credentials on all HTTP requests (except `GET /.well-known/bsp`):
+When the discovery manifest declares an `authentication` block, consumers must include credentials on all HTTP requests (except `GET /.well-known/best`):
 
 | Type | How to send |
 |---|---|

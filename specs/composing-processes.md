@@ -1,11 +1,11 @@
 # Composing Commands into Processes
 
-> **This is a non-normative guide.** It describes *patterns* for combining BSP
+> **This is a non-normative guide.** It describes *patterns* for combining BEST
 > commands and events into multi-step business processes. It defines no new
 > capability, no required endpoint, and no wire format. Nothing here is needed
 > for conformance — see [Conformance](./conformance.md) for what is.
 
-BSP gives you the primitives for a single interaction: send a command, observe
+BEST gives you the primitives for a single interaction: send a command, observe
 the events it produces. Real systems rarely stop there. Onboarding a user,
 fulfilling an order, or settling a trade is a *sequence* of commands, where each
 step often depends on a fact established by the previous one.
@@ -21,7 +21,7 @@ runtime sits.
 
 ## Where the orchestration lives
 
-The single most important decision is *who drives the sequence*. BSP supports
+The single most important decision is *who drives the sequence*. BEST supports
 two answers, and they are not mutually exclusive.
 
 | Pattern | Who decides the next step | What the service exposes |
@@ -129,10 +129,10 @@ Each step references a `schema` that already exists in the command catalogue
 The recipe adds ordering and intent on top of commands the service already
 accepts; it introduces no new command types.
 
-> **This is a vendor extension, not a core capability.** BSP does not define a
+> **This is a vendor extension, not a core capability.** BEST does not define a
 > `/workflows` endpoint or a workflow capability. A service offering this must
 > declare it under its **own** namespace (e.g. `io.acme.workflows`) in the
-> discovery manifest — never under the reserved `io.bsp.*` namespace
+> discovery manifest — never under the reserved `io.best.*` namespace
 > ([Discovery](./discovery.md)) — so that generic consumers can ignore what they
 > do not understand and extension-aware consumers can opt in.
 
@@ -143,8 +143,8 @@ boundary **only while it remains a flat, read-only description**. The moment a
 service starts executing the steps for the caller, retrying them, persisting
 run state, or branching on conditions, it has built an execution runtime — which
 is explicitly out of scope ([Overview](./overview.md#protocol-scope)). That is a
-legitimate thing to build; it just is not BSP, and it does not belong behind a
-BSP capability.
+legitimate thing to build; it just is not BEST, and it does not belong behind a
+BEST capability.
 
 | Stays descriptive (fine) | Becomes a runtime (out of scope) |
 |---|---|
@@ -155,7 +155,7 @@ BSP capability.
 
 If you need branching, parallelism, or durable execution, reach for a real
 orchestration engine (Temporal, Durable Functions, an actor runtime) *behind*
-your service. BSP describes the commands it accepts and the events it emits; the
+your service. BEST describes the commands it accepts and the events it emits; the
 engine drives them.
 
 ## Choosing between the two
@@ -232,11 +232,11 @@ POST /commands
 
 That is a complete registry — register, list, pause, expire — with not one
 resource path. It is the recommended naming vocabulary, not a required capability:
-there is no `io.bsp.*` registry namespace.
+there is no `io.best.*` registry namespace.
 
 ## See also
 
 - [Commands](./agents/commands.md) — command catalogue, correlation, `produces`
 - [Events](./agents/events.md) — the observable fact log and push channels
-- [Overview — Protocol Scope](./overview.md#protocol-scope) — what BSP owns and does not
-- [BSP vs REST](./comparisons/rest.md) — why behaviour-oriented composition differs from a CRUD chain
+- [Overview — Protocol Scope](./overview.md#protocol-scope) — what BEST owns and does not
+- [BEST vs REST](./comparisons/rest.md) — why behaviour-oriented composition differs from a CRUD chain

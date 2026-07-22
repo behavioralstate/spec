@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.title} — BSP</title>
+	<title>{data.title} — BEST</title>
 </svelte:head>
 
 <div class="page-wrapper">

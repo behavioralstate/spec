@@ -1,6 +1,6 @@
-# Service Lifecycle — `io.bsp.agents.lifecycle` *(removed)*
+# Service Lifecycle — `io.best.agents.lifecycle` *(removed)*
 
-> **This capability has been removed from the BSP specification.** Together with [Registry](./registry.md), it has been absorbed into the core command, query, and event primitives.
+> **This capability has been removed from the BEST specification.** Together with [Registry](./registry.md), it has been absorbed into the core command, query, and event primitives.
 
 The lifecycle capability defined bespoke control endpoints — `POST /services/{id}/pause`, `POST /services/{id}/resume`, `POST /services/{id}/heartbeat` — for operating on a registered service. Like the registry, these are resource-shaped management operations, not part of the command/event interaction surface.
 

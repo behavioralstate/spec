@@ -1,20 +1,20 @@
-# BSP — Behavioral State Protocol
+# BEST — Behavioral State Protocol
 
 **Consolidated specification.** This document is the single-file reference for the whole protocol: design, discovery, commands, events, queries, transports, conformance, and security. The machine-readable source of truth lives in [`protocol/v1/`](protocol/v1/) (JSON Schemas and examples); where prose and schema disagree, the schema wins.
 
-> Version strings in examples use the `{{BSP_VERSION}}` placeholder, stamped from [`version.json`](version.json) at release time.
+> Version strings in examples use the `{{BEST_VERSION}}` placeholder, stamped from [`version.json`](version.json) at release time.
 
 ## Contents
 
-- [What BSP Is](#what-bsp-is)
+- [What BEST Is](#what-best-is)
 - [Design Principles](#design-principles)
 - [Core Primitives and Capability Tiers](#core-primitives-and-capability-tiers)
-- [Wire Format — the BSP Envelope](#wire-format--the-bsp-envelope)
-- [Discovery — `/.well-known/bsp`](#discovery--well-knownbsp)
+- [Wire Format — the BEST Envelope](#wire-format--the-best-envelope)
+- [Discovery — `/.well-known/best`](#discovery--well-knownbest)
 - [Multi-Tenancy](#multi-tenancy)
-- [Commands — `io.bsp.agents.commands`](#commands--iobspagentscommands)
-- [Events — `io.bsp.agents.events`](#events--iobspagentsevents)
-- [Queries — `io.bsp.agents.queries`](#queries--iobspagentsqueries)
+- [Commands — `io.best.agents.commands`](#commands--iobestagentscommands)
+- [Events — `io.best.agents.events`](#events--iobestagentsevents)
+- [Queries — `io.best.agents.queries`](#queries--iobestagentsqueries)
 - [Composing Multi-Step Processes](#composing-multi-step-processes)
 - [HTTP Transport](#http-transport)
 - [MCP Transport](#mcp-transport)
@@ -25,17 +25,17 @@
 
 ---
 
-## What BSP Is
+## What BEST Is
 
-BSP standardises **service interoperability on CQRS semantics**: how a domain service exposes its command ingestion surface and published events, and how callers — AI agents, Process Managers, UIs, other services — discover and interact with it, across any runtime, platform, or language.
+BEST standardises **service interoperability on CQRS semantics**: how a domain service exposes its command ingestion surface and published events, and how callers — AI agents, Process Managers, UIs, other services — discover and interact with it, across any runtime, platform, or language.
 
-BSP does not care how a service works internally. It defines only the interaction surface:
+BEST does not care how a service works internally. It defines only the interaction surface:
 
 - **what commands go in** — intents to change the system
 - **what events come out** — immutable facts recording what happened
-- **how to discover the service** — a `/.well-known/bsp` manifest
+- **how to discover the service** — a `/.well-known/best` manifest
 
-Anyone with something to offer — a business, a service, a sensor, an AI agent — can expose a BSP manifest and become discoverable and callable by any agent, with no bespoke integration.
+Anyone with something to offer — a business, a service, a sensor, an AI agent — can expose a BEST manifest and become discoverable and callable by any agent, with no bespoke integration.
 
 | Example implementer | Accepts (commands) | Produces (events) |
 |---|---|---|
@@ -44,13 +44,13 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 | Code review service | `ReviewPullRequest` | `ReviewCompleted`, `ChangesRequested` |
 | Approval workflow | `RequestApproval` | `ApprovalGranted`, `ApprovalDenied` |
 
-> **BSP is not REST.** There are no resources to manipulate and no CRUD verbs. There are named operations to invoke — commands — and facts to observe — events. `POST /commands` is a behaviour entry point routed by the message `type`, not a resource collection. Standard REST endpoints (`GET /orders/{id}`) belong in a service's own API, outside BSP scope.
+> **BEST is not REST.** There are no resources to manipulate and no CRUD verbs. There are named operations to invoke — commands — and facts to observe — events. `POST /commands` is a behaviour entry point routed by the message `type`, not a resource collection. Standard REST endpoints (`GET /orders/{id}`) belong in a service's own API, outside BEST scope.
 
 ## Design Principles
 
 1. **Protocol-first** — the spec defines the surface; implementations derive from it.
 2. **Compose, don't invent** — built on existing standards: JSON Schema, the CloudEvents envelope shape, MCP, SSE, RFC 6570 URI templates.
-3. **Discoverable by default** — every endpoint self-describes via `/.well-known/bsp`; consumers need zero prior configuration.
+3. **Discoverable by default** — every endpoint self-describes via `/.well-known/best`; consumers need zero prior configuration.
 4. **Transport-agnostic** — the same semantics over HTTP (baseline) or MCP (LLM tooling).
 5. **Modular capabilities** — implementers expose only what they support; consumers discover what's available at runtime.
 6. **LLM-readable** — JSON Schema is the canonical contract format because LLMs read, generate, and reason about JSON natively.
@@ -60,20 +60,20 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 
 | Primitive | Description |
 |---|---|
-| **Service** | A BSP-compliant domain service that accepts commands and publishes events |
+| **Service** | A BEST-compliant domain service that accepts commands and publishes events |
 | **Command** | An intent to change the system, sent to a service by any caller |
 | **Event** | An immutable domain fact published by a service as the result of processing |
 | **Query** | A synchronous read of current state (optional capability) |
 
 | Tier | Capabilities | Meaning |
 |---|---|---|
-| **Core** | `/.well-known/bsp` discovery · `io.bsp.agents.commands` · `io.bsp.agents.events` | Required. A service implementing only these three is fully BSP-compliant. |
-| **Extended** | `io.bsp.agents.queries` | Optional. Declared in the manifest; consumers discover it at runtime. |
-| **Out of scope** | Execution runtimes, workflow orchestration, durable execution, retries, checkpointing, memory contracts, domain models, identity providers | Never owned by BSP. These belong to the service's internals or a separate execution layer. |
+| **Core** | `/.well-known/best` discovery · `io.best.agents.commands` · `io.best.agents.events` | Required. A service implementing only these three is fully BEST-compliant. |
+| **Extended** | `io.best.agents.queries` | Optional. Declared in the manifest; consumers discover it at runtime. |
+| **Out of scope** | Execution runtimes, workflow orchestration, durable execution, retries, checkpointing, memory contracts, domain models, identity providers | Never owned by BEST. These belong to the service's internals or a separate execution layer. |
 
-> **The core is intentionally small.** A minimal BSP endpoint is three things: a discovery manifest, a command entry point, and an event log. Everything else is additive.
+> **The core is intentionally small.** A minimal BEST endpoint is three things: a discovery manifest, a command entry point, and an event log. Everything else is additive.
 
-## Wire Format — the BSP Envelope
+## Wire Format — the BEST Envelope
 
 Commands and events share one wire format: the **CloudEvent 1.0 envelope shape**. Canonical schema: [`cloudEvent.json`](protocol/v1/schemas/cloudEvent.json).
 
@@ -118,9 +118,9 @@ Commands and events share one wire format: the **CloudEvent 1.0 envelope shape**
 
 ### CloudEvent Deviations
 
-BSP borrows the CloudEvent envelope **without conforming to the CloudEvent 1.0 specification**. Do not validate BSP messages with CloudEvent spec validators or construct them with strict CloudEvent SDKs.
+BEST borrows the CloudEvent envelope **without conforming to the CloudEvent 1.0 specification**. Do not validate BEST messages with CloudEvent spec validators or construct them with strict CloudEvent SDKs.
 
-| Rule | CloudEvent 1.0 | BSP |
+| Rule | CloudEvent 1.0 | BEST |
 |---|---|---|
 | `dataschema` format | Absolute URI | Relative `{schema}/{version}` allowed on the wire; the server resolves against its own catalogue |
 | `source` semantics | Should be a URI | Any string |
@@ -128,29 +128,29 @@ BSP borrows the CloudEvent envelope **without conforming to the CloudEvent 1.0 s
 | `datacontenttype` | Any MIME type | `"application/json"` only |
 | Extension attributes | Allowed | Blocked — schemas use `additionalProperties: false` |
 
-## Discovery — `/.well-known/bsp`
+## Discovery — `/.well-known/best`
 
-Every BSP endpoint exposes:
+Every BEST endpoint exposes:
 
 ```
-GET /.well-known/bsp
+GET /.well-known/best
 Content-Type: application/json
 ```
 
-This endpoint is **always public** — an implementation that requires auth on it is non-conformant. The path is canonical; `/.well-known/bsp.json` may be served as an optional alias, but consumers must not rely on it.
+This endpoint is **always public** — an implementation that requires auth on it is non-conformant. The path is canonical; `/.well-known/best.json` may be served as an optional alias, but consumers must not rely on it.
 
-Schema: [`discovery.json`](protocol/v1/schemas/discovery.json) · Full example: [`well-known-bsp.json`](protocol/v1/examples/well-known-bsp.json)
+Schema: [`discovery.json`](protocol/v1/schemas/discovery.json) · Full example: [`well-known-best.json`](protocol/v1/examples/well-known-best.json)
 
 ### Manifest Root
 
 | Field | Required | Description |
 |---|---|---|
-| `bsp.version` | yes | BSP spec version (semver) |
-| `bsp.services` | yes | Service definitions with transport bindings, keyed by reverse-domain name |
-| `bsp.capabilities` | yes | Supported capabilities with spec/schema URLs |
-| `bsp.authentication` | no | Credential requirements for all non-discovery endpoints (omit for public endpoints) |
-| `bsp.tenants` | no | Multi-tenant manifest discovery — see [Multi-Tenancy](#multi-tenancy) |
-| `bsp.agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) — a discovery hint, not a live directory |
+| `best.version` | yes | BEST spec version (semver) |
+| `best.services` | yes | Service definitions with transport bindings, keyed by reverse-domain name |
+| `best.capabilities` | yes | Supported capabilities with spec/schema URLs |
+| `best.authentication` | no | Credential requirements for all non-discovery endpoints (omit for public endpoints) |
+| `best.tenants` | no | Multi-tenant manifest discovery — see [Multi-Tenancy](#multi-tenancy) |
+| `best.agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) — a discovery hint, not a live directory |
 
 ### Authentication Block
 
@@ -182,7 +182,7 @@ Each entry in `services` declares `version` and `description` (required), option
 |---|---|---|
 | `http` | `endpoint` | **Baseline — every conformant service exposes it.** `endpoint` is the consumer-facing base URL; all capability paths are appended to it. |
 | `mcp` | `transport` (`stdio`/`sse`/`http`), `server` | Optional. May carry its own `authentication` block and `push: true`. See [MCP Transport](#mcp-transport). |
-| `grpc` | `endpoint`, optional `proto` | Optional, for internal runtimes. Declared in the schema; BSP defines no normative gRPC binding. |
+| `grpc` | `endpoint`, optional `proto` | Optional, for internal runtimes. Declared in the schema; BEST defines no normative gRPC binding. |
 
 Multiple transports expose the **same capability surface** — they are alternative access methods, never separate operation sets.
 
@@ -190,12 +190,12 @@ Multiple transports expose the **same capability surface** — they are alternat
 
 | Field | Required | Description |
 |---|---|---|
-| `name` | yes | Reverse-domain capability name. `io.bsp.*` is reserved for the spec; custom capabilities use an implementer-owned prefix (`com.acme.inventory`). |
+| `name` | yes | Reverse-domain capability name. `io.best.*` is reserved for the spec; custom capabilities use an implementer-owned prefix (`com.acme.inventory`). |
 | `version` | yes | Semver |
 | `description` | yes | Human-readable summary |
-| `spec` | io.bsp.* only | URL to the capability specification page (optional for custom capabilities) |
-| `schema` | io.bsp.* only | URL to the capability's **JSON Schema** (not OpenAPI) |
-| `service` | conditional | Key of the implementing service in `services`. Required when the capability's name prefix doesn't match the service key (e.g. custom service `io.dotquant.trading` implementing `io.bsp.agents.commands`). |
+| `spec` | io.best.* only | URL to the capability specification page (optional for custom capabilities) |
+| `schema` | io.best.* only | URL to the capability's **JSON Schema** (not OpenAPI) |
+| `service` | conditional | Key of the implementing service in `services`. Required when the capability's name prefix doesn't match the service key (e.g. custom service `io.dotquant.trading` implementing `io.best.agents.commands`). |
 | `status` | no | `"active"` (default) · `"partial"` · `"planned"` |
 | `endpoints` | no | Machine-readable list of `{ method, path, description? }`. Paths are appended to the service's `http.endpoint`. This is how consumers self-bootstrap without reading spec pages. |
 | `push` | no | Push channels supported (events capability): `{ "sse": true, "webhook": true, "mcp": true }` |
@@ -214,32 +214,32 @@ The optional `agents` array carries service descriptors — the identity card of
 | `id`, `name` | yes | Unique identifier and display name |
 | `accepts`, `produces` | yes | PascalCase CloudEvent `type` strings the service ingests/publishes |
 | `status` | yes | `running` · `paused` · `stopped` · `error` |
-| `description`, `type`, `version`, `endpoint` | no | Metadata; `endpoint` is the service's own BSP base URL if directly addressable |
+| `description`, `type`, `version`, `endpoint` | no | Metadata; `endpoint` is the service's own BEST base URL if directly addressable |
 | `metadata` | no | Opaque service-defined configuration (e.g. model name, system prompt). The protocol never interprets it. |
 | `webhook` | no | Push delivery configuration |
 
-BSP defines **no registry endpoint**. Implementations that manage services dynamically expose that as an ordinary domain — e.g. a `RegisterService` command and a `list-services` query — under their own namespace.
+BEST defines **no registry endpoint**. Implementations that manage services dynamically expose that as an ordinary domain — e.g. a `RegisterService` command and a `list-services` query — under their own namespace.
 
 ## Multi-Tenancy
 
-A tenant ID in BSP is an opaque string scoping a manifest to a context — a customer account, a user, a workspace, or the platform's own administrative context. Use it when callers operate in isolated data scopes (even with identical capabilities), skip it for single-tenant deployments.
+A tenant ID in BEST is an opaque string scoping a manifest to a context — a customer account, a user, a workspace, or the platform's own administrative context. Use it when callers operate in isolated data scopes (even with identical capabilities), skip it for single-tenant deployments.
 
 The root manifest of a multi-tenant host declares a **URI template** (RFC 6570, `{tenantId}` is the only permitted variable):
 
 ```json
 "tenants": {
-  "manifest": "https://api.example.com/.well-known/bsp/{tenantId}"
+  "manifest": "https://api.example.com/.well-known/best/{tenantId}"
 }
 ```
 
 Rules (normative — see also [Conformance](#conformance)):
 
 1. The root manifest **must** include `tenants.manifest` if tenant-scoped capabilities exist, and **must not** declare tenant-scoped capabilities itself — they appear only in tenant manifests. Root-level capabilities the host can fulfil without tenant context may stay.
-2. The expanded URI returns a **fully self-contained** tenant manifest: its `http.endpoint` is pre-scoped (e.g. `https://api.example.com/api/bsp/tenants/acme`), every `dataschema` URI fully resolved, no `{tenantId}` placeholders anywhere, no `tenants` block of its own.
-3. Fetching `/.well-known/bsp/{tenantId}` requires at most the API key declared in the root `authentication` block — never a tenant ID header (the path already carries it).
+2. The expanded URI returns a **fully self-contained** tenant manifest: its `http.endpoint` is pre-scoped (e.g. `https://api.example.com/api/best/tenants/acme`), every `dataschema` URI fully resolved, no `{tenantId}` placeholders anywhere, no `tenants` block of its own.
+3. Fetching `/.well-known/best/{tenantId}` requires at most the API key declared in the root `authentication` block — never a tenant ID header (the path already carries it).
 4. URI templating is valid **only** in `tenants.manifest`. Everywhere else, URIs are fully resolved.
 
-## Commands — `io.bsp.agents.commands`
+## Commands — `io.best.agents.commands`
 
 Commands are intents to change a domain service. The service validates, queues, and processes them **asynchronously**; results surface as events.
 
@@ -248,7 +248,7 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 | Method | Path | Description |
 |---|---|---|
 | GET | `/commands` | Command catalogue — all accepted command types with schema URIs |
-| POST | `/commands` | Send a command (BSP envelope). Validates, queues, returns `201`. |
+| POST | `/commands` | Send a command (BEST envelope). Validates, queues, returns `201`. |
 | GET | `/commands/{schema}/{version}` | JSON Schema document for one command type/version (`application/schema+json`) |
 
 ### Command Catalogue
@@ -289,7 +289,7 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 
 ### Command Results and Correlation
 
-BSP defines **no synchronous command response**. The result of processing is one or more published events:
+BEST defines **no synchronous command response**. The result of processing is one or more published events:
 
 ```
 POST /commands                       → 201 { "id": "abc123" }
@@ -299,9 +299,9 @@ GET  /events/stream?correlationId=abc123 → what happens next (push)
 
 The `id` echoed in the `201` response is the correlation identifier. No protocol-level field name is mandated for carrying it *inside* event payloads — that is agreed between client and server.
 
-The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BSP defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait.
+The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait.
 
-## Events — `io.bsp.agents.events`
+## Events — `io.best.agents.events`
 
 Events are immutable facts published as the result of processing. Schema: [`events.json`](protocol/v1/schemas/agents/events.json)
 
@@ -341,7 +341,7 @@ Request with `Accept: text/event-stream` plus credentials; optional filters `cor
 ```json
 {
   "serviceId": "negotiation",
-  "webhook": { "url": "https://my-agent.example.com/bsp/events", "secret": "hmac-signing-secret" },
+  "webhook": { "url": "https://my-agent.example.com/best/events", "secret": "hmac-signing-secret" },
   "filter": { "types": ["CounterProposed", "ContractAccepted"] }
 }
 ```
@@ -363,7 +363,7 @@ Returns `201` with a subscription descriptor (generated `id`; `secret` omitted �
 
 The events capability declares supported channels in its `push` block; check it before choosing.
 
-## Queries — `io.bsp.agents.queries`
+## Queries — `io.best.agents.queries`
 
 Queries are **synchronous reads** of current state — the read-before-write complement to commands (e.g. an agent lists broker accounts before referencing one in a command). Optional capability; declared in the manifest like any other. Schema: [`queries.json`](protocol/v1/schemas/agents/queries.json)
 
@@ -388,12 +388,12 @@ Queries are **not** a query language (no filter expressions, joins, or aggregati
 
 ## Composing Multi-Step Processes
 
-BSP deliberately owns no orchestration. Two non-normative patterns cover multi-step work:
+BEST deliberately owns no orchestration. Two non-normative patterns cover multi-step work:
 
 - **Choreography** — the caller sends a command, observes correlated events, decides the next command. Needs nothing beyond the core.
-- **Descriptive sequences (`/workflows`)** — a service **may** publish read-only, named recipes: an ordered list of command schemas with per-step guidance. This is a **vendor extension** under the implementer's own namespace — never `io.bsp.*`, and the service does not execute the steps; it only describes them. The caller drives each step and waits for its outcome before the next.
+- **Descriptive sequences (`/workflows`)** — a service **may** publish read-only, named recipes: an ordered list of command schemas with per-step guidance. This is a **vendor extension** under the implementer's own namespace — never `io.best.*`, and the service does not execute the steps; it only describes them. The caller drives each step and waits for its outcome before the next.
 
-The moment a service executes, retries, persists, or branches steps on the caller's behalf, it has become an execution runtime — out of BSP scope (put Temporal, Durable Functions, or similar *behind* the service).
+The moment a service executes, retries, persists, or branches steps on the caller's behalf, it has become an execution runtime — out of BEST scope (put Temporal, Durable Functions, or similar *behind* the service).
 
 ## HTTP Transport
 
@@ -408,7 +408,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 
 `http.endpoint` **must** be the consumer-facing public address — never an internal backend or service-mesh URL.
 
-**Authentication:** per the manifest's `authentication` block — `bearer` → `Authorization: Bearer <token>`; `apiKey` → header or query parameter named in `scheme`; everything except `GET /.well-known/bsp` requires credentials when declared.
+**Authentication:** per the manifest's `authentication` block — `bearer` → `Authorization: Bearer <token>`; `apiKey` → header or query parameter named in `scheme`; everything except `GET /.well-known/best` requires credentials when declared.
 
 **Errors:** all endpoints use a consistent body ([`error.json`](protocol/v1/schemas/error.json)):
 
@@ -434,15 +434,15 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 
 ## MCP Transport
 
-MCP (Model Context Protocol) lets any off-the-shelf LLM client (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop) interact with a BSP service with zero bespoke integration. It is declared in the manifest's `mcp` block only when supported.
+MCP (Model Context Protocol) lets any off-the-shelf LLM client (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop) interact with a BEST service with zero bespoke integration. It is declared in the manifest's `mcp` block only when supported.
 
-> **MCP is an adapter for clients you don't control.** Every MCP tool wraps exactly one HTTP endpoint. For code you own, call the BSP HTTP surface directly — putting an MCP server between your own client and the service adds a hop, flattens structured errors into prose, and widens your supply chain for nothing.
+> **MCP is an adapter for clients you don't control.** Every MCP tool wraps exactly one HTTP endpoint. For code you own, call the BEST HTTP surface directly — putting an MCP server between your own client and the service adds a hop, flattens structured errors into prose, and widens your supply chain for nothing.
 
 ### Tool Mapping
 
-The reference server [`@behavioralstate/bsp-mcp`](mcp-server/README.md) exposes:
+The reference server [`@behavioralstate/best-mcp`](mcp-server/README.md) exposes:
 
-| MCP tool | BSP operation |
+| MCP tool | BEST operation |
 |---|---|
 | `list_connections` | Enumerate configured endpoints (only in multi-connection mode) |
 | `get_command_catalogue` | `GET /commands` |
@@ -477,19 +477,19 @@ The reference server [`@behavioralstate/bsp-mcp`](mcp-server/README.md) exposes:
 
 `transport` is `stdio`, `sse`, or `http`; `server` is the identifier or URL. `mcp.authentication` is independent of the root block — each transport declares its own requirements. The `headers` array supports multi-header schemes (key + tenant ID); the optional `example` field lets IDE tooling pre-fill values from a per-tenant manifest.
 
-Configuration of the reference server (per-app `BSP_<APP>_*` env vars, `BSP_CONNECTIONS`, legacy single-connection, transports, credential passthrough) is documented in the [mcp-server README](mcp-server/README.md). Production deployments should pin an exact package version.
+Configuration of the reference server (per-app `BEST_<APP>_*` env vars, `BEST_CONNECTIONS`, legacy single-connection, transports, credential passthrough) is documented in the [mcp-server README](mcp-server/README.md). Production deployments should pin an exact package version.
 
 ## Agent Navigation Guide
 
 The canonical first-contact algorithm for an AI agent or automated client:
 
-**1. Fetch the root manifest** — `GET /.well-known/bsp` (always public). Extract `authentication` and `tenants.manifest` before anything else.
+**1. Fetch the root manifest** — `GET /.well-known/best` (always public). Extract `authentication` and `tenants.manifest` before anything else.
 
 **2. Identify the manifest type and collect prerequisites — before making any authenticated request:**
 
 | Root manifest shows | Meaning | Collect from the user |
 |---|---|---|
-| `capabilities` contains `io.bsp.agents.commands` | Direct service | Credentials only (if auth declared) |
+| `capabilities` contains `io.best.agents.commands` | Direct service | Credentials only (if auth declared) |
 | `tenants.manifest` present, no commands capability | Multi-tenant router | **Credentials and tenant ID, in one prompt** |
 | Commands capability with `status: "planned"` | Not implemented yet | — (report to user) |
 | Empty `capabilities`, no `tenants.manifest` | No discoverable surface | — (report to user) |
@@ -500,31 +500,31 @@ The canonical first-contact algorithm for an AI agent or automated client:
 
 **5. Fetch the catalogues** — `GET /commands` (and `GET /queries` if declared) is the definitive answer to "what can I do here." Then: fetch the schema for the chosen operation, execute, and observe results via `?correlationId=`.
 
-> **Never fall back to external OpenAPI/Swagger documents.** The BSP manifest is the canonical discovery surface; an implementer's Swagger describes their application API, not the BSP catalogue.
+> **Never fall back to external OpenAPI/Swagger documents.** The BEST manifest is the canonical discovery surface; an implementer's Swagger describes their application API, not the BEST catalogue.
 
 ## Conformance
 
-A BSP-compliant endpoint **must**:
+A BEST-compliant endpoint **must**:
 
-1. Expose `GET /.well-known/bsp` returning a valid manifest — `200`, public, `application/json`
+1. Expose `GET /.well-known/best` returning a valid manifest — `200`, public, `application/json`
 2. Include at least one service in the manifest
 3. List all supported capabilities with valid schema URLs
 4. Implement the HTTP API for every listed capability
 5. Return valid JSON conforming to the referenced schemas
-6. Use standard HTTP status codes and the BSP error format
+6. Use standard HTTP status codes and the BEST error format
 7. Declare authentication in the manifest (or omit for public) — never an undocumented `401`
 
 Per-capability required endpoints (for `active` capabilities; `partial` is exempt but must document available routes in `endpoints`):
 
 | Capability | Required endpoints |
 |---|---|
-| `io.bsp.agents.commands` | `GET /commands`, `POST /commands` |
-| `io.bsp.agents.events` | `GET /events` |
-| `io.bsp.agents.queries` | `GET /queries`, `GET /queries/{schema}/{version}`, `GET /queries/{schema}` |
+| `io.best.agents.commands` | `GET /commands`, `POST /commands` |
+| `io.best.agents.events` | `GET /events` |
+| `io.best.agents.queries` | `GET /queries`, `GET /queries/{schema}/{version}`, `GET /queries/{schema}` |
 
 Multi-tenant root manifests additionally follow the [Multi-Tenancy rules](#multi-tenancy).
 
-Compliance does **not** require: any specific language, framework, or architecture; any specific event transport; MCP support; or AI/LLM capabilities — a BSP service can be deterministic or human-operated.
+Compliance does **not** require: any specific language, framework, or architecture; any specific event transport; MCP support; or AI/LLM capabilities — a BEST service can be deterministic or human-operated.
 
 ## Versioning
 
@@ -536,14 +536,14 @@ Semantic versioning (`MAJOR.MINOR.PATCH`). The version string appears at the man
 | Additive — new optional fields, new capabilities | MINOR |
 | Docs, clarifications, non-breaking fixes | PATCH |
 
-Consumers **must ignore unknown fields** (forward compatibility). All BSP identifiers use reverse-domain notation; `io.bsp.*` is reserved for the specification.
+Consumers **must ignore unknown fields** (forward compatibility). All BEST identifiers use reverse-domain notation; `io.best.*` is reserved for the specification.
 
 ## Security Requirements
 
 Condensed from the normative set — every conformant implementation observes these:
 
 - **TLS** — HTTPS everywhere in production; MCP transports must provide TLS-equivalent confidentiality; validate certificates; never send credentials over insecure transports.
-- **Auth** — only `GET /.well-known/bsp` is unauthenticated. `GET /events` requires auth and tenant-scoped authorisation unless explicitly public. Distinct Read/Write scopes are recommended.
+- **Auth** — only `GET /.well-known/best` is unauthenticated. `GET /events` requires auth and tenant-scoped authorisation unless explicitly public. Distinct Read/Write scopes are recommended.
 - **`dataschema` SSRF** — servers select validation schemas from their own catalogue keyed by `type`; they **must not** fetch caller-supplied `dataschema` URIs, and **should** reject commands whose `dataschema` doesn't match a catalogue entry.
 - **Replay protection** — envelope `id` is an idempotency key; duplicates rejected within a retention window, scoped to the authenticated tenant/sender; same `id` + different payload → `409`.
 - **`source` is untrusted** — caller-declared; never grant permissions or make security decisions from it; overwrite with (or record alongside) the verified principal for audit.

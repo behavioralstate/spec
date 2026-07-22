@@ -1,18 +1,18 @@
 # Quick start with AI
 
-The fastest way to get going with BSP is to paste one of these prompts into your AI assistant (GitHub Copilot, Claude, ChatGPT, or Cursor). Each prompt is designed to be copy-paste ready — fill in the parts in `[brackets]` and send it.
+The fastest way to get going with BEST is to paste one of these prompts into your AI assistant (GitHub Copilot, Claude, ChatGPT, or Cursor). Each prompt is designed to be copy-paste ready — fill in the parts in `[brackets]` and send it.
 
 ---
 
-## Prompt 1 — Make your service BSP-compliant
+## Prompt 1 — Make your service BEST-compliant
 
-Use this when you have an existing service and want to add a BSP surface to it.
+Use this when you have an existing service and want to add a BEST surface to it.
 
 ```
-Make my [ASP.NET Core / Express / FastAPI / Spring Boot] service BSP-compliant.
+Make my [ASP.NET Core / Express / FastAPI / Spring Boot] service BEST-compliant.
 
 I need these four endpoints:
-- GET /.well-known/bsp — discovery manifest
+- GET /.well-known/best — discovery manifest
 - GET /commands — catalogue listing accepted commands with JSON Schema
 - POST /commands — CloudEvents 1.0 entry point
 - GET /queries — query catalogue
@@ -22,41 +22,41 @@ Auth: X-Api-Key header. Set authentication.type = "apikey" in the manifest.
 Spec reference: https://behavioralstate.io/specs
 ```
 
-**What to expect:** The LLM will scaffold the four routes, a manifest class or JSON file, and a command handler stub. Review the generated `/.well-known/bsp` and ensure it includes the `authentication` block and at least one entry in `capabilities`.
+**What to expect:** The LLM will scaffold the four routes, a manifest class or JSON file, and a command handler stub. Review the generated `/.well-known/best` and ensure it includes the `authentication` block and at least one entry in `capabilities`.
 
 ---
 
-## Prompt 2 — Configure bsp-mcp for your LLM client
+## Prompt 2 — Configure best-mcp for your LLM client
 
-Use this when your BSP service is running and you want to use it directly from your LLM client.
+Use this when your BEST service is running and you want to use it directly from your LLM client.
 
 ```
-Configure bsp-mcp so I can use my BSP service from [VS Code Copilot / Claude Desktop / Cursor].
+Configure best-mcp so I can use my BEST service from [VS Code Copilot / Claude Desktop / Cursor].
 
-Service base URL: [https://api.example.com/bsp]
+Service base URL: [https://api.example.com/best]
 API key: [my-api-key]
 Tenant ID: [my-tenant-id]  ← remove this line if not multi-tenant
 
 Output the exact env vars and mcpServers JSON block to add to my client config.
 
-bsp-mcp docs: https://behavioralstate.io/specs/transports/mcp
+best-mcp docs: https://behavioralstate.io/specs/transports/mcp
 ```
 
 **What to expect:** The LLM will produce the `env` block and `mcpServers` JSON snippet. For VS Code you add it to `.vscode/mcp.json`; for Claude Desktop to `claude_desktop_config.json`; for Cursor to `cursor_mcp.json`. See [MCP transport](./transports/mcp.md) for full details.
 
 ---
 
-## Prompt 3 — Validate your BSP endpoint
+## Prompt 3 — Validate your BEST endpoint
 
-Use this when you have implemented BSP and want a second opinion before shipping.
+Use this when you have implemented BEST and want a second opinion before shipping.
 
 ```
-Check that my BSP endpoint correctly implements the spec.
+Check that my BEST endpoint correctly implements the spec.
 
 URL: [https://api.example.com]
 
 Verify:
-1. GET /.well-known/bsp — valid manifest, authentication block present
+1. GET /.well-known/best — valid manifest, authentication block present
 2. GET /commands — lists commands with schema, version, dataschema URI
 3. POST /commands — accepts CloudEvents 1.0 (specversion, source, type, dataschema, data)
 4. dataschema uses relative URI format: {name}/{version} (e.g. "submit-order/1.0")
