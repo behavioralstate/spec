@@ -85,6 +85,7 @@ This repo has **two independent** versioned artifacts. Running one release does 
 | Artifact | Tag prefix | Command | Outcome |
 |---|---|---|---|
 | `@behavioralstate/best-mcp` npm package | `mcp/v*` | `./scripts/release-mcp.sh [x.y.z]` | CI publishes to npm |
+| `@behavioralstate/best-validate` npm package | `validate/v*` | `./scripts/release-validate.sh [x.y.z]` | CI publishes to npm |
 | BEST protocol spec + website | `spec/v*` | `./scripts/release.sh x.y.z [--prerelease]` | CI builds the site image → GHCR → IaC deploy PR |
 
 `release-mcp.sh` with no argument auto-bumps the patch version. `release.sh` requires a clean `main` checkout, bumps `version.json` (the single source of truth for `{{BEST_VERSION}}` placeholders), updates this README's release references, tags, and creates the GitHub Release. When releasing both in one session, release `best-mcp` first.
