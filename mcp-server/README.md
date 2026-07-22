@@ -85,6 +85,8 @@ npm run build
 
 There are three configuration modes. Use whichever fits your setup — they are mutually exclusive and checked in the order listed.
 
+> **Upgrading from `bsp-mcp` (pre-2.0)?** The protocol short name changed BSP → BEST in spec 0.9.0. All env vars are now `BEST_*`, but the server accepts legacy `BSP_*` names as a deprecated fallback (with a startup warning), so existing configurations keep working — rename them at your convenience.
+
 ---
 
 ### Mode 1 — Per-app env vars *(recommended)*

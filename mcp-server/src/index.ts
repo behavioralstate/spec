@@ -119,6 +119,25 @@ interface BestConnection {
 
 // ── Config parsing ────────────────────────────────────────────────────────────
 
+// Legacy compatibility: the protocol short name changed BSP → BEST in spec 0.9.0.
+// Accept pre-0.9.0 BSP_* env vars as a fallback for any BEST_* var not explicitly
+// set, so existing deployments keep working across the rename.
+{
+  let legacyVarsUsed = false;
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith('BSP_') && value !== undefined) {
+      const bestKey = 'BEST_' + key.slice(4);
+      if (process.env[bestKey] === undefined) {
+        process.env[bestKey] = value;
+        legacyVarsUsed = true;
+      }
+    }
+  }
+  if (legacyVarsUsed) {
+    process.stderr.write('[best-mcp] WARNING: BSP_* environment variables are deprecated — rename them to BEST_*.\n');
+  }
+}
+
 const TRANSPORT = process.env.MCP_TRANSPORT ?? 'stdio';
 const HTTP_PORT = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
 
