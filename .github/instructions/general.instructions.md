@@ -14,6 +14,7 @@ Read `specs/` to understand the protocol. These instructions cover only repo con
 | `website/` | SvelteKit documentation site |
 | `scripts/` | Release and validation scripts |
 | `mcp-server/` | Generic BEST MCP server (`best-mcp`) |
+| `validate-cli/` | Conformance validator CLI (`best-validate`) — schemas synced from `protocol/v1/schemas` at build time |
 
 ## Commands
 

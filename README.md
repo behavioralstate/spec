@@ -66,6 +66,18 @@ npx @behavioralstate/best-mcp
 
 Per-app `BEST_<APP>_*` variables are the recommended configuration mode (default auth: `X-Api-Key` header). Multi-tenant endpoints, multiple connections, bearer/query-param auth, HTTP transport for ChatGPT Desktop, and per-request credential overrides are all covered in the [mcp-server README](mcp-server/README.md). Production deployments should pin an exact version (e.g. `@behavioralstate/best-mcp@2.0.0`).
 
+## best-validate — Conformance Validator
+
+Run the spec's conformance checklist against any live endpoint ([validate-cli/README.md](validate-cli/README.md)):
+
+```bash
+cd validate-cli && npm install && npm run build
+node dist/index.js https://api.example.com            # BEST 0.9.x endpoint
+node dist/index.js https://api.example.com --legacy-bsp  # pre-0.9.0 endpoint
+```
+
+Exit code 0 = conformant; `--json` for CI. All probes are non-destructive.
+
 ## Cutting a Release
 
 This repo has **two independent** versioned artifacts. Running one release does not release the other. Always use the scripts — never tag manually.

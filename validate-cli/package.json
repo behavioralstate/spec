@@ -1,0 +1,29 @@
+{
+  "name": "@behavioralstate/best-validate",
+  "version": "0.1.0",
+  "description": "Conformance validator for BEST (Behavioral State Protocol) endpoints — runs the spec's conformance checklist against a live endpoint",
+  "type": "module",
+  "bin": {
+    "best-validate": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "README.md"
+  ],
+  "scripts": {
+    "sync-schemas": "node scripts/sync-schemas.mjs",
+    "build": "npm run sync-schemas && tsc",
+    "prepublishOnly": "npm run build",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

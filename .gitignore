@@ -6,6 +6,9 @@ key.pem
 cert.pem
 **/node_modules/
 
+# Synced at build time from protocol/v1/schemas (validate-cli/scripts/sync-schemas.mjs)
+validate-cli/schemas/
+
 # Logs
 **/logs
 **/*.log
