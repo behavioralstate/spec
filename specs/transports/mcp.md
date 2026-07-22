@@ -187,7 +187,7 @@ execute_query                  → read current state synchronously
 
 `send_command` builds the CloudEvent 1.0 envelope automatically:
 - `type` is derived from the schema name via PascalCase conversion (`configure-broker → ConfigureBroker`)
-- `dataschema` is set to the relative URI `{schema}/{version}` (e.g. `configure-broker/1.0`)
+- `dataschema` is set to the absolute catalogue URI `{endpoint}/commands/{schema}/{version}` (e.g. `https://api.example.com/best/commands/configure-broker/1.0`)
 - `source` must be supplied by the caller — the required value is documented in the schema `description` returned by `get_command_schema`; never invent or default it
 
 ## Transport Configuration

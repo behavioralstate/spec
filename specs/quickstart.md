@@ -59,12 +59,12 @@ Verify:
 1. GET /.well-known/best — valid manifest, authentication block present
 2. GET /commands — lists commands with schema, version, dataschema URI
 3. POST /commands — accepts CloudEvents 1.0 (specversion, source, type, dataschema, data)
-4. dataschema uses relative URI format: {name}/{version} (e.g. "submit-order/1.0")
+4. dataschema is the absolute catalogue URI: {base}/commands/{name}/{version} (e.g. "https://api.example.com/commands/submit-order/1.0")
 
 Spec: https://behavioralstate.io/specs
 ```
 
-**What to expect:** The LLM will walk through each endpoint, point out missing fields or incorrect formats, and suggest fixes. Common issues: `dataschema` set to an absolute URL instead of a relative URI, missing `authentication` block in the manifest, or command payload wrapped in an extra object rather than placed directly in CloudEvent `data`.
+**What to expect:** The LLM will walk through each endpoint, point out missing fields or incorrect formats, and suggest fixes. Common issues: `dataschema` not matching the catalogue's absolute URI, missing `authentication` block in the manifest, or command payload wrapped in an extra object rather than placed directly in CloudEvent `data`.
 
 ---
 

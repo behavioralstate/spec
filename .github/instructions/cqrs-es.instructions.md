@@ -12,3 +12,4 @@ The authoritative CQRS/ES design is documented in `specs/`. This file is a histo
 - `source` on the CloudEvent identifies the caller — servers **MUST NOT** use it as the sole routing key; use `type` for routing.
 - The `io.best.agents.*` capability namespace is frozen — renaming is a breaking change.
 - `{{BEST_VERSION}}` placeholder everywhere version appears in protocol/spec files; stamped at build time from `version.json`.
+- Since 0.9.0 the envelope is a **conformant CloudEvents 1.0 profile**: `dataschema` on the wire is the absolute catalogue URI (never relative), `source` is a URI-reference, unknown envelope attributes are ignored, not rejected. The protocol short name is **BEST** (renamed from BSP in 0.9.0).

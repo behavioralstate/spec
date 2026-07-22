@@ -32,9 +32,9 @@ Commands are **intents to change** a domain service. They are sent **to** the se
 
 > **`POST /commands` is a behaviour endpoint, not a resource collection.** Sending a command is not creating a "command resource" — it is expressing an intent. The path `/commands` is a single entry point for all operations this service accepts. What the service does with the message is determined entirely by the `type` field, not the HTTP verb or the URL. This is the fundamental difference between BEST and REST: in REST you manipulate resources; in BEST you invoke named operations and observe the facts they produce.
 
-Commands use the **CloudEvent 1.0 envelope shape** as wire format. The CloudEvent envelope is the same shape used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
+Commands use the **CloudEvents 1.0 envelope** as wire format. The same envelope is used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
 
-> **BEST is not a conformant CloudEvent implementation.** BEST borrows the CloudEvent 1.0 envelope as a well-known, LLM-readable structure for commands and events, but deliberately deviates from the spec in several places. See [Design Decisions — CloudEvent Deviations](/specs/design-decisions#cloudevent-deviations) for the full list. Callers should treat BEST messages as *BEST-shaped envelopes*, not as spec-compliant CloudEvents.
+> **BEST is a conformant CloudEvents 1.0 profile.** Every valid BEST message is a valid CloudEvents 1.0 message; BEST only *restricts* the envelope (PascalCase `type`, JSON-only content, `dataschema` required for commands). CloudEvents SDKs, brokers, and validators work with BEST traffic unchanged. See [Design Decisions — CloudEvents Conformance](/specs/design-decisions#cloudevents-conformance).
 
 The `dataschema` field in an **incoming command** is informational metadata — it documents which schema the client used when constructing the payload. It is **not** an instruction to the server. The server selects the schema to validate against using the `type` field, by looking up that type in its own command catalogue. A well-formed client will have fetched the schema from `GET /commands` and its `dataschema` value will match what the server holds — but the server never needs to fetch it.
 
@@ -44,7 +44,7 @@ The `dataschema` field in an **incoming command** is informational metadata — 
 |---|---|---|---|
 | `specversion` | string | yes | Always `"1.0"` |
 | `id` | string | yes | Unique message ID (UUID recommended) |
-| `source` | string | yes | String identifying the origin of the command. A URI is recommended for interoperability (e.g. `https://pm.example.com/negotiation-agent`) but any string is valid — callers may use it as a routing key, a label, or any identifier meaningful to their system. The `source + id` pair serves as a globally unique message identifier. Servers **MUST NOT** use `source` as the sole routing key for backend handlers — use `type` for routing instead. |
+| `source` | string (URI-reference) | yes | URI-reference (RFC 3986) identifying the origin of the command. An absolute URI is recommended for interoperability (e.g. `https://pm.example.com/negotiation-agent`); a relative reference (a service name or routing key) is valid. The `source + id` pair serves as a globally unique message identifier. Servers **MUST NOT** use `source` as the sole routing key for backend handlers — use `type` for routing instead. |
 | `type` | string | yes | Command type identifier in PascalCase (e.g. `ProposeCounter`, `SubmitOrder`). This is the natural routing key — implementations should use `type` to determine which backend handler, queue, or processor receives the command. |
 | `datacontenttype` | string | yes | Always `"application/json"` |
 | `dataschema` | string (URI) | yes | URI to the JSON Schema for `data` — hosted by the ingestion API at `GET /commands/{schema}/{version}` |
@@ -70,7 +70,7 @@ The ingestion API owns and hosts the schemas via `GET /commands/{schema}/{versio
   "source": "https://pm.example.com/negotiation-agent",
   "type": "ProposeCounter",
   "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/schemas/ProposeCounter/1.0",
+  "dataschema": "https://api.example.com/commands/propose-counter/1.0",
   "time": "2025-07-01T10:30:00Z",
   "data": {
     "salary": 100000,

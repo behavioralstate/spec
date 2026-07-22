@@ -2,11 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://behavioralstate.io/v1/schemas/cloudEvent.json",
   "title": "CloudEvent",
-  "description": "BEST envelope shape for commands and events. Based on the CloudEvent 1.0 structure but not conformant with the CloudEvent 1.0 specification — see design-decisions.md#cloudevent-deviations for the full list of intentional deviations.",
+  "description": "BEST envelope for commands and events — a conformant profile of the CloudEvents 1.0 specification. BEST restricts CloudEvents (PascalCase type, JSON-only content, dataschema required for commands) but every valid BEST message is a valid CloudEvent 1.0 message. See design-decisions.md#cloudevents-conformance.",
   "$defs": {
     "cloudEvent": {
       "type": "object",
-      "description": "A CloudEvent 1.0 message. Used as the wire format for BEST commands (sent to a service) and BEST events (published by a service). The data property is a domain-specific payload whose shape is defined by the JSON Schema at dataschema.",
+      "description": "A CloudEvent 1.0 message. Used as the wire format for BEST commands (sent to a service) and BEST events (published by a service). The data property is a domain-specific payload whose shape is defined by the JSON Schema at dataschema. Consumers MUST ignore unknown attributes (CloudEvents extension attributes and future protocol fields) rather than reject messages carrying them.",
       "required": ["specversion", "id", "source", "type", "datacontenttype", "time", "data"],
       "properties": {
         "specversion": {
@@ -20,7 +20,8 @@
         },
         "source": {
           "type": "string",
-          "description": "String identifying the origin of the message. A URI is recommended for interoperability but any string is valid — callers may use it as a routing key, a label, or any identifier meaningful to their system. For commands: set by the sender. For events: set by the publishing service."
+          "format": "uri-reference",
+          "description": "URI-reference (RFC 3986) identifying the origin of the message. An absolute URI is recommended for interoperability; a relative reference (e.g. a service name or routing key such as 'dotquant') is valid. For commands: set by the sender. For events: set by the publishing service. Never treated as authenticated identity."
         },
         "type": {
           "type": "string",
@@ -29,11 +30,12 @@
         "datacontenttype": {
           "type": "string",
           "const": "application/json",
-          "description": "Content type of the data payload. Always 'application/json'."
+          "description": "Content type of the data payload. Always 'application/json' in BEST (a profile restriction; CloudEvents allows any media type)."
         },
         "dataschema": {
           "type": "string",
-          "description": "Reference to the JSON Schema that defines the structure of data. For commands: a relative URI in the form '{schema}/{version}' (e.g. 'configure-broker/1.0') — resolved against the service's own command catalogue. Absolute URIs appear in catalogue entries. Optional for events — when omitted the consumer is responsible for interpreting the data payload (untyped event). Note: BEST deliberately uses relative URIs here; this field does not conform to the CloudEvent 1.0 'dataschema' URI requirement."
+          "format": "uri",
+          "description": "Absolute URI of the JSON Schema that defines the structure of data — for commands, the catalogue entry's dataschema value, which resolves to GET /commands/{schema}/{version} on the service's own surface. Required for commands, optional for events — when omitted the consumer is responsible for interpreting the data payload (untyped event). Servers validate against their own catalogue keyed by type and never fetch this URI."
         },
         "time": {
           "type": "string",
@@ -46,7 +48,7 @@
           "additionalProperties": true
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   }
 }

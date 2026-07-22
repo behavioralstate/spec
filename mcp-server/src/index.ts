@@ -679,7 +679,8 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
     source,
     type,
     datacontenttype: 'application/json',
-    dataschema:      `${schema}/${version}`,
+    // Absolute catalogue URI — BEST is a conformant CloudEvents 1.0 profile
+    dataschema:      `${conn.endpoint.replace(/\/+$/, '')}/commands/${schema}/${version}`,
     time:            new Date().toISOString(),
     data
   };
@@ -798,7 +799,7 @@ Use the query tools to read domain state before issuing commands that require ex
 CloudEvent envelope rules (enforced by send_command):
 - 'type': PascalCase of the schema name (configure-broker → ConfigureBroker). Converted automatically.
 - 'source': read from the schema description. NEVER invent or default this value.
-- 'dataschema': relative URI '{schema}/{version}' (e.g. configure-broker/1.0). Never an absolute or environment-specific URL.
+- 'dataschema': the absolute catalogue URI '{endpoint}/commands/{schema}/{version}'. Built automatically from the connection endpoint.
 
 ## Following a published workflow (optional)
 

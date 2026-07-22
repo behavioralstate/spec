@@ -75,16 +75,16 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 
 ## Wire Format — the BEST Envelope
 
-Commands and events share one wire format: the **CloudEvent 1.0 envelope shape**. Canonical schema: [`cloudEvent.json`](protocol/v1/schemas/cloudEvent.json).
+Commands and events share one wire format: the **CloudEvents 1.0 envelope**, of which BEST is a conformant profile. Canonical schema: [`cloudEvent.json`](protocol/v1/schemas/cloudEvent.json).
 
 | Field | Type | Commands | Events | Description |
 |---|---|---|---|---|
 | `specversion` | string | required | required | Always `"1.0"` |
 | `id` | string | required | required | Unique message ID (UUID recommended). For commands this is the **idempotency key** and the **correlation identifier**. |
-| `source` | string | required | required | Origin of the message. URI recommended, any string valid — may serve as a routing key or label. Caller-declared; never authenticated identity. |
+| `source` | string (URI-reference) | required | required | Origin of the message — a URI-reference per RFC 3986. Absolute URI recommended; a relative reference (a service name or routing key) is valid. Caller-declared; never authenticated identity. |
 | `type` | string | required | required | Message type in **PascalCase** (`ProposeCounter`, `CounterProposed`). For commands, must match a type in the command catalogue — this is the routing key. |
 | `datacontenttype` | string | required | required | Always `"application/json"` |
-| `dataschema` | string | required | optional | Reference to the JSON Schema for `data`. For commands: the catalogue's `dataschema` URI, or the relative form `{schema}/{version}` (e.g. `propose-counter/1.0`). Events without `dataschema` are *untyped* — the consumer interprets `data`. |
+| `dataschema` | string (URI) | required | optional | Absolute URI of the JSON Schema for `data` — for commands, the catalogue's `dataschema` value (e.g. `https://api.example.com/commands/propose-counter/1.0`). Events without `dataschema` are *untyped* — the consumer interprets `data`. |
 | `time` | string | required | required | ISO 8601 timestamp of creation |
 | `data` | object | required | required | The domain payload. For commands, validated against the catalogue schema before queuing. For events, semantically opaque to the protocol. |
 
@@ -116,17 +116,17 @@ Commands and events share one wire format: the **CloudEvent 1.0 envelope shape**
 }
 ```
 
-### CloudEvent Deviations
+### A Conformant CloudEvents Profile
 
-BEST borrows the CloudEvent envelope **without conforming to the CloudEvent 1.0 specification**. Do not validate BEST messages with CloudEvent spec validators or construct them with strict CloudEvent SDKs.
+**Every valid BEST message is a valid CloudEvents 1.0 message.** BEST is a *profile* of CloudEvents: it restricts the envelope without violating it, so CloudEvents SDKs, brokers, and validators work with BEST traffic unchanged.
 
-| Rule | CloudEvent 1.0 | BEST |
+| Rule | CloudEvents 1.0 | BEST profile restriction |
 |---|---|---|
-| `dataschema` format | Absolute URI | Relative `{schema}/{version}` allowed on the wire; the server resolves against its own catalogue |
-| `source` semantics | Should be a URI | Any string |
 | `type` casing | Unspecified | PascalCase mandated |
-| `datacontenttype` | Any MIME type | `"application/json"` only |
-| Extension attributes | Allowed | Blocked — schemas use `additionalProperties: false` |
+| `datacontenttype` | Any media type | `"application/json"` only |
+| `dataschema` presence | Optional | Required for commands (optional for events) |
+| `source` | URI-reference, absolute recommended | Same — BEST adds that it must never be treated as authenticated identity |
+| Extension attributes | Producers may add them | Permitted; BEST messages don't rely on them, and consumers **must** ignore unknown attributes rather than reject |
 
 ## Discovery — `/.well-known/best`
 
@@ -455,7 +455,7 @@ The reference server [`@behavioralstate/best-mcp`](mcp-server/README.md) exposes
 | `get_workflows` | `GET /workflows` — the optional [descriptive-sequence extension](#composing-multi-step-processes); returns a note when the service publishes none |
 | *(push)* | Server-to-client MCP notifications deliver correlated events when `"push": true` |
 
-`send_command` derives the envelope `type` by PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`), sets `dataschema` to `{schema}/{version}`, and requires the caller to supply `source` — the expected value is documented in the schema description, never invented.
+`send_command` derives the envelope `type` by PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`), sets `dataschema` to the absolute catalogue URI (`{endpoint}/commands/{schema}/{version}`), and requires the caller to supply `source` — the expected value is documented in the schema description, never invented.
 
 ### Manifest Declaration
 
