@@ -10,6 +10,8 @@ BEST is a specification for service interoperability: how domain services expose
 
 The same content is browsable per-topic at [behavioralstate.io](https://behavioralstate.io/), rendered from the pages under [`specs/`](specs/).
 
+Upgrading an implementation from 0.8.x? See [MIGRATION.md](MIGRATION.md) — 0.9.0 renamed the protocol short name (BSP → BEST) and made the envelope a conformant CloudEvents 1.0 profile.
+
 > The most recent stable release is [v0.8.1](https://github.com/behavioralstate/spec/releases/tag/spec/v0.8.1). To read the spec exactly as released, browse the repo at tag [v0.8.1](https://github.com/behavioralstate/spec/blob/spec/v0.8.1/README.md); the `main` branch is the work in progress.
 
 ## Protocol Artifacts
