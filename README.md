@@ -68,15 +68,28 @@ Per-app `BEST_<APP>_*` variables are the recommended configuration mode (default
 
 ## best-validate — Conformance Validator
 
-Run the spec's conformance checklist against any live endpoint ([validate-cli/README.md](validate-cli/README.md)):
+`best-validate` runs the spec's [conformance checklist](SPEC.md#conformance) against any live endpoint: it fetches the discovery manifest and validates it against the published JSON Schemas, checks the capability declaration rules, probes every required endpoint of each `active` capability, and verifies the error format and auth enforcement. All probes are non-destructive — the only POST sent is a command with an intentionally unknown `type`, which a conformant endpoint rejects before queuing.
 
 ```bash
-cd validate-cli && npm install && npm run build
-node dist/index.js https://api.example.com            # BEST 0.9.x endpoint
-node dist/index.js https://api.example.com --legacy-bsp  # pre-0.9.0 endpoint
+# Public endpoint
+npx @behavioralstate/best-validate https://api.example.com
+
+# Authenticated endpoint (X-Api-Key by default; see --auth-type/--auth-header)
+npx @behavioralstate/best-validate https://api.example.com --api-key <key>
+
+# Multi-tenant host — expands tenants.manifest and validates the tenant manifest too
+npx @behavioralstate/best-validate https://api.example.com --api-key <key> --tenant <tenantId>
+
+# Pre-0.9.0 endpoint (BSP naming, relative dataschema tolerated as warnings)
+npx @behavioralstate/best-validate https://api.example.com --legacy-bsp
+
+# CI usage — machine-readable report, exit code as the verdict
+npx @behavioralstate/best-validate https://api.example.com --json
 ```
 
-Exit code 0 = conformant; `--json` for CI. All probes are non-destructive.
+The report lists each check as `OK`/`WARN`/`FAIL` grouped by section (discovery, multi-tenancy, commands, events, queries) and ends with a verdict. Exit code `0` = conformant (warnings allowed), `1` = at least one failure, `2` = internal error. Without `--api-key`, protected routes are still checked for existence — a `401` counts as "route exists, auth enforced".
+
+Full option reference: [validate-cli/README.md](validate-cli/README.md). The `--legacy-bsp` flag is temporary and will be removed once known pre-0.9.0 deployments have migrated (see [MIGRATION.md](MIGRATION.md)).
 
 ## Cutting a Release
 
