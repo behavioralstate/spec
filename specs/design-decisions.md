@@ -265,7 +265,7 @@ BEST uses the CloudEvents 1.0 envelope as its wire format for commands and event
 
 ### Why
 
-CloudEvents 1.0 is a widely understood, well-structured envelope that LLM clients can read, reason about, and generate natively. Full conformance means BEST messages work unchanged with CloudEvents SDKs, brokers, and validators — no adaptation layer at the boundary — and BEST composes with the CNCF ecosystem instead of forking it. The earlier deviations turned out to be unnecessary: `source` as "any string" was already almost always a valid URI-reference, casing and JSON-only rules are legitimate profile restrictions, and the relative-`dataschema` portability argument was moot because servers validate against their own catalogue keyed by `type` and never dereference the field anyway.
+CloudEvents 1.0 is a widely understood, well-structured envelope that LLM clients can read, reason about, and generate natively. Full conformance means BEST messages work unchanged with CloudEvents SDKs, brokers, and validators — no adaptation layer at the boundary — and BEST composes with the CNCF ecosystem instead of forking it. The earlier deviations turned out to be unnecessary: `source` as "any string" was already almost always a valid URI-reference, casing and JSON-only rules are legitimate profile restrictions, and the relative-`dataschema` portability argument was moot because servers validate against their own catalogue and never dereference the field anyway.
 
 ### Profile restrictions
 
@@ -274,13 +274,13 @@ CloudEvents 1.0 is a widely understood, well-structured envelope that LLM client
 | `type` casing | No casing requirement | PascalCase mandated (e.g. `ProposeCounter`) | Consistency for LLM tooling; catalogue `schema` names are kebab-case, `type` is PascalCase — distinct fields with distinct purposes. |
 | `datacontenttype` | Any media type | `"application/json"` only | BEST is JSON-only. Other content types would require out-of-band schema negotiation the protocol does not define. |
 | `dataschema` presence | Optional | Required for commands; optional for events | Commands are validated before queuing; untyped events are a supported pattern. |
-| `dataschema` value | Absolute URI | The catalogue entry's absolute URI (resolves to `GET /commands/{schema}/{version}`) | One canonical value; servers still validate from their own catalogue keyed by `type` and **never fetch** the caller-supplied URI (SSRF — see [Security](/specs/security#command-ingestion-dataschema-validation)). |
+| `dataschema` value | Absolute URI | The catalogue entry's absolute URI (resolves to `GET /commands/{schema}/{version}`) | One canonical value; servers still validate from their **own** catalogue and **never fetch** the caller-supplied URI (SSRF — see [Security](/specs/security#command-ingestion-schema-selection)). |
 | `source` | URI-reference, absolute recommended | Same, with an added rule: never treated as authenticated identity | Caller-declared origin; authorisation derives from credentials, not `source`. |
 | Extension attributes | Producers may add them | Permitted; BEST defines none and messages must not rely on them | Consumers **must** ignore unknown attributes rather than reject — this also implements BEST's forward-compatibility rule (see [Versioning](/specs/versioning)). |
 
 ### Implication for implementers
 
 - BEST messages may be validated with CloudEvents 1.0 validators and constructed with CloudEvents SDKs.
-- Servers validate command payloads against their **own** catalogue schema selected by `type`; the wire `dataschema` is informational and is never fetched.
+- Servers validate command payloads against their **own** catalogue schema, selected by `type` or by the schema name `dataschema` carries; the wire `dataschema` is a selector, never fetched.
 - Consumers and servers must tolerate unknown envelope attributes (ignore, don't reject).
 - CloudEvents broker integration requires no envelope adaptation.

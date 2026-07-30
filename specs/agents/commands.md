@@ -36,9 +36,11 @@ Commands use the **CloudEvents 1.0 envelope** as wire format. The same envelope 
 
 > **BEST is a conformant CloudEvents 1.0 profile.** Every valid BEST message is a valid CloudEvents 1.0 message; BEST only *restricts* the envelope (PascalCase `type`, JSON-only content, `dataschema` required for commands). CloudEvents SDKs, brokers, and validators work with BEST traffic unchanged. See [Design Decisions — CloudEvents Conformance](/specs/design-decisions#cloudevents-conformance).
 
-The `dataschema` field in an **incoming command** is informational metadata — it documents which schema the client used when constructing the payload. It is **not** an instruction to the server. The server selects the schema to validate against using the `type` field, by looking up that type in its own command catalogue. A well-formed client will have fetched the schema from `GET /commands` and its `dataschema` value will match what the server holds — but the server never needs to fetch it.
+The `dataschema` field in an **incoming command** is a **selector, not a location** — it names an entry in the server's own command catalogue. The server validates against a schema it owns, selected either from the `type` or from the schema name `dataschema` carries; what it **MUST NOT** do is fetch the caller's URI. A well-formed client takes its `dataschema` value verbatim from `GET /commands`, so the two agree.
 
-> **Note:** A server that fetches the caller-supplied `dataschema` URI to perform validation would be both architecturally wrong (the server owns its schema catalogue) and a security risk (caller-controlled URI fetch is an SSRF vector). See [Security Considerations](/specs/security#command-ingestion-dataschema-validation).
+Servers **MUST** key schema selection, authorisation, and dispatch on the same identifier. `type` is PascalCase and the catalogue's `schema` is kebab-case; where a server derives one from the other, a transformation that is not total over its catalogue will drift these decisions apart.
+
+> **Note:** A server that fetches the caller-supplied `dataschema` URI to perform validation would be both architecturally wrong (the server owns its schema catalogue) and a security risk (caller-controlled URI fetch is an SSRF vector). See [Security Considerations](/specs/security#command-ingestion-schema-selection).
 
 | Field | Type | Required | Description |
 |---|---|---|---|

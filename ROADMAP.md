@@ -1,10 +1,12 @@
 # BEST — Roadmap and Status
 
-Last updated: 2026-07-22 (post spec/v0.9.0).
+Last updated: 2026-07-30 (post spec/v0.9.1).
 
 ## Where the protocol stands
 
-**v0.9.0** (current stable) was a deliberate identity-and-conformance release, executed as one breaking migration:
+**v0.9.1** (current stable) is a security-surface release with no wire-format change. It fills the largest remaining gap — the spec described *how* to authenticate a caller but almost nothing about authorising an individual command, leaving the Read/Write scope table as the whole model. 0.9.1 adds deny-by-default per-command policy, actor binding (payload fields naming a principal carry no authority), and controls for destructive commands. It also **relaxes** the 0.9.0 rule that schema selection be keyed by `type`: the security control was always *don't dereference the caller's URI*, never *which server-owned identifier keys the lookup*, and the stricter wording had pushed implementations into lossy PascalCase↔kebab-case derivations that silently split authorisation from validation. See [MIGRATION.md](MIGRATION.md#migrating-from-090-to-091).
+
+**v0.9.0** was a deliberate identity-and-conformance release, executed as one breaking migration:
 
 - **Renamed BSP → BEST** (BEhavioral STate; the full name *Behavioral State Protocol* is unchanged). Rationale: "BSP" collides heavily inside computing (Binary Space Partitioning, Board Support Package, Bulk Synchronous Parallel); "BEST" is memorable, positions naturally against REST, and `/.well-known/best` plus the npm names were free.
 - **Became a conformant CloudEvents 1.0 profile.** Every valid BEST message is a valid CloudEvents 1.0 message. The former deviations were resolved: `dataschema` is the absolute catalogue URI on the wire, `source` is a URI-reference, unknown envelope attributes are ignored rather than rejected. PascalCase `type` and JSON-only content remain as profile *restrictions*. See [design decisions](specs/design-decisions.md#cloudevents-conformance).
@@ -47,6 +49,7 @@ Identified during the 2026-07 review; none are scheduled yet. Ordered by expecte
 
 | Version | Date | Highlights |
 |---|---|---|
+| spec/v0.9.1 | 2026-07-30 | Command authorisation requirements (deny-by-default, actor binding, high-impact controls); schema selection relaxed to any server-owned identifier; same-identifier rule for selection/authz/dispatch. No wire change |
 | spec/v0.9.0 | 2026-07-22 | BSP → BEST rename; conformant CloudEvents 1.0 profile; MIGRATION.md; standards artifacts |
 | spec/v0.8.1 | 2026-07-22 | Consolidated SPEC.md; example `dataschema` fixes; OpenAPI synced with spec surface |
 | spec/v0.8.0 | 2026-07 | A2A transport binding removed |

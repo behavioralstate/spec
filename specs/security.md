@@ -19,6 +19,34 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 
 `GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read domain events.
 
+## Command Authorisation
+
+The scopes above are necessary but not sufficient. `POST /commands` is a single endpoint through which every named operation a service accepts is invoked, and those operations do not share a blast radius — submitting a timesheet and erasing a person's data arrive at the same URL under the same Write scope. A credential that may send one command **MUST NOT** thereby be able to send all of them.
+
+### Per-command policy
+
+- Servers **SHOULD** maintain an explicit policy of which command types each credential, service, or role may submit, and evaluate it on every submission.
+- That policy **MUST** be deny-by-default: a command type with no entry is denied. Absence of a rule is not permission, and an empty policy **MUST NOT** mean "allow everything".
+- Policy **MUST** be scoped to the deployment it governs. A policy shared across environments grants production access as a side effect of enabling a command in test.
+- `GET /commands` **SHOULD** return the commands the authenticated caller may actually submit. A catalogue advertising commands the caller will be denied causes agents to plan operations that cannot complete, and is indistinguishable to them from a broken service.
+- A denial **SHOULD** be reported distinguishably from an unknown command type, so an operator can tell a missing policy entry from a missing schema. Where catalogue membership is itself confidential, this **MAY** be collapsed into a single response.
+
+### Actor binding
+
+Command payloads routinely carry fields naming a person or subject — an approver, creator, sender, owner, tenant. These are caller-supplied and carry no more authority than [`source`](#cloudevent-source-field) does.
+
+- Servers **MUST NOT** treat an actor field in `data` as authenticated identity.
+- Where a field identifies the **acting** principal, the server **MUST** either reject a payload whose value differs from the authenticated principal, or overwrite it with the verified value before dispatch.
+- Overwriting **SHOULD** be preferred to demanding an echo. A field whose only acceptable value is already determined by the credential is pure failure surface: a caller can only restate it correctly or receive a confusing rejection, and callers frequently do not know their own internal identifiers. Stamping cannot change the outcome for a caller that sent the right value, and converts a guaranteed rejection into success for one that did not.
+- Where a field identifies a **subject other than** the caller — whose invoice, whose engagement, whose organisation — the server **MUST** authorise the caller's access to that subject. Such a field is a reference, and an unchecked reference is an insecure direct object reference.
+- Authorisation **MUST NOT** be inferred from the payload validating. Schema validation establishes shape, never permission.
+
+### High-impact commands
+
+- Commands that are destructive, irreversible, or that bypass a compliance control **SHOULD** require a control beyond the submitting credential: human approval, a second principal, or an out-of-band confirmation.
+- Such a control **MUST NOT** be self-serviceable. If the approval step can be performed by the same credential that submitted the command, it is an audit trail, not a control.
+- Where a server offers an approval mode that only logs what it would otherwise reject, that mode **MUST NOT** be the default, and its active mode **MUST** be discoverable by operators.
+
 ## Credential Passthrough at Intermediaries
 
 An intermediary that sits between end callers and a BEST endpoint (an MCP server, a gateway, a multi-user chat backend) may need to forward each caller's *own* credential upstream instead of authenticating with a single fixed identity. Per-caller credentials are preferable to a shared key — the BEST service can then apply per-user authorisation and audit — but forwarding creates a credential-leakage risk that implementations must control:
@@ -31,17 +59,30 @@ An intermediary that sits between end callers and a BEST endpoint (an MCP server
 
 The reference MCP server (`@behavioralstate/best-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](https://github.com/behavioralstate/spec/tree/main/mcp-server#http--per-request-credential-overrides-multi-user-backends).
 
-## Command Ingestion — `dataschema` Validation
+## Command Ingestion — Schema Selection
 
-The `dataschema` field in an inbound command is informational metadata — it documents which schema the client used when constructing the payload. It is not an instruction to the server. Servers select the validation schema using the `type` field, by looking up the command type in their own catalogue.
+The `dataschema` field in an inbound command is a **selector, not a location**. It names an entry the server already owns and serves at `GET /commands/{schema}/{version}`, and a conformant client takes its value verbatim from the command catalogue. The security property that matters is that the validating schema comes from the server's own catalogue — *not* which server-owned identifier keys that lookup.
 
-A server that fetches the caller-supplied `dataschema` URI to perform validation is architecturally incorrect: the server owns its schema catalogue and does not need the client to point it to a schema. It is also a security risk: a caller can supply an internal URI — a cloud metadata service (`http://169.254.169.254`), an internal database, or a private host — and the server becomes an unwitting proxy. This is a Server-Side Request Forgery (SSRF) attack.
+A server that **fetches** the caller-supplied `dataschema` URI to perform validation is architecturally incorrect: the server owns its schema catalogue and does not need the client to point it to a schema. It is also a security risk: a caller can supply an internal URI — a cloud metadata service (`http://169.254.169.254`), an internal database, or a private host — and the server becomes an unwitting proxy. This is a Server-Side Request Forgery (SSRF) attack.
 
 **Requirements:**
-- Servers **MUST** select the schema for validation from their own catalogue, keyed by the command `type` field.
+- Servers **MUST** select the schema for validation from their own catalogue. The lookup **MAY** be keyed by the command `type`, or by the schema name carried in `dataschema`, provided the entry selected is one the server owns.
 - Servers **MUST NOT** fetch the caller-supplied `dataschema` URI for any purpose.
-- Servers **SHOULD** verify that `dataschema` matches a known entry in `GET /commands` and reject commands whose `dataschema` does not match a server-owned catalogue URI.
+- Servers **MUST** reject a command whose schema cannot be resolved to a catalogue entry. Forwarding an unvalidated payload is not an acceptable fallback — a resolution miss must fail closed.
+- Servers **MUST** document which version policy they apply. A server that honours a caller-declared version **MUST** reject a version that does not exist rather than silently substituting another; a server that always selects the latest **MUST** ignore the caller's declared version rather than partially honouring it.
+- Servers **SHOULD** reject a command whose `dataschema` does not match a known entry in `GET /commands`, even when the schema was selected by `type`.
 - If a server does support fetching remote schemas (for example, for cross-service federation), it **MUST** restrict URI schemes to HTTPS, apply a strict allowlist, disable redirects, and enforce fetch size, depth, and timeout limits.
+
+### One identifier, or a total mapping
+
+`type` (PascalCase) and the catalogue's `schema` (kebab-case) are distinct fields naming the same operation. Servers commonly derive one from the other by string transformation, and that derivation is where authorisation and validation drift apart.
+
+**Requirements:**
+- Schema selection, authorisation, and dispatch **MUST** be keyed on the same identifier. A server that authorises a command under one identifier while validating or dispatching it under another can be induced to authorise operation A and execute operation B — a confused-deputy vulnerability.
+- Where a server derives one identifier from the other, that transformation **MUST** be total and unambiguous over its catalogue. If it is not — because some names do not round-trip, or two entries collapse onto one key — the server **MUST** resolve the identifier once and use the single resolved value for every subsequent decision.
+- Where `type` and `dataschema` disagree about which operation is being invoked, servers **MUST NOT** satisfy one decision from each. Reject the command, or resolve consistently from one field and log the divergence.
+
+> **Why this is worth stating.** A lossy `type`→`schema` transformation fails in two directions. If the *authorisation* key misses, a correctly permitted command is denied with a policy error naming an operation the operator never configured — expensive to diagnose, but safe. If the *validation* key misses while authorisation succeeds, the caller has selected their own contract. Deny-by-default policy (see [Command Authorisation](#command-authorisation)) keeps the second case from being reachable in most implementations, but it should not be the only thing standing in the way.
 
 ## Command Replay Protection
 
