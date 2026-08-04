@@ -432,6 +432,21 @@ const CONNECTION_PROP: Record<string, object> = MULTI ? {
   }
 } : {};
 
+// Shared by both catalogue tools. Summary is the default because a catalogue's job is to let a caller
+// CHOOSE an operation, and a thoroughly documented service makes the full listing too large for that —
+// one real endpoint returns 47 KB for ~65 commands, which clients spill to disk before a model reads it.
+const CATALOGUE_DETAIL_PROP: Record<string, object> = {
+  detail: {
+    type: 'string',
+    enum: ['summary', 'full'],
+    description:
+      "How much description text to return per entry. 'summary' (the default) truncates each description " +
+      "to keep the listing small — enough to pick an operation. 'full' returns every description verbatim; " +
+      'only worth it when you genuinely need to compare long descriptions across many entries, since the ' +
+      "per-operation schema tools already return one operation's complete text."
+  }
+};
+
 const TOOLS: Tool[] = [
   // list_connections is only meaningful (and only shown) when MULTI is true
   ...(MULTI ? [{
@@ -448,8 +463,10 @@ const TOOLS: Tool[] = [
       'List all commands this BSP endpoint accepts. ' +
       'Returns the command catalogue: every command type with its schema name, version, dataschema URI, and description. ' +
       'Call this first to discover what you can send. ' +
-      'Examples: configure-broker, configure-indicator-alert, submit-signal, archive-broker.',
-    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
+      'Examples: configure-broker, configure-indicator-alert, submit-signal, archive-broker. ' +
+      "Descriptions are truncated by default so the listing stays small — call get_command_schema for one " +
+      "command's complete description and fields, or pass detail='full' to get every description verbatim.",
+    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP, ...CATALOGUE_DETAIL_PROP }, required: [] }
   },
   {
     name: 'get_command_schema',
@@ -573,8 +590,10 @@ const TOOLS: Tool[] = [
       'List all read queries available at this BSP endpoint. ' +
       'Returns the query catalogue: every query type with its schema name, version, dataschema URI, and description. ' +
       'Call this to discover what current-state data you can read. ' +
-      'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds).',
-    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
+      'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds). ' +
+      "Descriptions are truncated by default so the listing stays small — call get_query_schema for one " +
+      "query's complete description and parameters, or pass detail='full' to get every description verbatim.",
+    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP, ...CATALOGUE_DETAIL_PROP }, required: [] }
   },
   {
     name: 'get_query_schema',
@@ -699,6 +718,18 @@ function validateToolArgs(name: string, args: Record<string, unknown>): string |
       `Accepted: ${accepted.join(', ')}. Nothing was sent to the endpoint.`;
   }
 
+  // A value outside a declared enum would otherwise fall through to whatever the handler's default
+  // happens to be — the same silent-wrong-behaviour this function exists to stop.
+  for (const [key, spec] of Object.entries(schema.properties ?? {})) {
+    const allowed = (spec as { enum?: unknown[] }).enum;
+    if (!Array.isArray(allowed)) continue;
+    const value = args[key];
+    if (value !== undefined && !allowed.includes(value)) {
+      return `Invalid value for '${key}' on ${name}: ${JSON.stringify(value)}. ` +
+        `Allowed: ${allowed.map(v => JSON.stringify(v)).join(', ')}. Nothing was sent to the endpoint.`;
+    }
+  }
+
   return null;
 }
 
@@ -715,10 +746,51 @@ function handleListConnections(): string {
   );
 }
 
-async function handleGetCommandCatalogue(conn: BspConnection): Promise<string> {
+/** Longest description kept per entry in a summary catalogue listing. */
+const SUMMARY_DESCRIPTION_CHARS = 200;
+
+/**
+ * Truncates one catalogue entry's description for summary mode, leaving every other field alone.
+ *
+ * A character cap rather than "first sentence": service descriptions routinely OPEN with routing
+ * metadata (e.g. "Source: managing. Schema: cancel-absence/1.0. Cancels an existing absence…"), so
+ * keeping the first sentence would throw away the part that says what the operation does. The cut
+ * lands on a word boundary when one is close enough, so the tail is not a half-word.
+ */
+function summariseCatalogueEntry(entry: unknown): unknown {
+  if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+
+  const fields = entry as Record<string, unknown>;
+  const description = fields.description;
+  if (typeof description !== 'string' || description.length <= SUMMARY_DESCRIPTION_CHARS) return entry;
+
+  const clipped = description.slice(0, SUMMARY_DESCRIPTION_CHARS);
+  const lastSpace = clipped.lastIndexOf(' ');
+  const kept = (lastSpace > SUMMARY_DESCRIPTION_CHARS * 0.6 ? clipped.slice(0, lastSpace) : clipped).trimEnd();
+  return { ...fields, description: `${kept}…` };
+}
+
+/**
+ * Renders a catalogue as JSON, truncating descriptions unless the caller asked for 'full'.
+ *
+ * Catalogues exist to let a caller CHOOSE an operation, and a service that documents each one
+ * thoroughly makes the full listing far too large for that job — one real endpoint returns 47 KB for
+ * ~65 commands, which clients spill to disk before a model can read it. The per-operation schema tools
+ * already return the complete description, so the long text is never lost, only deferred.
+ *
+ * Output stays a bare JSON array in both modes: the shape is unchanged, and the affordance is
+ * advertised in the tool description where the model actually reads it.
+ */
+function renderCatalogue(entries: unknown[], args: Record<string, unknown>): string {
+  const detail = typeof args.detail === 'string' ? args.detail.toLowerCase() : 'summary';
+  const rendered = detail === 'full' ? entries : entries.map(summariseCatalogueEntry);
+  return JSON.stringify(rendered, null, 2);
+}
+
+async function handleGetCommandCatalogue(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
   const data = await bspGet<{ commands: unknown[] }>('/commands', conn);
   if (!data.commands.length) return 'No commands available at this endpoint.';
-  return JSON.stringify(data.commands, null, 2);
+  return renderCatalogue(data.commands, args);
 }
 
 async function handleGetCommandSchema(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
@@ -783,10 +855,10 @@ async function handleSendCommandAndWait(args: Record<string, unknown>, conn: Bsp
   return `${commandResult}\n\nWarning: timed out after ${timeoutSeconds}s waiting for '${pollUntilContains ?? 'any result'}' in ${pollQuery}.`;
 }
 
-async function handleGetQueryCatalogue(conn: BspConnection): Promise<string> {
+async function handleGetQueryCatalogue(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
   const data = await bspGet<{ queries: unknown[] }>('/queries', conn);
   if (!data.queries.length) return 'No queries available at this endpoint.';
-  return JSON.stringify(data.queries, null, 2);
+  return renderCatalogue(data.queries, args);
 }
 
 async function handleGetQuerySchema(args: Record<string, unknown>, conn: BspConnection): Promise<string> {
@@ -916,11 +988,11 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
 
       let text: string;
       switch (name) {
-        case 'get_command_catalogue': text = await handleGetCommandCatalogue(conn);            break;
+        case 'get_command_catalogue': text = await handleGetCommandCatalogue(safeArgs, conn);   break;
         case 'get_command_schema':    text = await handleGetCommandSchema(safeArgs, conn);     break;
         case 'send_command':          text = await handleSendCommand(safeArgs, conn);          break;
         case 'send_command_and_wait': text = await handleSendCommandAndWait(safeArgs, conn);   break;
-        case 'get_query_catalogue':   text = await handleGetQueryCatalogue(conn);              break;
+        case 'get_query_catalogue':   text = await handleGetQueryCatalogue(safeArgs, conn);     break;
         case 'get_query_schema':      text = await handleGetQuerySchema(safeArgs, conn);       break;
         case 'execute_query':         text = await handleExecuteQuery(safeArgs, conn);         break;
         case 'get_workflows':         text = await handleGetWorkflows(conn);                   break;
