@@ -573,6 +573,11 @@ const TOOLS: Tool[] = [
           description: 'Optional query parameters for the poll query.',
           additionalProperties: true
         },
+        poll_parameters: {
+          type: 'object',
+          description: "Alias of 'poll_params' — both are accepted; if both are present, 'poll_params' wins.",
+          additionalProperties: true
+        },
         timeout_seconds: {
           type: 'number',
           description: 'Maximum seconds to wait for the query to satisfy the condition (default: 30).'
@@ -654,6 +659,68 @@ const TOOLS: Tool[] = [
     inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
   }
 ];
+// ── Argument validation ───────────────────────────────────────────────────────
+
+/**
+ * Host/protocol metadata is conventionally underscore-prefixed and is not part of a tool's contract,
+ * so it is never treated as an unknown argument.
+ */
+const isMetaKey = (key: string): boolean => key.startsWith('_');
+
+/**
+ * Validates a tool call's arguments against that tool's own declared inputSchema, BEFORE the handler
+ * runs. Returns an error message, or null when the arguments are acceptable.
+ *
+ * Why this exists: the tools already declared `required`, but nothing enforced it. MCP hosts are not
+ * obliged to validate arguments, and the ones that don't forwarded whatever the model produced. A
+ * misplaced key was then silently dropped, which fails in a way nobody can diagnose from the outside:
+ *
+ *   - `execute_query` given send_command's `data` instead of `params` ran the query with NO
+ *     parameters. An unfiltered query is usually one the caller may not run, so the endpoint answered
+ *     "not authorised" — and two separate debugging sessions went looking for a permissions problem
+ *     that did not exist.
+ *   - `get_query_schema` without `version` fetched `/queries/{schema}/undefined`, reporting a missing
+ *     schema rather than a missing argument.
+ *
+ * The earlier fix for the first case added `parameters` as an alias of `params` (see
+ * handleExecuteQuery). That helped the single most common misspelling but could not help the general
+ * case — there is always another plausible name, and `data` is a real field on a sibling tool.
+ *
+ * Enforcement is deliberately server-side rather than `additionalProperties: false` on the declared
+ * schemas: a host that does not validate is exactly the situation this must survive, and a host that
+ * does would then also reject argument keys the protocol may add later. Validating here works
+ * regardless of what the host does, and lets the error name the offending key and the accepted ones.
+ */
+function validateToolArgs(name: string, args: Record<string, unknown>): string | null {
+  const tool = TOOLS.find(t => t.name === name);
+  if (!tool) return null; // Unknown tool names are the dispatch's error to report, not ours.
+
+  const schema = tool.inputSchema as { properties?: Record<string, unknown>; required?: string[] };
+  const accepted = Object.keys(schema.properties ?? {});
+
+  const unknown = Object.keys(args).filter(k => !isMetaKey(k) && !accepted.includes(k));
+  if (unknown.length > 0) {
+    // The specific confusion worth naming, because it is the one that costs hours: 'data' is
+    // send_command's payload, and passing it to a query used to run that query unfiltered.
+    const hint = unknown.includes('data') && accepted.includes('params')
+      ? " Note: query parameters go in 'params' — 'data' is send_command's payload field."
+      : '';
+    return `Unknown argument(s) for ${name}: ${unknown.join(', ')}. Accepted: ${accepted.join(', ')}.` +
+      `${hint} Nothing was sent to the endpoint — arguments are not silently ignored.`;
+  }
+
+  const missing = (schema.required ?? []).filter(k => {
+    const value = args[k];
+    return value === undefined || value === null || value === '';
+  });
+  if (missing.length > 0) {
+    return `Missing required argument(s) for ${name}: ${missing.join(', ')}. ` +
+      `Accepted: ${accepted.join(', ')}. Nothing was sent to the endpoint.`;
+  }
+
+  return null;
+}
+
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 
 function handleListConnections(): string {
@@ -850,6 +917,13 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
     const safeArgs = (args ?? {}) as Record<string, unknown>;
 
     try {
+      // Before anything else, including connection resolution: a bad argument list is the caller's
+      // mistake to fix, and reporting it as such is the whole point (see validateToolArgs).
+      const argError = validateToolArgs(name, safeArgs);
+      if (argError) {
+        return { content: [{ type: 'text', text: `Error: ${argError}` }], isError: true };
+      }
+
       // list_connections needs no connection resolution
       if (name === 'list_connections') {
         return { content: [{ type: 'text', text: handleListConnections() }] };
