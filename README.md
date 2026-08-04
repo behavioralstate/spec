@@ -93,7 +93,7 @@ Full option reference: [validate-cli/README.md](validate-cli/README.md). The `--
 
 ## Cutting a Release
 
-This repo has **two independent** versioned artifacts. Running one release does not release the other. Always use the scripts — never tag manually.
+This repo has **three independent** versioned artifacts. Running one release does not release the others. Always use the scripts — never tag manually (the one exception is the legacy 1.x MCP line, below).
 
 | Artifact | Tag prefix | Command | Outcome |
 |---|---|---|---|
@@ -102,6 +102,20 @@ This repo has **two independent** versioned artifacts. Running one release does 
 | BEST protocol spec + website | `spec/v*` | `./scripts/release.sh x.y.z [--prerelease]` | CI builds the site image → GHCR → IaC deploy PR |
 
 `release-mcp.sh` with no argument auto-bumps the patch version. `release.sh` requires a clean `main` checkout, bumps `version.json` (the single source of truth for `{{BEST_VERSION}}` placeholders), updates this README's release references, tags, and creates the GitHub Release. When releasing both in one session, release `best-mcp` first.
+
+**The tag prefix does not select the npm package.** CI checks out the tagged commit and publishes whatever `mcp-server/package.json` names *there*, so package identity comes from the commit, not the tag.
+
+### Legacy `@behavioralstate/bsp-mcp` (1.x)
+
+The MCP server was published as `@behavioralstate/bsp-mcp` before the BSP → BEST rename. Deployments still pinned to that package are maintained on a branch cut from the `mcp/v1.7.1` tag and released by tagging **manually** — the one exception to "always use the scripts":
+
+```bash
+git tag -a mcp/v1.7.2 -m "Release mcp/v1.7.2" <commit> && git push origin mcp/v1.7.2
+```
+
+`release-mcp.sh` cannot cut a 1.x release, and **must not be used to try**. It requires `main`, where `mcp-server/package.json` is `@behavioralstate/best-mcp` — so tagging `mcp/v1.x` from `main` would publish **best-mcp** at that version, and because CI's `npm publish` passes no `--tag`, that moves best-mcp's `latest` *backwards*.
+
+Fixes that apply to both lines get released on both. Verify either release by packing the published tarball (`npm pack <package>@<version>`) and checking `package/dist/index.js` — `dist/` is gitignored yet ships, so the artifact depends on a build having run.
 
 ## Community
 

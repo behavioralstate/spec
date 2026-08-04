@@ -55,16 +55,18 @@ Spec reference: https://behavioralstate.io/docs
 | Tool | What it does |
 |---|---|
 | `list_connections` | List all configured connections with names, endpoints, and descriptions *(only shown when multiple connections are configured)* |
-| `get_command_catalogue` | List all commands this endpoint accepts |
+| `get_command_catalogue` | List all commands this endpoint accepts (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_command_schema` | Fetch the full JSON Schema for a command type — learn the exact fields required |
 | `send_command` | Send a command (CloudEvent 1.0 envelope built automatically) |
 | `send_command_and_wait` | Send a command then poll a query until a condition is met |
-| `get_query_catalogue` | List all read queries this endpoint exposes |
+| `get_query_catalogue` | List all read queries this endpoint exposes (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
 | `get_workflows` | List the service's published "descriptive sequence" recipes — an optional vendor extension; returns a note if the service publishes none |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
+
+Both catalogue tools truncate each entry's description by default, because a catalogue exists to let a caller *choose* an operation and a thoroughly documented service makes the full listing too large for that — one endpoint returns 47 KB for ~65 commands, which clients spill to disk before a model can read it. Truncation is ~60% smaller and still enough to pick from; the schema tools return one operation's complete text, and `detail: "full"` returns every description verbatim when you really need to compare across entries.
 Optionally call `get_workflows` first to see if the service publishes a ready-made recipe for a multi-step process.
 
 When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
