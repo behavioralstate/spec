@@ -84,6 +84,20 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Release notes are mandatory and must be committed BEFORE tagging — CI creates the
+# GitHub Release from RELEASE_NOTES/vX.Y.Z.md at the tagged commit, so a file added
+# afterwards is invisible to it. Even "editorial only, no normative changes" is a
+# valid body; an empty release is not.
+NOTES_FILE="RELEASE_NOTES/${VERSION_TAG}.md"
+if [ ! -f "$NOTES_FILE" ]; then
+  echo "Error: $NOTES_FILE not found. Write the release notes and commit them first."
+  exit 1
+fi
+if ! git ls-files --error-unmatch "$NOTES_FILE" >/dev/null 2>&1; then
+  echo "Error: $NOTES_FILE exists but is not committed. Commit it first."
+  exit 1
+fi
+
 echo ""
 echo "=== BEST Release ==="
 echo "  Version:          $TAG"
@@ -153,20 +167,9 @@ fi
 echo "Pushing tag $TAG..."
 git push origin "$TAG"
 
-# Step 4: Create GitHub Release (if gh CLI is available)
-if command -v gh &>/dev/null; then
-  echo "Creating GitHub Release..."
-  if [ "$PRERELEASE" = true ]; then
-    gh release create "$TAG" --title "BEST $VERSION_TAG" --notes "Pre-release of the Behavioral State Protocol specification." --prerelease
-  else
-    gh release create "$TAG" --title "BEST $VERSION_TAG" --notes "Release of the Behavioral State Protocol specification."
-  fi
-  echo "GitHub Release created."
-else
-  echo ""
-  echo "gh CLI not found. Create the release manually:"
-  echo "  ${REPO_URL}/releases/new?tag=${TAG}&prerelease=$PRERELEASE"
-fi
+# Step 4: GitHub Release is created by CI (github-release job in cicd.yaml) from
+# $NOTES_FILE when the tag push lands — nothing to do here.
+echo "CI will create the GitHub Release from ${NOTES_FILE}."
 
 # Step 5: Update BEST@stable tag for stable releases
 if [ "$PRERELEASE" = false ]; then
