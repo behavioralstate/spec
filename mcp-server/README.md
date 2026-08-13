@@ -62,9 +62,15 @@ Spec reference: https://behavioralstate.io/docs
 | `get_query_catalogue` | List all read queries this endpoint exposes (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
+| `get_manifest` | Fetch the `/.well-known/best` discovery manifest (tenant-scoped when the host publishes one) — declared capabilities, push channels, authentication |
+| `get_events` | Query the historical event log (`GET /events`) — filter by correlationId/type/source/time, paginate with the response cursor |
+| `get_event_schema` | Fetch the JSON Schema for a typed event (`GET /events/{schema}/{version}`) |
+| `sample_event_stream` | Open the live SSE stream (`GET /events/stream`), collect events until `max_events`/`max_seconds`, then return them — bounded client-side, so it works against any conformant endpoint |
 | `get_workflows` | List the service's published "descriptive sequence" recipes — an optional vendor extension; returns a note if the service publishes none |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
+
+Events flow: `get_manifest` (does the service declare events, and over which channels?) → `get_events` for what already happened (poll with the response cursor for turn-based drains) → `sample_event_stream` for a bounded window of what happens next. A turn-based client cannot hold the stream open — for standing reactions, configure the service's own alerting/webhook commands instead.
 
 Both catalogue tools truncate each entry's description by default, because a catalogue exists to let a caller *choose* an operation and a thoroughly documented service makes the full listing too large for that — one endpoint returns 47 KB for ~65 commands, which clients spill to disk before a model can read it. Truncation is ~60% smaller and still enough to pick from; the schema tools return one operation's complete text, and `detail: "full"` returns every description verbatim when you really need to compare across entries.
 Optionally call `get_workflows` first to see if the service publishes a ready-made recipe for a multi-step process.
@@ -284,7 +290,7 @@ curl -X POST http://localhost:3001/mcp \
 
 ## CloudEvent `source` field
 
-When sending a command, `send_command` requires a `source` value. The required value is documented in the schema `description` returned by `get_command_schema` — always read it from there, never invent it.
+`source` is optional on `send_command` and defaults to `urn:best-mcp` — the client's own identity. Per the commands spec, `source` identifies the command's *origin* and servers must not route by it alone, so the default is correct for any conformant service. Pass an explicit `source` only when the schema `description` returned by `get_command_schema` documents a specific required value (legacy source-routing dialects) — never invent one.
 
 ---
 
