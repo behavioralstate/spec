@@ -436,6 +436,12 @@ async function bestPost<T>(path: string, body: unknown, conn: BestConnection): P
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
+// Default CloudEvent `source` for commands sent through this client. The commands spec defines
+// `source` as a URI-reference identifying the ORIGIN of the command — which, for a command an LLM
+// composes here, is this client — and forbids servers from routing by `source` alone. Callers
+// override it only for services whose schema descriptions document a specific required value.
+const CLIENT_SOURCE = 'urn:best-mcp';
+
 // When multiple connections are configured, every operation tool gains an optional
 // 'connection' parameter. The LLM must specify it; if context makes the choice
 // ambiguous, it should call list_connections first and confirm with the user.
@@ -514,12 +520,11 @@ const TOOLS: Tool[] = [
     description:
       'Send a command to the BEST endpoint. ' +
       'Use get_command_catalogue to discover available commands, ' +
-      'then get_command_schema to learn the required payload fields and the required source value, ' +
-      'then call this with the schema name, version, source, and data payload. ' +
-      'IMPORTANT: the source field is used by the backend to route the CloudEvent — ' +
-      'an incorrect value may cause the command to be silently dropped. ' +
-      'Always read the required source value from the schema description returned by get_command_schema before calling this tool. ' +
-      'If the schema description does not specify a source value, ask the user before proceeding. ' +
+      'then get_command_schema to learn the required payload fields, ' +
+      'then call this with the schema name, version, and data payload. ' +
+      "The CloudEvent envelope is built automatically; 'source' defaults to this client's own " +
+      "identity (BEST servers route by 'type', never by 'source' alone). Supply an explicit " +
+      'source ONLY when the schema description documents a specific required value — never invent one. ' +
       'Returns the accepted command ID on success.',
     inputSchema: {
       type: 'object',
@@ -535,7 +540,10 @@ const TOOLS: Tool[] = [
         },
         source: {
           type: 'string',
-          description: 'CloudEvent source — identifies the origin of this command. The required value is specified in the schema description returned by get_command_schema; always read it from there and do not invent it.'
+          description: "Optional CloudEvent source — a URI-reference identifying the command's origin. " +
+            `Defaults to '${CLIENT_SOURCE}' (this client). Set it ONLY when the schema description ` +
+            'returned by get_command_schema documents a specific required value (legacy source-routing ' +
+            'dialects); do not invent one.'
         },
         data: {
           type: 'object',
@@ -543,7 +551,7 @@ const TOOLS: Tool[] = [
           additionalProperties: true
         }
       },
-      required: ['schema', 'version', 'source', 'data']
+      required: ['schema', 'version', 'data']
     }
   },
   {
@@ -570,7 +578,7 @@ const TOOLS: Tool[] = [
         },
         source: {
           type: 'string',
-          description: 'CloudEvent source — read the required value from get_command_schema before calling this tool'
+          description: `Optional CloudEvent source — defaults to '${CLIENT_SOURCE}'. Set it ONLY when the schema description documents a specific required value.`
         },
         data: {
           type: 'object',
@@ -600,7 +608,7 @@ const TOOLS: Tool[] = [
           description: 'Maximum seconds to wait for the query to satisfy the condition (default: 30).'
         }
       },
-      required: ['schema', 'version', 'source', 'data']
+      required: ['schema', 'version', 'data']
     }
   },
   {
@@ -664,6 +672,109 @@ const TOOLS: Tool[] = [
         }
       },
       required: ['schema']
+    }
+  },
+  {
+    name: 'get_manifest',
+    description:
+      "Fetch the BEST discovery manifest (/.well-known/best) for a connection's host — the public " +
+      'front door describing the service: spec version, authentication requirements, declared ' +
+      'capabilities (commands, queries, events) with their endpoints and push channels (sse/webhook/mcp). ' +
+      "For a tenant-scoped connection the tenant's own manifest is returned when the host publishes one. " +
+      'Call this to learn whether the service publishes events, how to receive them, and what the ' +
+      'capability descriptions recommend.',
+    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
+  },
+  {
+    name: 'get_events',
+    description:
+      "Query the service's historical event log (GET /events) — immutable facts already published, " +
+      'as CloudEvents. Standard parameters (all optional, combinable): correlationId (events for one ' +
+      'command submission or stream key), type (CloudEvent type, PascalCase), source, from / to ' +
+      '(ISO 8601 window), limit, after (pagination cursor from a previous response\'s nextCursor). ' +
+      'Turn-based polling loop: call with your filters, remember the newest event id / the response ' +
+      'cursor, pass it back next turn, dedupe by event id. For events produced from now FORWARD in a ' +
+      'short window, use sample_event_stream instead. Services may support extra vendor parameters — ' +
+      "the manifest's events capability description says which.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        params: {
+          type: 'object',
+          description: 'Optional query parameters as key-value pairs (correlationId, type, source, from, to, limit, after, plus any vendor extensions).',
+          additionalProperties: true
+        },
+        parameters: {
+          type: 'object',
+          description: "Alias of 'params' — both are accepted; if both are present, 'params' wins.",
+          additionalProperties: true
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: 'get_event_schema',
+    description:
+      'Fetch the JSON Schema document for a specific event type and version (GET /events/{schema}/{version}). ' +
+      'Use it to interpret the data payload of events returned by get_events or sample_event_stream. ' +
+      'Untyped events have no schema — their catalogue description is the documentation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        schema: {
+          type: 'string',
+          description: 'Event schema name in kebab-case (e.g. price-tick)'
+        },
+        version: {
+          type: 'string',
+          description: 'Schema version (e.g. 1.0)'
+        }
+      },
+      required: ['schema', 'version']
+    }
+  },
+  {
+    name: 'sample_event_stream',
+    description:
+      "Open the service's live event stream (GET /events/stream, SSE) and collect events for a bounded " +
+      'window, then return them. This is how a turn-based caller samples live events: the connection is ' +
+      'held only for the duration of this call — collection stops at max_events or max_seconds, ' +
+      'whichever comes first (bounds are enforced client-side, so this works against any conformant ' +
+      'endpoint). The stream delivers events produced AFTER it opens; for past events use get_events. ' +
+      "Pass the previous call's lastEventId as last_event_id to resume without gaps where the server " +
+      'supports it. This tool CANNOT watch the stream continuously — for standing reactions, look for ' +
+      "the service's own alerting/webhook commands in get_command_catalogue.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        params: {
+          type: 'object',
+          description: 'Optional stream filter parameters as key-value pairs (correlationId, type, source, plus any vendor extensions).',
+          additionalProperties: true
+        },
+        parameters: {
+          type: 'object',
+          description: "Alias of 'params' — both are accepted; if both are present, 'params' wins.",
+          additionalProperties: true
+        },
+        max_seconds: {
+          type: 'number',
+          description: 'Maximum seconds to keep the stream open (default 15, clamped to 1–120).'
+        },
+        max_events: {
+          type: 'number',
+          description: 'Stop after collecting this many events (default 10, clamped to 1–100).'
+        },
+        last_event_id: {
+          type: 'string',
+          description: 'Sent as Last-Event-ID so the server can resume after the last event you saw (where supported).'
+        }
+      },
+      required: []
     }
   },
   {
@@ -822,7 +933,7 @@ async function handleGetCommandSchema(args: Record<string, unknown>, conn: BestC
 async function handleSendCommand(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const source  = args.source as string;
+  const source  = (args.source as string | undefined) ?? CLIENT_SOURCE;
   const data    = args.data as Record<string, unknown>;
 
   // CloudEvent type is PascalCase: configure-broker → ConfigureBroker
@@ -888,21 +999,178 @@ async function handleGetQuerySchema(args: Record<string, unknown>, conn: BestCon
   return JSON.stringify(doc, null, 2);
 }
 
-async function handleExecuteQuery(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
-  const schema = args.schema as string;
-  // Models routinely name this argument 'parameters' (the tool description itself speaks of
-  // "parameters"), and unknown keys are not rejected — before the alias, such calls silently
-  // ran the query UNFILTERED, which servers can surface as misleading authorisation errors.
-  const params = (args.params ?? args.parameters ?? {}) as Record<string, unknown>;
+/**
+ * Models routinely name the parameter-bag argument 'parameters' (the tool descriptions themselves
+ * speak of "parameters"), and unknown keys are not rejected — before the alias, such calls silently
+ * ran the query UNFILTERED, which servers can surface as misleading authorisation errors.
+ */
+function paramsBag(args: Record<string, unknown>): Record<string, unknown> {
+  return (args.params ?? args.parameters ?? {}) as Record<string, unknown>;
+}
 
-  const queryString = Object.entries(params)
+function toQueryString(params: Record<string, unknown>): string {
+  return Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null)
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join('&');
+}
+
+async function handleExecuteQuery(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  const schema = args.schema as string;
+  const queryString = toQueryString(paramsBag(args));
 
   const path = queryString ? `/queries/${schema}?${queryString}` : `/queries/${schema}`;
   const result = await bestGet<unknown>(path, conn);
   return JSON.stringify(result, null, 2);
+}
+
+// ── Events capability (io.best.agents.events) ────────────────────────────────
+
+async function handleGetEvents(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  const queryString = toQueryString(paramsBag(args));
+  const path = queryString ? `/events?${queryString}` : '/events';
+  const result = await bestGet<unknown>(path, conn);
+  return JSON.stringify(result, null, 2);
+}
+
+async function handleGetEventSchema(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  const schema  = args.schema as string;
+  const version = args.version as string;
+  const doc = await bestGet<unknown>(`/events/${schema}/${version}`, conn);
+  return JSON.stringify(doc, null, 2);
+}
+
+const clampNumber = (value: unknown, fallback: number, min: number, max: number): number => {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  return Math.min(max, Math.max(min, n));
+};
+
+/**
+ * Bounded live-stream sample: open the SSE stream, collect until max_events or max_seconds,
+ * abort, return what arrived. Bounds are enforced CLIENT-side so this works against any
+ * conformant endpoint — no vendor stream parameters required. A turn-based caller cannot hold
+ * the connection between turns; this gives it a window instead.
+ */
+async function handleSampleEventStream(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  const maxSeconds = clampNumber(args.max_seconds, 15, 1, 120);
+  const maxEvents  = clampNumber(args.max_events, 10, 1, 100);
+  const lastEventId = typeof args.last_event_id === 'string' && args.last_event_id ? args.last_event_id : undefined;
+
+  const queryString = toQueryString(paramsBag(args));
+  const path = withAuthQuery(queryString ? `/events/stream?${queryString}` : '/events/stream', conn);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), maxSeconds * 1000);
+  const startedAt = Date.now();
+  const events: unknown[] = [];
+  let lastSeenId: string | undefined;
+  let serverClosed = false;
+
+  try {
+    const response = await fetch(`${conn.endpoint}${path}`, {
+      headers: {
+        ...authHeaders(conn),
+        Accept: 'text/event-stream',
+        ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {})
+      },
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const message = await parseErrorMessage(response);
+      throw new Error(message);
+    }
+    if (!response.body) throw new Error('The stream response carried no body.');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    readLoop:
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { serverClosed = true; break; }
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE frames are blank-line separated; field order within a frame is not fixed.
+      let separator: number;
+      while ((separator = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, separator);
+        buffer = buffer.slice(separator + 2);
+
+        const dataLines: string[] = [];
+        let frameId: string | undefined;
+        for (const rawLine of frame.split('\n')) {
+          const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+          if (line.startsWith(':')) continue; // comment / keepalive
+          if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+          else if (line.startsWith('id:')) frameId = line.slice(3).trim();
+        }
+        if (frameId) lastSeenId = frameId;
+        if (dataLines.length === 0) continue;
+
+        const payload = dataLines.join('\n');
+        try { events.push(JSON.parse(payload)); } catch { events.push(payload); }
+        if (events.length >= maxEvents) break readLoop;
+      }
+    }
+  } catch (error) {
+    // The time bound firing surfaces as an abort — that is the normal end of a sample.
+    const aborted = error instanceof Error && (error.name === 'AbortError' || /abort/i.test(error.message));
+    if (!aborted) throw error;
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
+
+  return JSON.stringify({
+    events,
+    count: events.length,
+    lastEventId: lastSeenId ?? null,
+    elapsedSeconds: Math.round((Date.now() - startedAt) / 100) / 10,
+    endedBecause: events.length >= maxEvents ? 'max_events reached'
+      : serverClosed ? 'server closed the stream'
+      : 'max_seconds reached',
+    note: 'The stream is closed. Events arriving after this sample are not delivered — call again ' +
+      '(passing lastEventId as last_event_id) to take another sample, or use get_events for history.'
+  }, null, 2);
+}
+
+// ── Discovery manifest (/.well-known/best) ────────────────────────────────────
+
+/**
+ * The manifest is the public front door (served without credentials, per the discovery spec) at
+ * the HOST root — not under the connection's endpoint path. For a tenant-scoped connection, the
+ * global manifest's `tenants.manifest` URI template resolves the tenant's own manifest.
+ */
+async function handleGetManifest(conn: BestConnection): Promise<string> {
+  const origin = new URL(conn.endpoint).origin;
+  const globalUrl = `${origin}/.well-known/best`;
+
+  const fetchManifest = async (url: string): Promise<unknown> => {
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!response.ok) {
+      const message = await parseErrorMessage(response);
+      throw new Error(`GET ${url} → ${response.status}: ${message}`);
+    }
+    return response.json();
+  };
+
+  const globalManifest = await fetchManifest(globalUrl);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const template = (globalManifest as any)?.best?.tenants?.manifest;
+  const tenantId = conn.endpoint.match(/\/tenants\/([^/?#]+)\/?$/)?.[1];
+  if (typeof template === 'string' && tenantId) {
+    const tenantUrl = template.replace('{tenantId}', encodeURIComponent(tenantId));
+    try {
+      const tenantManifest = await fetchManifest(tenantUrl);
+      return JSON.stringify({ manifestUrl: tenantUrl, scope: 'tenant', manifest: tenantManifest }, null, 2);
+    } catch {
+      // Fall through to the global manifest — better a coarser answer than none.
+    }
+  }
+
+  return JSON.stringify({ manifestUrl: globalUrl, scope: 'global', manifest: globalManifest }, null, 2);
 }
 
 async function handleGetWorkflows(conn: BestConnection): Promise<string> {
@@ -950,14 +1218,30 @@ Use the query tools to read domain state before issuing commands that require ex
 ## Sending commands
 
 1. Call get_command_catalogue to discover available commands.
-2. Call get_command_schema for the chosen command to learn: required fields, field types, and the required 'source' routing value (stated in the schema top-level description).
+2. Call get_command_schema for the chosen command to learn required fields and field types.
 3. Gather any missing field values from the user.
-4. Call send_command with schema, version, source, and data payload.
+4. Call send_command with schema, version, and data payload.
 
 CloudEvent envelope rules (enforced by send_command):
 - 'type': PascalCase of the schema name (configure-broker → ConfigureBroker). Converted automatically.
-- 'source': read from the schema description. NEVER invent or default this value.
+- 'source': identifies the command's ORIGIN and defaults to this client's identity ('${CLIENT_SOURCE}') — BEST servers route by 'type', never by 'source' alone. Pass an explicit source ONLY when the schema description documents a specific required value; never invent one.
 - 'dataschema': the absolute catalogue URI '{endpoint}/commands/{schema}/{version}'. Built automatically from the connection endpoint.
+
+## Receiving events (facts the service publishes)
+
+Call get_manifest first — it reveals whether the service declares the events capability, which push
+channels it supports, and any turn-based guidance in the capability description. Then pick by need:
+
+- Past events: get_events with filters (correlationId, type, from/to, limit). Poll in a loop by
+  passing the previous response's cursor (after / a vendor cursor field) and deduping by event id.
+- Live events, short window: sample_event_stream opens the SSE stream and returns what arrives
+  within max_events / max_seconds. Pass the previous sample's lastEventId as last_event_id to
+  resume without gaps where the server supports it.
+- Interpreting payloads: get_event_schema for typed events.
+
+You cannot hold the stream open between turns. For standing reactions ("when X happens, do Y"),
+do not poll indefinitely — look for the service's own alerting/webhook commands in
+get_command_catalogue and configure those instead.
 
 ## Following a published workflow (optional)
 
@@ -1015,6 +1299,10 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
         case 'get_query_catalogue':   text = await handleGetQueryCatalogue(safeArgs, conn);     break;
         case 'get_query_schema':      text = await handleGetQuerySchema(safeArgs, conn);       break;
         case 'execute_query':         text = await handleExecuteQuery(safeArgs, conn);         break;
+        case 'get_manifest':          text = await handleGetManifest(conn);                    break;
+        case 'get_events':            text = await handleGetEvents(safeArgs, conn);            break;
+        case 'get_event_schema':      text = await handleGetEventSchema(safeArgs, conn);       break;
+        case 'sample_event_stream':   text = await handleSampleEventStream(safeArgs, conn);    break;
         case 'get_workflows':         text = await handleGetWorkflows(conn);                   break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };

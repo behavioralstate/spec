@@ -93,9 +93,11 @@ Set `BEST_CONNECTIONS` to a JSON array of fully-explicit connection objects. Eac
 
 ### Tools exposed
 
-`list_connections` (only when multiple connections configured), `get_command_catalogue`, `get_command_schema`, `send_command`, `send_command_and_wait`, `get_query_catalogue`, `get_query_schema`, `execute_query`.
+`list_connections` (only when multiple connections configured), `get_manifest`, `get_command_catalogue`, `get_command_schema`, `send_command`, `send_command_and_wait`, `get_query_catalogue`, `get_query_schema`, `execute_query`, `get_events`, `get_event_schema`, `sample_event_stream`, `get_workflows`.
 
-`send_command` derives the CloudEvent `type` via PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`). The `source` value must be read from the schema description — never invented.
+`send_command` derives the CloudEvent `type` via PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`). `source` is optional and defaults to the client identity `urn:best-mcp` (servers must not route by `source` alone, per the commands spec); an explicit value is passed only when the schema description documents one — never invented.
+
+The events tools follow the turn-based rule: an MCP tool call cannot hold the SSE stream open, so `sample_event_stream` bounds collection client-side (`max_events`/`max_seconds`) and `get_events` + response cursor is the polling drain. Never add a tool that blocks indefinitely.
 
 ### Publishing
 

@@ -42,13 +42,19 @@ MCP (Model Context Protocol) allows any LLM client to interact with a BEST-compl
 | BEST Concept | MCP Concept |
 |---|---|
 | Connection list (multi-connection mode) | MCP tool: `list_connections` |
+| Discovery manifest (`GET /.well-known/best`) | MCP tool: `get_manifest` |
 | Command catalogue (`GET /commands`) | MCP tool: `get_command_catalogue` |
 | Command schema (`GET /commands/{schema}/{version}`) | MCP tool: `get_command_schema` |
 | Command ingestion (`POST /commands`) | MCP tool: `send_command` |
 | Query catalogue (`GET /queries`) | MCP tool: `get_query_catalogue` |
 | Query schema (`GET /queries/{schema}/{version}`) | MCP tool: `get_query_schema` |
 | Query execution (`GET /queries/{schema}`) | MCP tool: `execute_query` |
+| Event history (`GET /events`) | MCP tool: `get_events` |
+| Event schema (`GET /events/{schema}/{version}`) | MCP tool: `get_event_schema` |
+| Live event stream (`GET /events/stream`) | MCP tool: `sample_event_stream` — a bounded, client-side sample (see below) |
 | Push event delivery | MCP server-to-client notifications |
+
+> **Streams are sampled, not held.** An MCP tool call is request/response, and the LLM host's loop is turn-based — nothing re-invokes the model when an event arrives between turns. `sample_event_stream` therefore opens the SSE stream, collects until a `max_events`/`max_seconds` bound (enforced client-side, so any conformant endpoint works), and returns what arrived; the previous sample's `lastEventId` is passed as `Last-Event-ID` to resume without gaps where the server supports it. For past events, `get_events` polling with the response cursor is the turn-based drain. For standing reactions ("when X happens, do Y"), neither is right — agents should configure the service's own alerting/webhook commands instead.
 
 ## Result
 
@@ -173,14 +179,19 @@ Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connecto
 
 ```
 list_connections (multi-connection only) → identify and confirm the target connection
+get_manifest                   → discover declared capabilities and push channels
 
 get_command_catalogue          → discover what commands this service accepts
-get_command_schema             → learn the exact fields and the required source value
+get_command_schema             → learn the exact fields required
 send_command                   → send the command (CloudEvent envelope built automatically)
 
 get_query_catalogue            → discover available read queries
 get_query_schema               → learn parameters and response shape
 execute_query                  → read current state synchronously
+
+get_events                     → query past events (poll with the response cursor for turn-based drains)
+sample_event_stream            → bounded live sample of the SSE stream
+get_event_schema               → interpret a typed event's data payload
 ```
 
 ### CloudEvent construction
@@ -188,7 +199,7 @@ execute_query                  → read current state synchronously
 `send_command` builds the CloudEvent 1.0 envelope automatically:
 - `type` is derived from the schema name via PascalCase conversion (`configure-broker → ConfigureBroker`)
 - `dataschema` is set to the absolute catalogue URI `{endpoint}/commands/{schema}/{version}` (e.g. `https://api.example.com/best/commands/configure-broker/1.0`)
-- `source` must be supplied by the caller — the required value is documented in the schema `description` returned by `get_command_schema`; never invent or default it
+- `source` identifies the command's **origin** and defaults to the client's own identity (`urn:best-mcp`). Per the [commands capability](../agents/commands.md), servers **must not** use `source` as the sole routing key, so the default is correct for conformant services. An explicit `source` is passed only when the schema `description` documents a specific required value (legacy source-routing dialects) — never invented
 
 ## Transport Configuration
 
