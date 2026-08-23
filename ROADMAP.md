@@ -38,7 +38,7 @@ Everything still open, in rough priority order:
 - [ ] Implement 0.9.2 `correlationid` in the deployments (dotquant, remundo) and surface it in `best-mcp` / `best-validate`
 
 **Standards track** (see table above)
-- [ ] Submit the IANA registration — text is ready in [standards/iana-well-known-best.md](standards/iana-well-known-best.md); must come from the change controller
+- [ ] Submit the IANA registration — **current focus.** [standards/iana-well-known-best.md](standards/iana-well-known-best.md) has the template updated to the v0.9.2 tag plus a ready-to-send submission body for the [IANA form](https://www.iana.org/form/protocol-assignment); all referenced URLs verified live, `best` suffix confirmed unregistered (2026-08-23). Must be sent by the change controller — confirm the change-controller email before sending
 - [ ] Complete the SPEC.md → I-D conversion in [standards/draft-best-protocol-00.md](standards/draft-best-protocol-00.md) (12 TODO sections) and submit to the Datatracker + ISE
 
 **Operational**
