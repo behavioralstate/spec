@@ -49,7 +49,7 @@ Note what is *not* different: the HTTP verb is `POST` on both sides, and the
 number of calls is the same. BEST does not magically need fewer round-trips. The
 difference is **where the operation lives** — REST encodes it in the URL and verb;
 BEST carries it as a named intent through a single ingestion endpoint
-([Commands — POST /commands](../agents/commands.md#post-commands-command-ingestion)).
+([Commands — ingestion](../agents/commands.md#ingestion-post-commands)).
 The consequence is that REST consumers must construct resource-shaped paths from
 prior knowledge, while BEST consumers send every command to one place and let the
 `type` field do the routing.

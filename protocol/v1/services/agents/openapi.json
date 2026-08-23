@@ -48,89 +48,6 @@
         }
       }
     },
-    "/subscriptions": {
-      "post": {
-        "operationId": "createSubscription",
-        "summary": "Register a webhook subscription for push event delivery",
-        "description": "Registers a webhook callback URL to receive events as they are published. An optional serviceId associates the subscription with a service descriptor for grouping and cleanup.",
-        "tags": [
-          "Events"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "../../schemas/agents/events.json#/$defs/subscriptionRegistration"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Subscription created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/agents/events.json#/$defs/subscriptionDescriptor"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request body",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/subscriptions/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          },
-          "description": "Subscription identifier"
-        }
-      ],
-      "delete": {
-        "operationId": "deleteSubscription",
-        "summary": "Remove a webhook subscription",
-        "tags": [
-          "Events"
-        ],
-        "responses": {
-          "204": {
-            "description": "Subscription removed"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Subscription not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../schemas/error.json"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/commands": {
       "get": {
         "operationId": "listCommandCatalogue",
@@ -174,7 +91,25 @@
         },
         "responses": {
           "201": {
-            "description": "Command accepted and queued for processing"
+            "description": "Command accepted and durably queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["id"],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The command's envelope id (idempotency key), echoed back."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "The effective correlation identifier — the command's correlationid extension attribute, or its id when none was supplied. Matches the correlationid attribute on resulting events."
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid command — schema validation failed or missing required CloudEvent attributes",
@@ -211,7 +146,7 @@
             "name": "correlationId",
             "in": "query",
             "schema": { "type": "string" },
-            "description": "Filter by correlation identifier — the command id returned by POST /commands. Returns only events produced in response to that specific command submission."
+            "description": "Filter by correlation identifier — matches the correlationid envelope attribute on events (the correlationId echoed by POST /commands)."
           },
           {
             "name": "source",
@@ -274,7 +209,7 @@
             "name": "correlationId",
             "in": "query",
             "schema": { "type": "string" },
-            "description": "Receive only events produced by a specific command submission — pass the id returned by POST /commands."
+            "description": "Receive only events whose correlationid envelope attribute matches — pass the correlationId echoed by POST /commands."
           },
           {
             "name": "type",
@@ -564,7 +499,7 @@
     },
     {
       "name": "Events",
-      "description": "io.best.agents.events — Query published domain events (GET /events), subscribe to live events (GET /events/stream), fetch versioned event schemas (GET /events/{schema}/{version}), and manage webhook subscriptions"
+      "description": "io.best.agents.events — Query published domain events (GET /events), subscribe to live events (GET /events/stream), and fetch versioned event schemas (GET /events/{schema}/{version})"
     },
     {
       "name": "Queries",

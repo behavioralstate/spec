@@ -21,7 +21,7 @@
 		</h1>
 		<HeroDiagram />
 		<p class="hero-subtitle">
-			Expose a manifest. Any AI agent discovers your service, reads what commands it accepts and what events it produces, and starts interacting — no custom integration required.
+			Expose one manifest and your system's behaviour becomes machine-understandable. Any agent discovers its capabilities, sends commands, runs queries, observes the resulting events, and correlates outcomes — across a whole platform, with no bespoke integration.
 		</p>
 		<div class="hero-actions">
 			<a href="/specs" class="btn-primary">Read the docs</a>

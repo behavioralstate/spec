@@ -20,7 +20,7 @@
 		<p class="section-eyebrow">Capabilities</p>
 		<h2 class="section-title">Built for agent interoperability</h2>
 		<p class="section-subtitle">
-			Expose what your service does — the operations it accepts and the facts it produces — in a standard form any caller can discover and use. Over HTTP or MCP.
+			Expose what your system does — the commands it accepts, the queries it answers, and the facts it produces — in a standard form any caller can discover, use, and correlate. Over HTTP or MCP.
 		</p>
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			<FeatureCard
@@ -71,7 +71,7 @@
     "services": {
       "io.best.agents": {
         "version": "${bestVersion}",
-        "description": "Service registry, command ingestion, published events",
+        "description": "Command ingestion, queries, published events",
         "http": {
           "endpoint": "https://api.example.com/"
         }

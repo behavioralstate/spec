@@ -46,7 +46,7 @@ When this pattern is used:
 - The `{tenantId}` path segment is declared in capability `endpoints` entries on every tenant-scoped route.
 - Authentication (typically a Bearer API key) identifies the caller; `{tenantId}` identifies _which_ tenant's surface to target. Both are required on every request.
 
-For machine-actionable tenant discovery (letting consumers resolve a tenant manifest without prior knowledge of the URL structure), see [`tenants.manifest` in the Discovery spec](../discovery.md#tenantsmanifest-uri-template-for-tenant-discovery).
+For machine-actionable tenant discovery (letting consumers resolve a tenant manifest without prior knowledge of the URL structure), see [Multi-Tenancy in the Discovery spec](../discovery.md#multi-tenancy).
 
 ## Authentication
 
@@ -78,13 +78,12 @@ All endpoints use standard HTTP status codes with a consistent error body:
 | Status | When |
 |---|---|
 | 200 | Success with body |
-| 201 | Created (agent registration) |
-| 202 | Accepted (async processing, e.g. event delivery) |
-| 204 | Success with no body (pause, resume, delete) |
+| 201 | Created (command accepted and durably queued) |
+| 202 | Accepted (async processing without durability guarantee) |
 | 400 | Invalid request body (schema validation failure) |
 | 401 | Authentication required or credentials invalid |
-| 404 | Resource not found (agent, trace) |
-| 409 | Conflict (e.g. duplicate subscription) |
+| 404 | Resource not found |
+| 409 | Conflict (duplicate command `id` with different payload) |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |
 

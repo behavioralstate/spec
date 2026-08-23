@@ -18,26 +18,26 @@ The result of processing is a **published domain event** — an immutable fact t
 
 > **Event Sourcing is an internal server pattern, not a client capability.** A service *may* use Event Sourcing internally — storing state as a replayable log of events. But clients do not get Event Sourcing semantics. `GET /events` returns whatever the server currently exposes from its event log at the time of the query. That might be a full historical log, a recent window, or a current-state view mapped to the BEST event shape (the protocol explicitly allows any of these). Clients cannot assume they can reconstruct state by replaying events from `GET /events` — the endpoint does not guarantee completeness, ordering, or replay fidelity.
 
-The practical implication: if a caller polls `GET /events?correlationId=...` some time after submitting a command, they receive the server's current view at that moment — which may or may not include the event they are looking for, depending on how long the server retains event history. **For reliable point-in-time delivery, use a push channel** (webhook or MCP notification), which fires at the moment of publication.
+The practical implication: if a caller polls `GET /events?correlationId=...` some time after submitting a command, they receive the server's current view at that moment — which may or may not include the event they are looking for, depending on how long the server retains event history. **For reliable point-in-time delivery, use a push channel** (SSE stream or MCP notification), which fires at the moment of publication.
 
 ### How to retrieve results
 
-The canonical retrieval path uses the correlation identifier returned in the `201` response:
+The canonical retrieval path uses the correlation identifier echoed in the `201` response:
 
 ```
-POST  /commands                        → 201 { "id": "abc123" }
-GET   /events?correlationId=abc123     → [ { "type": "CounterProposed", ... } ]
+POST  /commands                        → 201 { "id": "abc123", "correlationId": "abc123" }
+GET   /events?correlationId=abc123     → [ { "type": "CounterProposed", "correlationid": "abc123", ... } ]
 ```
 
-The `id` in the `201` response is the **correlation identifier** — it is the command's CloudEvent `id`, echoed back so callers can match incoming events to their command. The field name used inside an event payload to carry this identifier is agreed between client and server; BEST does not mandate it.
+Correlation is **first-class**: the `correlationid` envelope attribute (a CloudEvents extension, lowercase on the wire) may be set by the caller on the command — when omitted, the server adopts the command's `id` — and **must** appear on every event produced by processing that command. Follow-up commands in the same business process should propagate it, which is what lets one identifier traverse a chain of services. See [Correlation becomes first-class](#correlation-becomes-first-class).
 
 ### Polling vs push
 
-Polling `GET /events?correlationId=...` is the fallback and the simplest path. For callers that need lower latency or want to avoid polling loops, three push channels are available:
+Polling `GET /events?correlationId=...` is the fallback and the simplest path. For callers that need lower latency or want to avoid polling loops, two push channels are available:
 
 | Channel | How declared | Best for |
 |---|---|---|
-| **Webhook** | `webhook.url` registered via `POST /subscriptions` | HTTP clients running their own HTTP server |
+| **SSE stream** | `"sse": true` in the events capability's `push` object | HTTP callers that can hold a connection open (browsers, CLIs, local agents) |
 | **MCP notification** | `"push": true` on `mcp` transport block | LLM tooling with an active MCP session |
 
 The service declares which push channels it supports in the `io.best.agents.events` capability's `push` object. Callers should check this before choosing a channel.
@@ -132,7 +132,7 @@ Authentication is the most common place where this principle is violated in prac
 |---|---|---|
 | `bearer` | `Authorization: Bearer <token>` | OAuth2, JWT, opaque tokens |
 | `apikey` (header) | Custom header, e.g. `X-Api-Key: <key>` | API gateways, developer portals |
-| `apikey` (query) | URL param, e.g. `?apikey=<key>` | IoT devices, webhook endpoints |
+| `apikey` (query) | URL param, e.g. `?apikey=<key>` | IoT devices, constrained clients |
 | `none` | No credentials | Public or intranet endpoints |
 
 A single service may even expose **multiple auth schemes** — for example, JWT Bearer for user-facing web clients and a custom API key header for machine-to-machine BaaS callers. Both are valid; the spec accommodates both.
@@ -166,7 +166,7 @@ Collapsing them removes bespoke endpoints rather than adding them: registration 
 
 - **Discovery** (`/.well-known/best`) remains — it is the bootstrap that cannot itself be a command.
 - **The service descriptor** (`id`, `name`, `accepts`, `produces`, `status`, `metadata`, …) remains normative, now declared in the manifest's `agents` array rather than served from a live `GET /services`.
-- **A naming recommendation** (`RegisterService` / `list-services` / `ServiceRegisteredV1`) is documented as a non-normative example in [Registry](./agents/registry.md), for implementers who want a cross-legible service-management vocabulary.
+- **A naming recommendation** (`RegisterService` / `list-services` / `ServiceRegisteredV1`) is documented as a non-normative worked example in [Composing Commands into Processes](./composing-processes.md#worked-example-a-service-registry-with-heartbeat), for implementers who want a cross-legible service-management vocabulary.
 
 ---
 
@@ -174,7 +174,7 @@ Collapsing them removes bespoke endpoints rather than adding them: registration 
 
 ### The decision
 
-The A2A (Google Agent-to-Agent) transport binding has been **removed** from the protocol. BEST defines two consumer-facing transport bindings — HTTP (the baseline) and MCP — plus an optional gRPC binding for internal runtimes. The `a2a` transport block and the `push.a2a` delivery channel are gone from the discovery manifest schema.
+The A2A (Google Agent-to-Agent) transport binding has been **removed** from the protocol. BEST defines two consumer-facing transport bindings — HTTP (the baseline) and MCP. The `a2a` transport block and the `push.a2a` delivery channel are gone from the discovery manifest schema.
 
 ### Why
 
@@ -184,8 +184,50 @@ The binding also never had an implementation or a known consumer. Keeping an unt
 
 ### What stays
 
-- **HTTP** remains the baseline every conformant service must expose; **MCP** remains the LLM-tooling binding; **gRPC** remains optional for internal runtimes.
-- Push delivery keeps its three channels: SSE, webhook, and MCP notifications.
+- **HTTP** remains the baseline every conformant service must expose; **MCP** remains the LLM-tooling binding.
+- Push delivery kept its channels (the webhook channel was itself removed later — see below).
+
+---
+
+## gRPC Transport removed
+
+### The decision
+
+The `grpc` transport block has been **removed** from the discovery manifest schema. It was declared in the schema (`endpoint` plus optional `proto`) but BEST never defined a normative gRPC binding — no request mapping, no error mapping, no conformance requirements.
+
+### Why
+
+The same logic that removed the A2A binding: it was spec surface with no implementation, no known consumer, and no normative content behind it. A schema field that declares a transport the spec never specifies costs implementers conformance ambiguity for zero interoperability gain. Internal runtimes that use gRPC between their own components can keep doing so — BEST only governs the consumer-facing surface, and that remains HTTP (baseline) and MCP. If a real deployment ever needs a consumer-facing gRPC binding, it can be introduced as an extension informed by that use, exactly as the A2A note prescribes.
+
+---
+
+## Webhook subscriptions removed
+
+### The decision
+
+The webhook push channel has been **removed**: `POST /subscriptions` and `DELETE /subscriptions/{id}`, the subscription schemas, the `push.webhook` flag, the service descriptor's `webhook` field, and the webhook SSRF security section. Push delivery is now SSE and MCP notifications; polling `GET /events` remains the universal fallback.
+
+### Why
+
+Webhooks were the most expensive unfinished surface in the spec. The `secret` field promised HMAC-signed deliveries whose signature scheme (header, algorithm, signed bytes) was never specified — so no two implementations could verify each other's deliveries. Delivery semantics (retries, ordering, at-least-once) were equally undefined, and the SSRF/DNS-rebinding requirements were the heaviest obligation in the security section. Finishing all of that properly is substantial normative work, and the feature had no known consumer: no production caller had registered a subscription.
+
+SSE already serves push for connected consumers, and polling covers the rest. If push-to-disconnected-services is ever genuinely needed, the CNCF CloudEvents ecosystem already maintains an HTTP webhook delivery specification — as a conformant CloudEvents profile, BEST would adopt that as an extension rather than reintroduce a bespoke scheme.
+
+---
+
+## Correlation becomes first-class
+
+### The decision
+
+`correlationid` is a first-class envelope attribute — a CloudEvents extension attribute (lowercase on the wire, per CE naming rules) defined by the BEST profile. Commands **may** carry it (the server adopts the command's `id` when absent); the `201` response echoes the effective value as `correlationId`; every event produced by processing a command **must** carry it; follow-up commands in the same business process **should** propagate it. The `?correlationId=` filters on `GET /events` and `GET /events/stream` match this attribute.
+
+### Why
+
+Before this, the command's `id` was the correlation handle, but nothing at the protocol level carried it *on the events* — the field name inside event payloads was "agreed between client and server." That worked only when one party wrote both sides. A generic consumer polling `GET /events` had no reliable way to match events to commands, and the identifier could not survive a multi-step process spanning services: each hop minted a new command `id` and the chain broke.
+
+Making correlation an envelope attribute fixes both without touching `data`: any consumer can correlate from the envelope alone, and because the attribute is *supplied* rather than derived, a process manager can stamp one identifier on the first command and carry it through every subsequent command and event in the chain. Keeping it out of the payload also preserves the rule that `data` is semantically opaque to the protocol. As a CloudEvents extension attribute it rides through CE SDKs, brokers, and validators unchanged, and pre-0.9.2 consumers — required to ignore unknown envelope attributes — are unaffected.
+
+Idempotency and correlation stay separate concerns: `id` remains the idempotency key, unique per message; `correlationid` groups messages into a process.
 
 ---
 
@@ -195,7 +237,7 @@ The binding also never had an implementation or a known consumer. Keeping an unt
 
 The service descriptor carries an optional `metadata` field — an opaque JSON object holding service-defined configuration (e.g. model name, system prompt, provider settings). The `io.best.agents.memory` capability has been **removed** from the protocol. The `GET /events` endpoint covers the remaining use case for accumulated historical state.
 
-The descriptor is declared in the discovery manifest's `agents` array. Where a service is registered dynamically, registration uses **upsert semantics** via the `RegisterService` command (see [Registry](./agents/registry.md)): submitting a registration for an existing `id` fully replaces the descriptor.
+The descriptor is declared in the discovery manifest's `agents` array. Where a service is registered dynamically, registration uses **upsert semantics** via the `RegisterService` command (see the [registry worked example](./composing-processes.md#worked-example-a-service-registry-with-heartbeat)): submitting a registration for an existing `id` fully replaces the descriptor.
 
 ### Why metadata on the descriptor
 

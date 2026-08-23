@@ -39,7 +39,9 @@ is discovered from a published recipe or known to the caller in advance.
 This is the default, and it requires nothing beyond the core capabilities. The
 caller sends a command, observes the event it produces, and uses that fact to
 decide — and parameterise — the next command. The thread that ties the steps
-together is the **correlation id** returned from the first command
+together is the **`correlationid`** envelope attribute: established by the first
+command (supplied by the caller, or defaulting to that command's `id`), stamped
+on every resulting event, and propagated onto each follow-up command
 ([Commands — Correlation](./agents/commands.md)).
 
 ```
@@ -49,7 +51,7 @@ AssignRoles            → RolesAssignedV1              ← sent on Subscription
                        → UserOnboardedV1              ← terminal fact
 ```
 
-The first command returns the correlation id for the whole process:
+The first command establishes the correlation id for the whole process:
 
 ```json
 POST /commands
@@ -60,15 +62,17 @@ POST /commands
   "type": "SubmitUser",
   "datacontenttype": "application/json",
   "dataschema": "submit-user/1.0",
+  "correlationid": "XCSFIFR04763087",
   "time": "2025-07-01T10:30:00Z",
   "data": { "email": "ada@example.com" }
 }
-→ 201 { "id": "XCSFIFR04763087" }
+→ 201 { "id": "11111111-1111-1111-1111-111111111111", "correlationId": "XCSFIFR04763087" }
 ```
 
-Each follow-up command carries identifiers established by earlier events (here,
-the worker id surfaced on `UserSubmittedV1`), so the service can stitch the steps
-together. The whole process is then observable as a log of facts:
+Every event these commands produce carries `correlationid: "XCSFIFR04763087"` on
+its envelope, and each follow-up command propagates it — alongside the domain
+identifiers established by earlier events (here, the worker id surfaced on
+`UserSubmittedV1`). The whole process is then observable as a log of facts:
 
 ```
 GET /events?correlationId=XCSFIFR04763087
@@ -78,7 +82,7 @@ GET /events?correlationId=XCSFIFR04763087
   → UserOnboardedV1
 ```
 
-To avoid polling, the caller can subscribe to a push channel (webhook or MCP
+To avoid polling, the caller can subscribe to a push channel (SSE stream or MCP
 notification) and react the moment each event is published — see
 [Design Decisions — Polling vs push](./design-decisions.md#polling-vs-push).
 
@@ -94,12 +98,14 @@ notification) and react the moment each event is published — see
 - A step's outcome can branch the process (success vs. a `…Failed` event).
 - You want the process to be reactive and loosely coupled.
 
-## Pattern 2 — Descriptive sequence (a published recipe)
+## Pattern 2 — Descriptive sequence (published workflows)
 
 Sometimes the steps are a fixed, well-known recipe — a linear happy path a caller
 should follow in order. Rather than make every caller rediscover that order, a
 service can **publish it as read-only metadata**: a named list of command schemas
-with an order and a human description of each step.
+with an order and a human description of each step. This is what services
+conventionally expose at `GET /workflows` (and what the `best-mcp`
+`get_workflows` tool reads).
 
 This is purely descriptive. It is a *hint*, not an engine: the caller still sends
 each command and waits for its `201` before the next. The service neither
@@ -125,7 +131,7 @@ GET /workflows
 ```
 
 Each step references a `schema` that already exists in the command catalogue
-([Commands — GET /commands](./agents/commands.md#get-commands-command-catalogue)).
+([Commands — the catalogue](./agents/commands.md#the-catalogue-get-commands)).
 The recipe adds ordering and intent on top of commands the service already
 accepts; it introduces no new command types.
 
@@ -198,7 +204,7 @@ GET /queries/list-services           → all descriptors
 GET /queries/get-service?id=pricing  → one descriptor
 ```
 
-**Events** (`GET /events`, or a subscription) — react to fleet changes:
+**Events** (`GET /events`, or a push channel) — react to fleet changes:
 
 ```
 GET /events?type=ServiceRegisteredV1

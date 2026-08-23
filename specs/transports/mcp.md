@@ -1,6 +1,8 @@
 # MCP Transport
 
-MCP (Model Context Protocol) allows any LLM client to interact with a BEST-compliant service directly — discovering commands and queries, reading state, and sending commands — without any bespoke integration.
+MCP (Model Context Protocol) lets any off-the-shelf LLM client interact with a BEST-compliant service — discovering commands and queries, reading state, sending commands — without any bespoke integration.
+
+> Normative reference: [SPEC.md — MCP Transport](https://github.com/behavioralstate/spec/blob/main/SPEC.md#mcp-transport).
 
 <div class="BEST-diagram">
   <div class="BEST-node">
@@ -30,116 +32,37 @@ MCP (Model Context Protocol) allows any LLM client to interact with a BEST-compl
 
 ## Choosing a Transport
 
-> **MCP is an adapter for clients you don't control — not the recommended path for code you own.** HTTP is the baseline transport, and the BEST HTTP surface is deliberately self-describing: catalogues, schemas and workflows are designed to be consumed by an agent directly, with no adapter in between.
->
-> - **Off-the-shelf MCP-capable client** (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop, CLI agents): use MCP. It is the only plug-in mechanism those clients offer, and `best-mcp` gives them the full command/query surface with zero bespoke code.
-> - **Your own code** (a bespoke agent, a backend, tooling you build and deploy): call the BEST HTTP surface directly. Every `best-mcp` tool is a thin wrapper over exactly one HTTP endpoint, so placing the MCP server between your own client and the service adds a network hop and a deployment to operate, flattens structured BEST error responses (HTTP status + error code) into prose strings, and widens your supply chain — while providing nothing a small HTTP client in your own codebase wouldn't.
->
-> Rule of thumb: **never put `best-mcp` between a first-party client and a BEST service.** Declaring the `mcp` transport in your manifest is for the consumers you don't ship code to.
+> **MCP is an adapter for clients you don't control — not the recommended path for code you own.** Every `best-mcp` tool is a thin wrapper over exactly one HTTP endpoint, so placing the MCP server between your own client and the service adds a network hop, flattens structured BEST errors into prose, and widens your supply chain — while providing nothing a small HTTP client in your own codebase wouldn't. Off-the-shelf MCP-capable clients (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop) use MCP because it is the only plug-in mechanism they offer. Rule of thumb: **never put `best-mcp` between a first-party client and a BEST service.**
 
 ## Mapping
 
-| BEST Concept | MCP Concept |
+| BEST Concept | MCP Tool |
 |---|---|
-| Connection list (multi-connection mode) | MCP tool: `list_connections` |
-| Discovery manifest (`GET /.well-known/best`) | MCP tool: `get_manifest` |
-| Command catalogue (`GET /commands`) | MCP tool: `get_command_catalogue` |
-| Command schema (`GET /commands/{schema}/{version}`) | MCP tool: `get_command_schema` |
-| Command ingestion (`POST /commands`) | MCP tool: `send_command` |
-| Query catalogue (`GET /queries`) | MCP tool: `get_query_catalogue` |
-| Query schema (`GET /queries/{schema}/{version}`) | MCP tool: `get_query_schema` |
-| Query execution (`GET /queries/{schema}`) | MCP tool: `execute_query` |
-| Event history (`GET /events`) | MCP tool: `get_events` |
-| Event schema (`GET /events/{schema}/{version}`) | MCP tool: `get_event_schema` |
-| Live event stream (`GET /events/stream`) | MCP tool: `sample_event_stream` — a bounded, client-side sample (see below) |
+| Connection list (multi-connection mode) | `list_connections` |
+| Discovery manifest (`GET /.well-known/best`) | `get_manifest` |
+| Command catalogue / schema / ingestion | `get_command_catalogue` · `get_command_schema` · `send_command` |
+| Query catalogue / schema / execution | `get_query_catalogue` · `get_query_schema` · `execute_query` |
+| Event history / schema (`GET /events`, `GET /events/{schema}/{version}`) | `get_events` · `get_event_schema` |
+| Live event stream (`GET /events/stream`) | `sample_event_stream` — a bounded, client-side sample (see below) |
 | Push event delivery | MCP server-to-client notifications |
 
 > **Streams are sampled, not held.** An MCP tool call is request/response, and the LLM host's loop is turn-based — nothing re-invokes the model when an event arrives between turns. `sample_event_stream` therefore opens the SSE stream, collects until a `max_events`/`max_seconds` bound (enforced client-side, so any conformant endpoint works), and returns what arrived; the previous sample's `lastEventId` is passed as `Last-Event-ID` to resume without gaps where the server supports it. For past events, `get_events` polling with the response cursor is the turn-based drain. For standing reactions ("when X happens, do Y"), neither is right — agents should configure the service's own alerting/webhook commands instead.
 
-## Result
-
-Any LLM client (ChatGPT Desktop, GitHub Copilot, Claude Desktop, Cursor) becomes a capable caller of any BEST-compliant service — with full command and query discovery, no hardcoded integration.
+`send_command` builds the CloudEvent envelope automatically: `type` from the schema name via PascalCase conversion, `dataschema` set to the absolute catalogue URI, `source` defaulting to the client's own identity (`urn:best-mcp`) — correct for conformant services, which never route on `source` alone.
 
 ## Reference Implementation — `best-mcp`
 
-`best-mcp` is the reference MCP server for BEST. It is generic — it works with any BEST-compliant endpoint. Point it at any BEST HTTP surface and it exposes the full command and query surface as MCP tools.
+[`@behavioralstate/best-mcp`](https://www.npmjs.com/package/@behavioralstate/best-mcp) is the generic reference MCP server — point it at any BEST HTTP surface and it exposes the full command/query/event surface as MCP tools.
 
 ```bash
 npx @behavioralstate/best-mcp
 ```
 
-> **Pin a version in production.** Unversioned `npx @behavioralstate/best-mcp` resolves `latest` from npm at start-up — convenient on a workstation, but a server deployment then silently picks up new code (including any compromise of the npm package) on its next cold start, with your callers' credentials flowing through it. Production deployments should pin an exact version (e.g. `npx @behavioralstate/best-mcp@1.7.0`) and upgrade deliberately.
+> **Pin a version in production.** Unversioned `npx` resolves `latest` at start-up — a server deployment then silently picks up new code (including any compromise of the npm package) on its next cold start, with your callers' credentials flowing through it. Pin an exact version and upgrade deliberately.
 
-### Configuration
+Configuration is env-var driven, three modes in priority order — per-app `BEST_<APP>_*` variables (recommended; `BASE_URL`, `API_KEY`, optional `TENANT_ID` which auto-generates `<app>/tenant` and `<app>/platform` connections, and `AUTH_TYPE`/`AUTH_HEADER`/`AUTH_IN`/`AUTH_PARAM`), a `BEST_CONNECTIONS` JSON array, or legacy single-connection `BEST_ENDPOINT`/`BEST_API_KEY`. Transport via `MCP_TRANSPORT` (`stdio` default, or `http` + `MCP_HTTP_PORT`). The full variable reference lives in the [package README](https://www.npmjs.com/package/@behavioralstate/best-mcp).
 
-`best-mcp` supports three configuration modes, checked in priority order.
-
----
-
-#### Mode 1 — Per-app env vars *(recommended)*
-
-One set of `BEST_<APP>_*` variables per application. The app name must be a single uppercase word (letters and digits only, e.g. `TRADING`, `HR`).
-
-**Required:**
-
-| Variable | Description |
-|---|---|
-| `BEST_<APP>_BASE_URL` | Root URL of the BEST HTTP surface |
-| `BEST_<APP>_API_KEY` | Credential — not required when `AUTH_TYPE=none` |
-
-**Optional:**
-
-| Variable | Default | Description |
-|---|---|---|
-| `BEST_<APP>_TENANT_ID` | — | When set, auto-generates two named connections: `<app>/tenant` → `BASE_URL/tenants/TENANT_ID` and `<app>/platform` → `BASE_URL`. When omitted, generates one connection: `<app>`. |
-| `BEST_<APP>_AUTH_TYPE` | `apikey`* | `bearer` · `apikey` · `none` — **defaults to `apikey` in Mode 1** (Modes 2 & 3 default to `bearer`) |
-| `BEST_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name when `AUTH_TYPE=apikey` and `AUTH_IN=header` |
-| `BEST_<APP>_AUTH_IN` | `header` | `header` or `query` — where the key is sent when `AUTH_TYPE=apikey` |
-| `BEST_<APP>_AUTH_PARAM` | `apikey` | Query parameter name when `AUTH_IN=query` |
-
-**Auth types:**
-
-> **Default differs by mode.** Mode 1 defaults to `apikey` because BEST services typically use API key headers. Modes 2 and 3 default to `bearer` for backward compatibility.
-
-| `AUTH_TYPE` | Credential transport | Extra vars |
-|---|---|---|
-| `apikey` *(Mode 1 default)* | Custom header (default `X-Api-Key`) or query param | `AUTH_HEADER` or `AUTH_IN=query` + `AUTH_PARAM` |
-| `bearer` *(Modes 2 & 3 default)* | `Authorization: Bearer <key>` | none |
-| `none` | No credentials | `API_KEY` not required |
-
-Example — admin with tenant + platform surfaces (generates two connections from one config block):
-
-```
-BEST_TRADING_BASE_URL=https://api.example.com/best
-BEST_TRADING_API_KEY=your-api-key
-BEST_TRADING_TENANT_ID=your-tenant-id
-BEST_TRADING_AUTH_TYPE=apikey
-```
-
-Connections produced: `trading/tenant` and `trading/platform`.
-
----
-
-#### Mode 2 — `BEST_CONNECTIONS` JSON array
-
-For cases where per-app vars are not flexible enough. Set `BEST_CONNECTIONS` to a JSON array of fully-explicit connection objects (`name`, `endpoint`, `apiKey`, `authType`, `authHeader`, `authIn`, `authParam`, `description`).
-
----
-
-#### Mode 3 — Legacy single connection
-
-For simple single-endpoint setups. Set `BEST_ENDPOINT`, `BEST_API_KEY`, and optionally `BEST_AUTH_TYPE`, `BEST_AUTH_HEADER`, `BEST_AUTH_IN`, `BEST_AUTH_PARAM`.
-
----
-
-**Transport vars (all modes):**
-
-| Variable | Default | Description |
-|---|---|---|
-| `MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
-| `MCP_HTTP_PORT` | `3000` | HTTP port when `MCP_TRANSPORT=http` |
-
-### stdio — VS Code Copilot, Cursor, Claude Desktop
+Example — stdio config for VS Code Copilot / Cursor / Claude Desktop:
 
 ```json
 {
@@ -158,77 +81,17 @@ For simple single-endpoint setups. Set `BEST_ENDPOINT`, `BEST_API_KEY`, and opti
 }
 ```
 
-For multiple apps, add more `BEST_<APP>_*` variable groups to the same `env` block.
+For ChatGPT Desktop, run with `MCP_TRANSPORT=http`, expose the port via a tunnel, and register the `/mcp` URL as a connector.
 
-### HTTP — ChatGPT Desktop
+## Manifest Declaration
 
-Start in HTTP mode and expose via a tunnel:
-
-```bash
-MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
-  BEST_ENDPOINT=https://api.example.com/BEST \
-  BEST_API_KEY=<key> \
-  npx @behavioralstate/best-mcp
-
-ngrok http 3001
-```
-
-Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app/mcp`
-
-### Intended LLM flow
-
-```
-list_connections (multi-connection only) → identify and confirm the target connection
-get_manifest                   → discover declared capabilities and push channels
-
-get_command_catalogue          → discover what commands this service accepts
-get_command_schema             → learn the exact fields required
-send_command                   → send the command (CloudEvent envelope built automatically)
-
-get_query_catalogue            → discover available read queries
-get_query_schema               → learn parameters and response shape
-execute_query                  → read current state synchronously
-
-get_events                     → query past events (poll with the response cursor for turn-based drains)
-sample_event_stream            → bounded live sample of the SSE stream
-get_event_schema               → interpret a typed event's data payload
-```
-
-### CloudEvent construction
-
-`send_command` builds the CloudEvent 1.0 envelope automatically:
-- `type` is derived from the schema name via PascalCase conversion (`configure-broker → ConfigureBroker`)
-- `dataschema` is set to the absolute catalogue URI `{endpoint}/commands/{schema}/{version}` (e.g. `https://api.example.com/best/commands/configure-broker/1.0`)
-- `source` identifies the command's **origin** and defaults to the client's own identity (`urn:best-mcp`). Per the [commands capability](../agents/commands.md), servers **must not** use `source` as the sole routing key, so the default is correct for conformant services. An explicit `source` is passed only when the schema `description` documents a specific required value (legacy source-routing dialects) — never invented
-
-## Transport Configuration
-
-The `mcp` block in the service definition declares how to reach the MCP server:
-
-```json
-"mcp": {
-  "transport": "http",
-  "server": "https://mcp.example.com/mcp"
-}
-```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `transport` | string | yes | MCP transport type: `"stdio"`, `"sse"`, or `"http"` |
-| `server` | string | yes | MCP server identifier or URL |
-| `push` | boolean | no | When `true`, the server supports server-to-client push notifications for domain events. Callers should prefer this channel over polling `GET /events`. |
-| `authentication` | object | no | Authentication requirements for connecting to this MCP server |
-
-MCP transport is **optional** — HTTP is the baseline. MCP is declared in the `/.well-known/best` manifest only if the endpoint supports it.
-
-## Authentication
-
-If the MCP server requires authentication, it declares this in an `authentication` block on the `mcp` transport object. Consumers — including AI agents and IDE tooling such as VS Code Copilot — **must** read this block to know what credentials to supply when connecting.
+The `mcp` block in a service's transports declares how to reach the MCP server. MCP is **optional** — HTTP is the baseline.
 
 ```json
 "mcp": {
   "transport": "http",
   "server": "https://mcp.example.com/mcp",
+  "push": true,
   "authentication": {
     "type": "apiKey",
     "headers": [
@@ -240,89 +103,15 @@ If the MCP server requires authentication, it declares this in an `authenticatio
 }
 ```
 
-### Authentication Fields
+| Field | Required | Description |
+|---|---|---|
+| `transport` | yes | `"stdio"`, `"sse"`, or `"http"` |
+| `server` | yes | MCP server identifier or URL |
+| `push` | no | `true` when the server supports server-to-client push notifications for domain events |
+| `authentication` | no | Credentials for connecting to this MCP server — independent of the manifest's root `authentication` block (which covers the HTTP API); each transport declares its own requirements |
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `type` | string | yes | One of: `"none"`, `"bearer"`, `"apiKey"`, `"oauth2"` |
-| `headers` | array | no | Required headers for `apiKey` type — use when more than one header is needed (e.g. both an API key and a tenant ID). For single-header API key auth, `headers` with one entry is preferred over `scheme` + `in`. |
-| `scheme` | string | no | For `bearer`: the `Authorization` header prefix (e.g. `"Bearer"`) |
-| `tokenUrl` | string | no | Token endpoint URL for `oauth2` or token-based flows |
-| `scopes` | string[] | no | Required OAuth2 / token scopes |
-| `docs` | string | no | URL to human-readable authentication documentation |
-
-### Header Descriptor
-
-Each entry in `headers` describes one required HTTP header:
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | yes | HTTP header name (e.g. `"X-Api-Key"`) |
-| `description` | string | no | Human-readable description of what value to supply |
-| `example` | string | no | Pre-filled example value. Tooling may use this to populate the header automatically — for instance, a per-tenant manifest may pre-fill the resolved tenant ID here so VS Code can generate a complete MCP server config without manual input. |
-
-### Auth Type Examples
-
-**API key — single header:**
-
-```json
-"authentication": {
-  "type": "apiKey",
-  "headers": [
-    { "name": "X-Api-Key", "description": "Your API key" }
-  ],
-  "docs": "https://docs.example.com/auth"
-}
-```
-
-**API key — multiple headers (e.g. key + tenant ID):**
-
-```json
-"authentication": {
-  "type": "apiKey",
-  "headers": [
-    { "name": "X-Api-Key",   "description": "Your API key" },
-    { "name": "X-Tenant-Id", "description": "Your tenant identifier", "example": "acme" }
-  ],
-  "docs": "https://docs.example.com/auth"
-}
-```
-
-**Bearer token:**
-
-```json
-"authentication": {
-  "type": "bearer",
-  "scheme": "Bearer",
-  "docs": "https://docs.example.com/auth"
-}
-```
-
-**OAuth2:**
-
-```json
-"authentication": {
-  "type": "oauth2",
-  "tokenUrl": "https://auth.example.com/oauth2/token",
-  "scopes": ["mcp:read", "mcp:write"],
-  "docs": "https://docs.example.com/auth"
-}
-```
-
-> **Tooling hint:** The `example` field on a header is intended for IDE tooling (e.g. VS Code Copilot's MCP server config). When consuming a per-tenant manifest, `example` values may be pre-filled so tooling can generate a ready-to-use MCP server config with no manual entry required.
-
-> **MCP authentication vs. root authentication.** The root `authentication` block in the manifest describes credentials for the HTTP API. The `mcp.authentication` block describes credentials for the MCP server specifically. These may use the same mechanism or different ones — each transport declares its own requirements independently.
+`authentication` carries `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus, per type: `headers` (an array of `{ name, description, example }` descriptors — use it when more than one header is needed, e.g. API key + tenant ID; the `example` field lets tooling like VS Code pre-fill a ready-to-use MCP config from a per-tenant manifest), `scheme` for bearer, `tokenUrl`/`scopes` for OAuth2, and `docs` for the human-readable onboarding page.
 
 ## Push Event Delivery
 
-When a caller maintains an active MCP session and `"push": true` is declared on the `mcp` block, the server **may** push domain events to the caller using MCP's server-to-client notification mechanism. Events are delivered as MCP notifications matched by the correlation identifier of a previously submitted command.
-
-```json
-"mcp": {
-  "transport": "http",
-  "server": "https://mcp.example.com/mcp",
-  "push": true
-}
-```
-
-When `"push": true` is present, callers **should** prefer this channel over polling `GET /events`. The `io.best.agents.events` capability in the manifest declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#push-channel-declaration).
+When a caller maintains an active MCP session and `"push": true` is declared, the server **may** push domain events as MCP server-to-client notifications, matched by the **`correlationid`** of a previously submitted command. Callers should prefer this channel over polling `GET /events`. The events capability declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#capability-entries).

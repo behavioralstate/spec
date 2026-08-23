@@ -27,12 +27,13 @@
 
 ## What BEST Is
 
-BEST standardises **service interoperability on CQRS semantics**: how a domain service exposes its command ingestion surface and published events, and how callers — AI agents, Process Managers, UIs, other services — discover and interact with it, across any runtime, platform, or language.
+BEST standardises **capability discovery and behavioural interoperability** for distributed and agentic systems, on CQRS semantics. The problem it addresses arrives when an organisation runs multiple agents against heterogeneous systems: how do those agents discover capabilities, express intent, observe the resulting events, and correlate outcomes — consistently and machine-understandably — without every integration becoming bespoke? BEST answers with one interaction surface that any caller — an AI agent, a Process Manager, a UI, another service — can consume across any runtime, platform, or language.
 
 BEST does not care how a service works internally. It defines only the interaction surface:
 
-- **what commands go in** — intents to change the system
-- **what events come out** — immutable facts recording what happened
+- **what commands go in** — named intents to change the system
+- **what queries read** — synchronous views of current state
+- **what events come out** — immutable facts recording what happened, carrying the `correlationid` that ties outcomes back to the intent that caused them
 - **how to discover the service** — a `/.well-known/best` manifest
 
 Anyone with something to offer — a business, a service, a sensor, an AI agent — can expose a BEST manifest and become discoverable and callable by any agent, with no bespoke integration.
@@ -80,7 +81,8 @@ Commands and events share one wire format: the **CloudEvents 1.0 envelope**, of 
 | Field | Type | Commands | Events | Description |
 |---|---|---|---|---|
 | `specversion` | string | required | required | Always `"1.0"` |
-| `id` | string | required | required | Unique message ID (UUID recommended). For commands this is the **idempotency key** and the **correlation identifier**. |
+| `id` | string | required | required | Unique message ID (UUID recommended). For commands this is the **idempotency key**. |
+| `correlationid` | string | optional | conditional | **Correlation identifier** — a CloudEvents extension attribute (lowercase on the wire). Commands: optional; when omitted the server adopts the command's `id`. Events: **required** on every event produced by processing a command, carrying that command's correlation identifier; spontaneous events may omit it. Follow-up commands in the same business process **should** propagate the same value. |
 | `source` | string (URI-reference) | required | required | Origin of the message — a URI-reference per RFC 3986. Absolute URI recommended; a relative reference (a service name or routing key) is valid. Caller-declared; never authenticated identity. |
 | `type` | string | required | required | Message type in **PascalCase** (`ProposeCounter`, `CounterProposed`). For commands, must match a type in the command catalogue — this is the routing key. |
 | `datacontenttype` | string | required | required | Always `"application/json"` |
@@ -111,6 +113,7 @@ Commands and events share one wire format: the **CloudEvents 1.0 envelope**, of 
   "type": "CounterProposed",
   "datacontenttype": "application/json",
   "dataschema": "https://api.example.com/events/counter-proposed/1.0",
+  "correlationid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "time": "2025-07-01T10:30:01Z",
   "data": { "salary": 100000, "startDate": "2025-09-01", "contractId": "contract-42" }
 }
@@ -126,7 +129,7 @@ Commands and events share one wire format: the **CloudEvents 1.0 envelope**, of 
 | `datacontenttype` | Any media type | `"application/json"` only |
 | `dataschema` presence | Optional | Required for commands (optional for events) |
 | `source` | URI-reference, absolute recommended | Same — BEST adds that it must never be treated as authenticated identity |
-| Extension attributes | Producers may add them | Permitted; BEST messages don't rely on them, and consumers **must** ignore unknown attributes rather than reject |
+| Extension attributes | Producers may add them | Permitted; BEST defines one (`correlationid`) and consumers **must** ignore unknown attributes rather than reject |
 
 ## Discovery — `/.well-known/best`
 
@@ -182,7 +185,6 @@ Each entry in `services` declares `version` and `description` (required), option
 |---|---|---|
 | `http` | `endpoint` | **Baseline — every conformant service exposes it.** `endpoint` is the consumer-facing base URL; all capability paths are appended to it. |
 | `mcp` | `transport` (`stdio`/`sse`/`http`), `server` | Optional. May carry its own `authentication` block and `push: true`. See [MCP Transport](#mcp-transport). |
-| `grpc` | `endpoint`, optional `proto` | Optional, for internal runtimes. Declared in the schema; BEST defines no normative gRPC binding. |
 
 Multiple transports expose the **same capability surface** — they are alternative access methods, never separate operation sets.
 
@@ -198,7 +200,7 @@ Multiple transports expose the **same capability surface** — they are alternat
 | `service` | conditional | Key of the implementing service in `services`. Required when the capability's name prefix doesn't match the service key (e.g. custom service `io.dotquant.trading` implementing `io.best.agents.commands`). |
 | `status` | no | `"active"` (default) · `"partial"` · `"planned"` |
 | `endpoints` | no | Machine-readable list of `{ method, path, description? }`. Paths are appended to the service's `http.endpoint`. This is how consumers self-bootstrap without reading spec pages. |
-| `push` | no | Push channels supported (events capability): `{ "sse": true, "webhook": true, "mcp": true }` |
+| `push` | no | Push channels supported (events capability): `{ "sse": true, "mcp": true }` |
 | `extends` | no | Parent capability, if any |
 
 **Status semantics:** `active` means all required endpoints exist and are callable — declaring `active` while returning `404`/`501` on required routes is a conformance violation. `partial` means a subset is implemented; consumers must not assume full coverage and should consult the `endpoints` array. `planned` means nothing is callable yet.
@@ -216,7 +218,6 @@ The optional `agents` array carries service descriptors — the identity card of
 | `status` | yes | `running` · `paused` · `stopped` · `error` |
 | `description`, `type`, `version`, `endpoint` | no | Metadata; `endpoint` is the service's own BEST base URL if directly addressable |
 | `metadata` | no | Opaque service-defined configuration (e.g. model name, system prompt). The protocol never interprets it. |
-| `webhook` | no | Push delivery configuration |
 
 BEST defines **no registry endpoint**. Implementations that manage services dynamically expose that as an ordinary domain — e.g. a `RegisterService` command and a `list-services` query — under their own namespace.
 
@@ -280,7 +281,7 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 1. Validate required envelope attributes.
 2. Look up the schema **in the server's own catalogue, keyed by `type`**.
 3. Validate `data` against that schema.
-4. Valid → durably queue and return `201 Created` with `{ "id": "<command id>" }`. Invalid → `400`.
+4. Valid → durably queue and return `201 Created` with `{ "id": "<command id>", "correlationId": "<correlation identifier>" }`. Invalid → `400`.
 
 - The inbound `dataschema` field is **informational metadata**, never an instruction. Servers **must not** fetch a caller-supplied `dataschema` URI (SSRF — see [Security](#security-requirements)).
 - The envelope `id` is an **idempotency key**: duplicates (same `id` + authenticated source) are rejected or safely ignored; a reused `id` with a *different* payload returns `409`.
@@ -289,15 +290,15 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 
 ### Command Results and Correlation
 
-BEST defines **no synchronous command response**. The result of processing is one or more published events:
+BEST defines **no synchronous command response**. The result of processing is one or more published events, tied to the command by the first-class **`correlationid`** envelope attribute:
 
 ```
-POST /commands                       → 201 { "id": "abc123" }
+POST /commands                       → 201 { "id": "abc123", "correlationId": "abc123" }
 GET  /events?correlationId=abc123        → what has already happened
 GET  /events/stream?correlationId=abc123 → what happens next (push)
 ```
 
-The `id` echoed in the `201` response is the correlation identifier. No protocol-level field name is mandated for carrying it *inside* event payloads — that is agreed between client and server.
+The caller **may** set `correlationid` on the command; when omitted, the server adopts the command's `id` — either way the `201` response echoes the effective value as `correlationId`. Every event produced by processing the command **must** carry that identifier in its `correlationid` envelope attribute, so any consumer — including one that never saw the command — can match events to their originating submission. Multi-step processes propagate it: a follow-up command issued in reaction to an event **should** carry the same `correlationid`, which is what makes one identifier traverse a chain of services.
 
 The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait.
 
@@ -310,12 +311,10 @@ Events are immutable facts published as the result of processing. Schema: [`even
 | GET | `/events` | **Historical query** — paginated, filterable log of past events; may double as the event catalogue |
 | GET | `/events/stream` | **Live stream** — SSE; delivers events produced *after* the connection opens |
 | GET | `/events/{schema}/{version}` | JSON Schema document for one event type/version |
-| POST | `/subscriptions` | Register a webhook for push delivery |
-| DELETE | `/subscriptions/{id}` | Remove a webhook subscription (`204`) |
 
 `GET /events` and `GET /events/stream` are complementary: load history first, then open the stream.
 
-**Typed vs untyped events:** an event with `dataschema` is typed — consumers can fetch the schema and validate. Without it, the event is untyped and the consumer interprets `data`; the envelope (`type`, `source`, `id`, `time`) still supports routing and correlation. Both patterns can coexist in one service.
+**Typed vs untyped events:** an event with `dataschema` is typed — consumers can fetch the schema and validate. Without it, the event is untyped and the consumer interprets `data`; the envelope (`type`, `source`, `id`, `correlationid`, `time`) still supports routing and correlation. Both patterns can coexist in one service.
 
 **No replay guarantee:** `GET /events` returns whatever the server currently exposes — a full log, a recent window, or a mapped view of domain records. Clients cannot assume completeness, ordering, or replay fidelity. For reliable point-in-time delivery, use a push channel.
 
@@ -324,7 +323,7 @@ Events are immutable facts published as the result of processing. Schema: [`even
 | Parameter | Description |
 |---|---|
 | `type` | Filter by envelope `type` (PascalCase) |
-| `correlationId` | Only events produced by a specific command submission (the `id` from `POST /commands`) |
+| `correlationId` | Only events whose `correlationid` envelope attribute matches (the `correlationId` echoed by `POST /commands`) |
 | `source` | Filter by publishing service |
 | `from` / `to` | ISO 8601 time-range bounds (inclusive) |
 | `limit` | Max results; servers may apply a lower ceiling |
@@ -336,18 +335,6 @@ Responses are an `eventList`: `{ "events": [...], "nextCursor": "..." }` — `ne
 
 Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection.
 
-### Webhooks (`POST /subscriptions`)
-
-```json
-{
-  "serviceId": "negotiation",
-  "webhook": { "url": "https://my-agent.example.com/best/events", "secret": "hmac-signing-secret" },
-  "filter": { "types": ["CounterProposed", "ContractAccepted"] }
-}
-```
-
-Returns `201` with a subscription descriptor (generated `id`; `secret` omitted — it is write-only). When `secret` is present the server signs deliveries with HMAC. `filter.types` limits delivery (PascalCase `type` strings); omit for all events. `serviceId` optionally links the subscription to a service descriptor for grouping and cleanup.
-
 ### Event Catalogue
 
 `GET /events` may also serve catalogue entries mirroring the command catalogue: `schema` (kebab-case), `version`, optional `dataschema` (omitted for untyped events), `description`. Untyped events rely on `description` as primary documentation.
@@ -356,8 +343,7 @@ Returns `201` with a subscription descriptor (generated `id`; `secret` omitted �
 
 | Caller | Channel |
 |---|---|
-| Browser app, CLI, local agent (no public endpoint) | **SSE** |
-| HTTP service with a reachable endpoint | **Webhook** |
+| Browser app, CLI, local agent | **SSE** |
 | LLM client with an active MCP session | **MCP push** (`"push": true` on the `mcp` block) |
 | Anything else | **Polling** `GET /events` — always available |
 
@@ -421,13 +407,12 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 | Status | When |
 |---|---|
 | 200 | Success with body (queries, event lists, catalogues, schema documents) |
-| 201 | Created — command accepted and durably queued; subscription registered |
+| 201 | Created — command accepted and durably queued |
 | 202 | Accepted without durability guarantee (see [Ingestion Semantics](#ingestion-semantics)) |
-| 204 | Success with no body (subscription deletion) |
 | 400 | Invalid request body or parameters (schema validation failure) |
 | 401 | Missing/invalid credentials (only when `authentication.type` is not `none`) |
 | 404 | Unknown route, schema name, or version |
-| 409 | Conflict — duplicate command `id` with different payload; duplicate subscription |
+| 409 | Conflict — duplicate command `id` with different payload |
 | 413 | Request body exceeds server limits |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal error |
@@ -547,8 +532,7 @@ Condensed from the normative set — every conformant implementation observes th
 - **`dataschema` SSRF** — servers select validation schemas from their own catalogue keyed by `type`; they **must not** fetch caller-supplied `dataschema` URIs, and **should** reject commands whose `dataschema` doesn't match a catalogue entry.
 - **Replay protection** — envelope `id` is an idempotency key; duplicates rejected within a retention window, scoped to the authenticated tenant/sender; same `id` + different payload → `409`.
 - **`source` is untrusted** — caller-declared; never grant permissions or make security decisions from it; overwrite with (or record alongside) the verified principal for audit.
-- **Webhook SSRF** — validate `webhook.url` at registration *and* delivery (DNS rebinding): reject loopback, link-local, RFC 1918, multicast, and internal names; HTTPS only, no userinfo; never follow redirects unvalidated; endpoint-ownership proof recommended.
-- **Tenant isolation** — tenant context derives from authenticated identity, never from caller-supplied paths/params/fields; caches, dedup stores, streams, and webhooks isolated per tenant; guessing a tenant ID grants nothing.
+- **Tenant isolation** — tenant context derives from authenticated identity, never from caller-supplied paths/params/fields; caches, dedup stores, and streams isolated per tenant; guessing a tenant ID grants nothing.
 - **Credential passthrough** (intermediaries such as MCP servers or gateways) — opt-in per connection, off by default; forward only to the configured endpoint; explicit per-request keys take precedence over ambient bearer tokens; never log credentials; multi-user intermediaries should fail closed.
 - **Input limits** — bound body size (`413`), JSON depth, collection sizes, string lengths; rate-limit per client and per tenant.
 - **Manifest hygiene** — the public manifest carries only information intended for unauthenticated disclosure; no internal addresses, credential hints, or sensitive integration names.

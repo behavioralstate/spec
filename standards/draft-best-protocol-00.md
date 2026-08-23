@@ -104,7 +104,7 @@ A multi-tenant host declares an RFC 6570 {{RFC6570}} URI template in "tenants.ma
 
 # Events
 
-[TODO: historical query, SSE stream, subscriptions/webhooks, typed vs untyped, from SPEC.md "Events".]
+[TODO: historical query, SSE stream, typed vs untyped, from SPEC.md "Events".]
 
 # Queries
 
@@ -128,7 +128,7 @@ Two independent production deployments of BEST exist: dotquant.io (fintech tradi
 
 # Security Considerations
 
-[TODO: adapt SPEC.md "Security Requirements" in full — TLS; single unauthenticated endpoint; dataschema SSRF (servers MUST NOT fetch caller-supplied dataschema URIs); replay protection via "id" idempotency; "source" never treated as authenticated identity; webhook SSRF validation incl. DNS-rebinding re-validation; tenant isolation derived from authenticated identity; input limits; manifest content hygiene; credential passthrough at intermediaries.]
+[TODO: adapt SPEC.md "Security Requirements" in full — TLS; single unauthenticated endpoint; dataschema SSRF (servers MUST NOT fetch caller-supplied dataschema URIs); replay protection via "id" idempotency; "source" never treated as authenticated identity; tenant isolation derived from authenticated identity; input limits; manifest content hygiene; credential passthrough at intermediaries.]
 
 # IANA Considerations
 

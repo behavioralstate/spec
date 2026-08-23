@@ -49,24 +49,6 @@
   },
   "additionalProperties": false,
   "$defs": {
-    "webhook": {
-      "type": "object",
-      "description": "Callback configuration for push event delivery over HTTP.",
-      "required": ["url"],
-      "properties": {
-        "url": {
-          "type": "string",
-          "format": "uri",
-          "description": "HTTPS endpoint to receive events as CloudEvents (HTTP binding)."
-        },
-        "secret": {
-          "type": "string",
-          "writeOnly": true,
-          "description": "HMAC secret for payload signing. Write-only — accepted on registration, never returned in read responses."
-        }
-      },
-      "additionalProperties": false
-    },
     "serviceDescriptor": {
       "type": "object",
       "description": "The identity card for a BEST-compliant service — what it does, what commands it accepts, what events it produces. Declared in the manifest's agents array.",
@@ -120,9 +102,6 @@
           "enum": ["running", "paused", "stopped", "error"],
           "description": "Current service status."
         },
-        "webhook": {
-          "$ref": "#/$defs/webhook"
-        },
         "metadata": {
           "type": "object",
           "description": "Opaque, service-defined key-value configuration. Intended for operational settings such as AI model name, system prompt, or provider credentials. The protocol does not interpret or validate the contents. Clients may read this field; the service owns and manages it.",
@@ -154,9 +133,6 @@
         },
         "mcp": {
           "$ref": "#/$defs/mcpTransport"
-        },
-        "grpc": {
-          "$ref": "#/$defs/grpcTransport"
         }
       },
       "additionalProperties": false
@@ -261,15 +237,11 @@
       "properties": {
         "sse": {
           "type": "boolean",
-          "description": "Server-Sent Events stream supported at GET /events/stream — recommended for browser apps, CLI tools, and locally-running agents that cannot expose a public webhook endpoint."
+          "description": "Server-Sent Events stream supported at GET /events/stream — recommended for browser apps, CLI tools, and locally-running agents."
         },
         "mcp": {
           "type": "boolean",
           "description": "Server-to-client MCP notifications are supported."
-        },
-        "webhook": {
-          "type": "boolean",
-          "description": "Webhook callback delivery is supported — callers may register via POST /subscriptions."
         }
       },
       "additionalProperties": false
@@ -301,22 +273,6 @@
         },
         "authentication": {
           "$ref": "#/$defs/mcpAuthentication"
-        }
-      },
-      "additionalProperties": false
-    },
-    "grpcTransport": {
-      "type": "object",
-      "required": ["endpoint"],
-      "properties": {
-        "endpoint": {
-          "type": "string",
-          "description": "gRPC endpoint address."
-        },
-        "proto": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL to the .proto file."
         }
       },
       "additionalProperties": false

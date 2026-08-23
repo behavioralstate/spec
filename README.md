@@ -1,8 +1,8 @@
 # BEST — Behavioral State Protocol
 
-CQRS separates write (commands) and read (events) — but there is no common way to discover what commands a service accepts, what events it produces, or how to interact with it, without reading bespoke documentation or source code.
+When an organisation deploys multiple AI agents, a problem follows: how do those agents discover capabilities across heterogeneous systems, express intent, observe the resulting events, and correlate outcomes — without every integration becoming bespoke? There is no common way to learn what commands a system accepts, what events it produces, or how to interact with it, short of reading its documentation or source code.
 
-BEST is a specification for service interoperability: how domain services expose their command ingestion surface and published events, and how callers — AI agents, Process Managers, UIs, other services — discover and interact with them, across any runtime, platform, language, or transport. BEST doesn't care how a service works internally; it only defines the interaction surface: what commands go in, what events come out, and how to discover the service.
+BEST is an open specification for **capability discovery and behavioural interoperability** in distributed and agentic systems. Each system exposes its behaviour as one machine-understandable manifest; any caller — an AI agent, a Process Manager, a UI, another service — discovers its capabilities, expresses intent through **commands**, reads current state through **queries**, observes the resulting **events**, and correlates outcomes across services via a first-class correlation identifier. BEST doesn't care how a system works internally; it defines only the interaction surface, across any runtime, platform, language, or transport.
 
 ## Documentation
 
@@ -14,7 +14,7 @@ Upgrading an implementation from 0.8.x? See [MIGRATION.md](MIGRATION.md) — 0.9
 
 For what's done, in flight, and planned — including the IANA/RFC standards track — see [ROADMAP.md](ROADMAP.md).
 
-> The most recent stable release is [v0.9.0](https://github.com/behavioralstate/spec/releases/tag/spec/v0.9.0). To read the spec exactly as released, browse the repo at tag [v0.9.0](https://github.com/behavioralstate/spec/blob/spec/v0.9.0/README.md); the `main` branch is the work in progress.
+> The most recent stable release is [v0.9.2](https://github.com/behavioralstate/spec/releases/tag/spec/v0.9.2). To read the spec exactly as released, browse the repo at tag [v0.9.2](https://github.com/behavioralstate/spec/blob/spec/v0.9.2/README.md); the `main` branch is the work in progress.
 
 ## Protocol Artifacts
 

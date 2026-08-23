@@ -679,7 +679,7 @@ const TOOLS: Tool[] = [
     description:
       "Fetch the BEST discovery manifest (/.well-known/best) for a connection's host — the public " +
       'front door describing the service: spec version, authentication requirements, declared ' +
-      'capabilities (commands, queries, events) with their endpoints and push channels (sse/webhook/mcp). ' +
+      'capabilities (commands, queries, events) with their endpoints and push channels (sse/mcp). ' +
       "For a tenant-scoped connection the tenant's own manifest is returned when the host publishes one. " +
       'Call this to learn whether the service publishes events, how to receive them, and what the ' +
       'capability descriptions recommend.',

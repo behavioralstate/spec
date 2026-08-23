@@ -1,7 +1,36 @@
 # Migration Guide
 
+- [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.1 to 0.9.2
+
+Spec 0.9.2 makes correlation first-class and removes two declared-but-unproven surfaces. Neither removal had a known consumer; both follow the precedent set by the A2A transport removal in 0.8.0 (see [design decisions](specs/design-decisions.md#webhook-subscriptions-removed)). It also deletes the residue of previously removed capabilities: the `specs/agents/memory.md`, `registry.md`, and `lifecycle.md` tombstone pages and the historical `memory.json` schema are gone (the registry/lifecycle naming vocabulary lives on in the [registry worked example](specs/composing-processes.md#worked-example-a-service-registry-with-heartbeat)), and the `specs/` pages are slimmed to concise references now that [SPEC.md](SPEC.md) is canonical.
+
+## Added — first-class correlation (`correlationid`)
+
+A new CloudEvents extension attribute, `correlationid` (lowercase on the wire), ties a command to everything it causes. See [design decisions](specs/design-decisions.md#correlation-becomes-first-class).
+
+- **Commands**: the caller **may** set `correlationid`; when omitted, the server adopts the command's `id`. The `201` response now echoes the effective value: `{ "id": ..., "correlationId": ... }`.
+- **Events**: every event produced by processing a command **MUST** carry `correlationid` on its envelope, set to that command's correlation identifier. Spontaneous events may omit it.
+- **Processes**: follow-up commands in the same business process **SHOULD** propagate the same `correlationid` — one identifier traverses the whole chain, across services.
+- The `?correlationId=` filters on `GET /events` and `GET /events/stream` now match this envelope attribute.
+- **Servers**: stamp `correlationid` on published events and honour it on inbound commands. **Clients**: no change required — pre-0.9.2 consumers already ignore unknown envelope attributes, and passing the `201`'s `correlationId` to `?correlationId=` works exactly as before. `id` remains the idempotency key; the two concerns are now cleanly separate.
+
+## Removed — webhook subscriptions
+
+`POST /subscriptions` and `DELETE /subscriptions/{id}` are gone, along with the `subscriptionRegistration`/`subscriptionDescriptor` schemas, the `push.webhook` manifest flag, and the `webhook` field on service descriptors. The webhook SSRF requirements leave the security section with them.
+
+- **Servers**: stop declaring `push.webhook` and the `/subscriptions` endpoints in the manifest — a manifest declaring the service-descriptor `webhook` field now fails schema validation (`additionalProperties: false`). The routes themselves can simply be dropped.
+- **Clients**: use SSE (`GET /events/stream`) for push delivery, MCP notifications in LLM sessions, or poll `GET /events`.
+- Push-to-disconnected-services, if ever needed, will arrive as an extension based on the CNCF CloudEvents HTTP webhook delivery specification rather than a bespoke scheme.
+
+## Removed — gRPC transport declaration
+
+The `grpc` transport block is gone from the discovery schema. BEST never defined a normative gRPC binding, so no conformant implementation can have depended on it. A manifest still declaring `grpc` in a service's transports now fails schema validation; internal gRPC use between a deployment's own components is unaffected — BEST only governs the consumer-facing surface (HTTP baseline, MCP).
 
 ---
 

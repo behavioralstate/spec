@@ -10,7 +10,7 @@ best-mcp is an **adapter for clients you don't control**. If you use an off-the-
 
 If you are writing **your own** agent, backend, or tooling, you don't need it — call the BEST HTTP surface directly. BEST endpoints are self-describing (command/query catalogues, JSON Schemas, workflows), and every tool below is a thin wrapper over exactly one HTTP call. Putting best-mcp between your own code and the service adds a network hop and a deployment to operate, flattens structured BEST error responses into prose, and widens your supply chain — while providing nothing a small HTTP client in your codebase wouldn't. See [Choosing a Transport](https://behavioralstate.io/docs/transports/mcp) in the spec docs.
 
-Running it as a shared server in production? **Pin a version** (`npx @behavioralstate/best-mcp@1.7.0`, or your package manager's equivalent) rather than resolving `latest` at start-up — callers' credentials flow through this process, so upgrades should be deliberate.
+Running it as a shared server in production? **Pin a version** (`npx @behavioralstate/best-mcp@2.2.0`, or your package manager's equivalent) rather than resolving `latest` at start-up — callers' credentials flow through this process, so upgrades should be deliberate.
 
 ---
 

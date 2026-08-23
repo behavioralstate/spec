@@ -2,6 +2,8 @@
 
 Commands are **intents to change** a domain service. They are sent **to** the service by any caller — a Process Manager, an AI agent, a UI, or another service. The service validates, queues, and processes them asynchronously.
 
+> Normative reference: [SPEC.md — Commands](https://github.com/behavioralstate/spec/blob/main/SPEC.md#commands--iobestagentscommands). Canonical schema: [commands.json](../../protocol/v1/schemas/agents/commands.json); envelope: [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json).
+
 <div class="BEST-diagram">
   <div class="BEST-node">
     <div class="BEST-node-title">Caller</div>
@@ -28,81 +30,21 @@ Commands are **intents to change** a domain service. They are sent **to** the se
   </div>
 </div>
 
-## Command Wire Format
+> **`POST /commands` is a behaviour endpoint, not a resource collection.** Sending a command is not creating a "command resource" — it is expressing an intent. `/commands` is a single entry point for every operation the service accepts; what happens is determined entirely by the envelope `type`, not the HTTP verb or the URL. In REST you manipulate resources; in BEST you invoke named operations and observe the facts they produce.
 
-> **`POST /commands` is a behaviour endpoint, not a resource collection.** Sending a command is not creating a "command resource" — it is expressing an intent. The path `/commands` is a single entry point for all operations this service accepts. What the service does with the message is determined entirely by the `type` field, not the HTTP verb or the URL. This is the fundamental difference between BEST and REST: in REST you manipulate resources; in BEST you invoke named operations and observe the facts they produce.
-
-Commands use the **CloudEvents 1.0 envelope** as wire format. The same envelope is used by both commands and events — see [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json) for the canonical JSON Schema definition.
-
-> **BEST is a conformant CloudEvents 1.0 profile.** Every valid BEST message is a valid CloudEvents 1.0 message; BEST only *restricts* the envelope (PascalCase `type`, JSON-only content, `dataschema` required for commands). CloudEvents SDKs, brokers, and validators work with BEST traffic unchanged. See [Design Decisions — CloudEvents Conformance](/specs/design-decisions#cloudevents-conformance).
-
-The `dataschema` field in an **incoming command** is a **selector, not a location** — it names an entry in the server's own command catalogue. The server validates against a schema it owns, selected either from the `type` or from the schema name `dataschema` carries; what it **MUST NOT** do is fetch the caller's URI. A well-formed client takes its `dataschema` value verbatim from `GET /commands`, so the two agree.
-
-Servers **MUST** key schema selection, authorisation, and dispatch on the same identifier. `type` is PascalCase and the catalogue's `schema` is kebab-case; where a server derives one from the other, a transformation that is not total over its catalogue will drift these decisions apart.
-
-> **Note:** A server that fetches the caller-supplied `dataschema` URI to perform validation would be both architecturally wrong (the server owns its schema catalogue) and a security risk (caller-controlled URI fetch is an SSRF vector). See [Security Considerations](/specs/security#command-ingestion-schema-selection).
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `specversion` | string | yes | Always `"1.0"` |
-| `id` | string | yes | Unique message ID (UUID recommended) |
-| `source` | string (URI-reference) | yes | URI-reference (RFC 3986) identifying the origin of the command. An absolute URI is recommended for interoperability (e.g. `https://pm.example.com/negotiation-agent`); a relative reference (a service name or routing key) is valid. The `source + id` pair serves as a globally unique message identifier. Servers **MUST NOT** use `source` as the sole routing key for backend handlers — use `type` for routing instead. |
-| `type` | string | yes | Command type identifier in PascalCase (e.g. `ProposeCounter`, `SubmitOrder`). This is the natural routing key — implementations should use `type` to determine which backend handler, queue, or processor receives the command. |
-| `datacontenttype` | string | yes | Always `"application/json"` |
-| `dataschema` | string (URI) | yes | URI to the JSON Schema for `data` — hosted by the ingestion API at `GET /commands/{schema}/{version}` |
-| `time` | string (ISO 8601) | yes | When the command was created |
-| `data` | object | yes | The command payload — validated against `dataschema` |
-
-### Playground template
-
-When a caller selects `POST /commands` in a playground or tooling UI, the CloudEvent envelope is the template to pre-populate. The fields follow the shape in `cloudEvent.json`. The `data` object should be replaced by an empty object whose structure is discovered by calling `GET /commands/{schema}/{version}` for the chosen command type.
-
-### Schema Authority
-
-The ingestion API owns and hosts the schemas via `GET /commands/{schema}/{version}`. The `dataschema` URI in a command catalogue entry points to this endpoint — same base URL, same capability.
-
-> **Command types are domain data, not protocol capabilities.** Individual command types (`ProposeCounter`, `SubmitOrder`) must not appear as capability entries in `/.well-known/best`. The capability `io.best.agents.commands` declares that this service supports the command surface; the specific command types accepted are discovered at runtime via `GET /commands`. Proliferating per-command capabilities would mix domain identifiers into the protocol namespace and make the manifest domain-specific rather than protocol-specific.
-
-### Example
-
-```json
-{
-  "specversion": "1.0",
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "source": "https://pm.example.com/negotiation-agent",
-  "type": "ProposeCounter",
-  "datacontenttype": "application/json",
-  "dataschema": "https://api.example.com/commands/propose-counter/1.0",
-  "time": "2025-07-01T10:30:00Z",
-  "data": {
-    "salary": 100000,
-    "startDate": "2025-09-01"
-  }
-}
-```
+Commands ride the [CloudEvents 1.0 envelope](/specs/design-decisions#cloudevents-conformance) — see [SPEC.md — Wire Format](https://github.com/behavioralstate/spec/blob/main/SPEC.md#wire-format--the-best-envelope) for the field table and examples.
 
 ## HTTP API
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/commands` | Return the catalogue of all available command types and their schema URIs |
-| POST | `/commands` | Send a command (CloudEvent). Validates, queues, returns `201`. |
-| GET | `/commands/{schema}/{version}` | Return the JSON Schema document for a specific command type and version |
+| GET | `/commands` | Catalogue of all available command types and their schema URIs |
+| POST | `/commands` | Send a command (CloudEvent). Validates, queues, returns `201` |
+| GET | `/commands/{schema}/{version}` | JSON Schema document for one command type and version |
 
-### GET /commands — Command Catalogue
+### The catalogue (`GET /commands`)
 
-Returns the list of command types this service accepts. This is the primary discovery surface: callers use it to learn what they can send and how to construct the payload.
-
-Each catalogue entry has four fields:
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `schema` | string | yes | Command schema name in kebab-case (e.g. `propose-counter`). Used as the `{schema}` path segment in `GET /commands/{schema}/{version}`. Not the same as the CloudEvent `type` field. |
-| `version` | string | yes | Schema version string (e.g. `1.0`). First-class field — callers do not need to parse `dataschema` to determine the version. |
-| `dataschema` | string (URI) | yes | Resolvable URI to the JSON Schema for this command's `data` payload. This is the value to place in the `dataschema` field of a CloudEvent command. |
-| `description` | string | no | Human-readable summary of what the command does. |
-
-> **`schema` vs CloudEvent `type`:** The catalogue field is named `schema` (not `type`) to avoid ambiguity with the CloudEvent `type` attribute, which consumers already use on the wire. The CloudEvent `type` value (e.g. `ProposeCounter`) is typically the PascalCase form of the `schema` name.
+Each entry: `schema` (kebab-case name, the `{schema}` path segment — distinct from the PascalCase envelope `type`), `version`, `dataschema` (resolvable URI, the exact value to put on the command envelope), optional `description`.
 
 ```json
 {
@@ -112,72 +54,28 @@ Each catalogue entry has four fields:
       "version": "1.0",
       "dataschema": "https://api.example.com/commands/propose-counter/1.0",
       "description": "Propose a counter-offer in a contract negotiation"
-    },
-    {
-      "schema": "accept-contract",
-      "version": "1.0",
-      "dataschema": "https://api.example.com/commands/accept-contract/1.0",
-      "description": "Accept the current contract terms"
     }
   ]
 }
 ```
 
-### POST /commands — Command Ingestion
+Individual command types are **domain data, not capabilities** — they never appear as manifest capability entries.
 
-Single entry point for all commands. The `type` field on the CloudEvent determines what the service does with it.
+### Ingestion (`POST /commands`)
 
-Processing steps:
-1. Validate required CloudEvent attributes are present
-2. Use `type` to look up the schema from the server's own catalogue
-3. Validate `data` against the catalogue schema
-4. If valid: queue the command and return `201`
-5. If invalid: return `400` with error detail
+1. Validate required envelope attributes.
+2. Look up the schema **in the server's own catalogue** — the inbound `dataschema` is a *selector, not a location*; servers **MUST NOT** fetch a caller-supplied URI (SSRF — see [Security](/specs/security#command-ingestion-schema-selection)).
+3. Validate `data` against that schema. Schema selection, authorisation, and dispatch **MUST** key on the same identifier.
+4. Valid → durably queue, return `201` with `{ "id": ..., "correlationId": ... }`. Invalid → `400`.
 
-> **Security:** The CloudEvent `id` field **MUST** be treated as an idempotency key. Servers MUST detect and reject duplicate command submissions (same `id` + authenticated source) within a defined retention window. A duplicate with a different payload **MUST** return `409`. See [Security Considerations](/specs/security#command-replay-protection).
+The envelope `id` is the **idempotency key**: duplicates are rejected within a retention window; same `id` with a different payload → `409`. `type` is the routing key; `source` must never be the sole routing key. `201` (durably recorded, processing will happen) is the target; use `202` only when the implementation cannot durably enqueue before responding.
 
-Response: `201 Created` — the command has been accepted and queued.
+### Correlation
 
-> **Why `201` and not `202`?** Practitioners familiar with distributed systems often expect `202 Accepted` for async operations. BEST uses `201 Created` deliberately: `202` means "I'll try to process this eventually" — it makes no guarantee. `201` is stronger: it signals that a resource was durably created (the command record in the queue or event store) and that processing *will* happen. The command is not fire-and-forget; it is committed. Use `202` for truly speculative acceptance where the server cannot guarantee eventual processing. If your implementation cannot durably enqueue the command before responding, `202` is appropriate — but `201` should be the target for production-grade implementations.
+The **`correlationid`** envelope attribute (a CloudEvents extension, lowercase on the wire) ties a command to everything it causes. The caller **may** set it; when omitted, the server adopts the command's `id`. The `201` response echoes the effective value as `correlationId`, every resulting event **must** carry it, and follow-up commands in the same process **should** propagate it. Retrieve results with `GET /events?correlationId=...` (history) and `GET /events/stream?correlationId=...` (push). See [Design Decisions — Command Result Retrieval](/specs/design-decisions#command-result-retrieval).
 
-### GET /commands/{schema}/{version} — Versioned Schema Document
+### Schema documents (`GET /commands/{schema}/{version}`)
 
-Returns the JSON Schema document for a specific command type and version. This is the canonical target for the `dataschema` URI in a command catalogue entry.
+Returns the raw JSON Schema for one command version — the canonical target of the catalogue's `dataschema` URI. `404` for unknown name or version.
 
-**Path parameters:**
-- `schema` — schema name in kebab-case, matching the `schema` field of the catalogue entry (e.g. `propose-counter`)
-- `version` — version string, matching the `version` field of the catalogue entry (e.g. `1.0`, `2.1`)
-
-Response: a raw JSON Schema document (`application/schema+json`). The URL of this endpoint is the canonical value to put in the `dataschema` field of a command catalogue entry (e.g. `https://api.example.com/commands/propose-counter/1.0`).
-
-Returns `404` if the schema name or version is not found.
-
-#### `produces` — Declared Event Outcomes (optional)
-
-The JSON Schema document returned by this endpoint **may** include a `produces` field declaring the domain events this command can raise. This field is optional — its absence does not indicate non-conformance. When absent, callers may fall back to parsing the human-readable `description` field.
-
-`produces` is an array of PascalCase event type name strings. The schema for each event is self-describing on the CloudEvent envelope (`dataschema` field) when the event arrives, and is also discoverable upfront via the event catalogue (`GET /events`).
-
-**Example:**
-
-```json
-"produces": ["CounterProposed", "NegotiationFailed"]
-```
-
-#### Failure Events
-
-Failure outcomes are regular domain events in the `produces` list. The naming convention that distinguishes a failure event (e.g. suffix `Failed`, `Failure`) is service-defined — BEST does not mandate a specific suffix. Services must document their convention in the `description` field. Silent failures (no event raised at all) are handled client-side via timeout.
-
-#### Correlation
-
-The `id` returned in the `201 Created` response to `POST /commands` is the **correlation identifier**. Callers use it to match incoming events back to the originating command:
-
-```json
-{ "id": "XCSFIFR04763087" }
-```
-
-No additional correlation field is defined at the protocol level. The field name used to carry the correlation identifier inside an event payload is agreed between client and server — BEST does not mandate it.
-
-## Schema
-
-See [commands.json](../../protocol/v1/schemas/agents/commands.json).
+The document **may** declare `produces`: an array of PascalCase event types the command can raise, e.g. `["CounterProposed", "NegotiationFailed"]`. Failure outcomes are ordinary events in that list; the naming convention (`*Failed`) is service-defined. Silent failures are handled client-side via timeout — services should document expected processing times and always publish a failure event rather than silently dropping a command.

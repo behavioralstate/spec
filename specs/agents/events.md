@@ -1,36 +1,13 @@
 # Events — `io.best.agents.events`
 
-Domain events are **immutable facts** published by a BEST-compliant service as the result of processing a command. They are the **output** of the service. Callers (Process Managers, synchronisers, other services) subscribe to events to react and keep read models up to date.
+Domain events are **immutable facts** published by a BEST-compliant service as the result of processing. They are the **output** of the service: callers observe them to retrieve command results, react, and keep read models up to date.
 
-## Event Wire Format
+> Normative reference: [SPEC.md — Events](https://github.com/behavioralstate/spec/blob/main/SPEC.md#events--iobestagentsevents). Canonical schema: [events.json](../../protocol/v1/schemas/agents/events.json); envelope: [cloudEvent.json](../../protocol/v1/schemas/cloudEvent.json).
 
-Events use the **CloudEvent 1.0 specification** as wire format.
+Events ride the same CloudEvents 1.0 envelope as commands. Two event-specific rules:
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `specversion` | string | yes | Always `"1.0"` |
-| `id` | string | yes | Unique message ID (UUID recommended) |
-| `source` | string (URI-reference) | yes | URI-reference (RFC 3986) identifying the service that published this event. An absolute URI is recommended; a relative reference is valid. |
-| `type` | string | yes | Event type identifier (e.g. `CounterProposed`, `OrderSubmitted`) |
-| `datacontenttype` | string | yes | Always `"application/json"` |
-| `dataschema` | string (URI) | **no** | URI to the JSON Schema for `data` — present for typed events, omitted for untyped |
-| `time` | string (ISO 8601) | yes | When the event was published |
-| `data` | object | yes | The event payload — semantically opaque to the protocol |
-
-Events are:
-- **Immutable** — once published, they cannot be changed
-- **Published by the service** — they are the result of processing a command
-- **Semantically opaque** — the protocol does not interpret `data`
-
-> **Note:** `dataschema` is required for **commands** (the server must validate the payload before queuing) but optional for **events** (the consumer is responsible for interpreting the data when no schema is declared).
-
-## Typed vs Untyped Events
-
-BEST supports two event patterns. Services choose per event type; both can coexist in the same service.
-
-### Typed event — `dataschema` present
-
-The service declares a JSON Schema for the `data` payload. Consumers can fetch the schema, validate payloads, and generate models. This is the preferred pattern when the event shape is stable and well-defined.
+- **`correlationid`** (CloudEvents extension attribute, lowercase on the wire) is **required** on every event produced by processing a command — set to that command's correlation identifier (the `correlationId` echoed by `POST /commands`). Spontaneous events may omit it. This is what lets any consumer, including one that never saw the command, match events to their originating submission.
+- **`dataschema` is optional.** With it, the event is **typed** — consumers fetch the schema and validate. Without it, the event is **untyped** — the consumer interprets `data`; the envelope (`type`, `source`, `id`, `correlationid`, `time`) still supports routing and correlation. Both patterns can coexist in one service; untyped suits dynamic payloads (sensor readings, log streams, forwarded third-party events).
 
 ```json
 {
@@ -40,33 +17,9 @@ The service declares a JSON Schema for the `data` payload. Consumers can fetch t
   "type": "CounterProposed",
   "datacontenttype": "application/json",
   "dataschema": "https://api.example.com/events/counter-proposed/1.0",
+  "correlationid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "time": "2025-07-01T10:30:01Z",
-  "data": {
-    "salary": 100000,
-    "startDate": "2025-09-01",
-    "contractId": "contract-42"
-  }
-}
-```
-
-### Untyped event — `dataschema` absent
-
-The service publishes events without a formal schema. The CloudEvent envelope (`type`, `source`, `id`, `time`) is still present — consumers can route and correlate events. The consumer takes responsibility for interpreting `data`.
-
-This pattern suits services that emit dynamic, loosely-structured payloads (e.g. sensor readings, log streams, forwarded third-party events) where defining a rigid schema would be impractical.
-
-```json
-{
-  "specversion": "1.0",
-  "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-  "source": "https://api.example.com/warehouse-sensor",
-  "type": "TemperatureRead",
-  "datacontenttype": "application/json",
-  "time": "2025-07-01T10:30:05Z",
-  "data": {
-    "celsius": 4.2,
-    "sensorId": "fridge-01"
-  }
+  "data": { "salary": 100000, "startDate": "2025-09-01", "contractId": "contract-42" }
 }
 ```
 
@@ -75,207 +28,51 @@ This pattern suits services that emit dynamic, loosely-structured payloads (e.g.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/events` | **Historical query** — paginated log of past events, filterable by type, source, time range, correlation ID |
-| GET | `/events/stream` | **Live stream** — SSE subscription; delivers events produced *after* the connection is opened |
-| GET | `/events/{schema}/{version}` | Return the JSON Schema document for a specific event type and version |
-| POST | `/subscriptions` | Register a webhook for push event delivery (optional) |
-| DELETE | `/subscriptions/{id}` | Remove a webhook subscription |
+| GET | `/events/stream` | **Live stream** — SSE; delivers events produced *after* the connection is opened |
+| GET | `/events/{schema}/{version}` | JSON Schema document for one event type and version (mirrors `GET /commands/{schema}/{version}`; `404` if unknown) |
 
-> **`GET /events` and `GET /events/stream` are complementary, not alternatives.** `GET /events` queries the historical log — events that have already happened. `GET /events/stream` subscribes to events produced from now forward. They are typically used together: load history first, then open the stream to receive new events.
+> **`GET /events` and `GET /events/stream` are complementary, not alternatives.** History first, then open the stream:
 >
 > ```
 > GET /events?correlationId=abc123        → what has already happened
 > GET /events/stream?correlationId=abc123 → what happens next
 > ```
 
-> **Two tiers: the domain surface vs. the delivery tier.** `GET /events` and `GET /events/{schema}/{version}` are the **domain surface** — they expose the facts a service produces, the read half of the command/event model. `GET /events/stream` and `POST` / `DELETE /subscriptions` are the **delivery tier** — transport plumbing for *receiving* those facts over HTTP, nothing more. That is why these two are resource-shaped (`/subscriptions/{id}`) rather than commands: registering a delivery channel is connection setup, not a domain intent, and it wants synchronous request/response — you cannot be notified of a subscription's creation over the channel you are still establishing. They are the HTTP-callback peer of the SSE stream, not an exception to BEST's behaviour-oriented design.
+> **No replay guarantee.** `GET /events` returns whatever the server currently exposes — a full log, a recent window, or a mapped view of domain records. Clients cannot assume completeness, ordering, or replay fidelity. For reliable point-in-time delivery, use a push channel.
 
-### GET /events/stream — Live Event Stream (SSE)
+### Query parameters (`GET /events`)
 
-> **Live events only.** This endpoint delivers events produced *after* the connection is opened. It does not replay historical events. To query past events, use `GET /events`.
+| Parameter | Description |
+|---|---|
+| `type` | Filter by envelope `type` (PascalCase), across all interactions |
+| `correlationId` | Only events whose `correlationid` envelope attribute matches |
+| `source` | Filter by publishing service |
+| `from` / `to` | ISO 8601 time-range bounds (inclusive) |
+| `limit` | Max results; servers may apply a lower ceiling |
+| `after` | Opaque pagination cursor — pass the previous response's `nextCursor`, preserving all other parameters; absent `nextCursor` means last page |
 
-Opens a persistent Server-Sent Events connection. The server pushes events as they are produced — no polling required. This is the recommended push channel for HTTP callers that cannot expose a public webhook endpoint (browsers, CLI tools, locally-running agents).
+### SSE stream (`GET /events/stream`)
 
-**Request:**
+Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection — the stream is not lossless.
 
-```
-GET /events/stream?correlationId=abc123
-Accept: text/event-stream
-X-Api-Key: <credentials>
-```
+### Event catalogue
 
-**Response:** `200 OK` with `Content-Type: text/event-stream`. The connection stays open. Each event is delivered as an SSE `data` field containing the CloudEvent JSON payload, with the CloudEvent `id` echoed as the SSE event `id` for reconnection:
+`GET /events` may also serve catalogue entries mirroring the command catalogue: `schema` (kebab-case), `version`, optional `dataschema` (omitted for untyped events), `description` — the primary documentation for untyped events.
 
-```
-data: {"specversion":"1.0","id":"b2c3d4","type":"CounterProposed","source":"...","time":"...","data":{...}}
-id: b2c3d4
+## Push channels
 
-data: {"specversion":"1.0","id":"c3d4e5","type":"ContractAccepted","source":"...","time":"...","data":{...}}
-id: c3d4e5
-```
-
-**Query parameters** (all optional, combinable):
-
-| Parameter | Type | Description |
-|---|---|---|
-| `correlationId` | string | Receive only events produced by a specific command submission. The most common use — pass the `id` returned by `POST /commands`. |
-| `type` | string | Filter by CloudEvent `type`. Receive only events of this type across all interactions. |
-| `source` | string | Filter by publishing service. |
-
-**Reconnection:**
-
-SSE clients reconnect automatically after a dropped connection. On reconnect, clients send `Last-Event-ID: <last-seen-id>` — the server replays any events produced after that point, preventing gaps.
-
-**Connection lifecycle:**
-
-- The server **may** close the stream after a period of inactivity or once a terminal event is delivered (e.g. a `*Failed` or `*Completed` event for the correlated command).
-- The server **should** send periodic SSE comment lines (`: keepalive`) to prevent proxy timeouts on long-lived connections.
-- Clients **must** handle reconnection via `Last-Event-ID` — do not assume the stream is lossless.
-
-**Declare SSE support** in the capability's `push` block in `/.well-known/best`:
+Polling is the universal fallback. The events capability declares its push channels in the manifest's `push` block:
 
 ```json
-"push": {
-  "sse": true,
-  "webhook": true,
-  "mcp": true
-}
+"push": { "sse": true, "mcp": true }
 ```
 
-> **When to use each push channel:**
->
-> | Caller type | Recommended channel |
-> |---|---|
-> | Browser app, CLI tool, local agent | **SSE** — no public endpoint required |
-> | HTTP service with a reachable endpoint | **Webhook** — fire-and-forget delivery |
-> | LLM client with active MCP session | **MCP push** — native to the session |
-> | Any caller with no persistent connection | **Polling** (`GET /events`) — always available as fallback |
+| Caller | Channel |
+|---|---|
+| Browser app, CLI, local agent | **SSE** — no public endpoint required |
+| LLM client with an active MCP session | **MCP push** — server-to-client notifications, matched by correlation identifier; declared with `"push": true` on the `mcp` block |
+| Anything else | **Polling** `GET /events` — always available |
 
-### GET /events — Historical Query
+## Mapping domain records to BEST events
 
-> **Past events only.** This endpoint queries events that have already been published. It does not deliver future events. To subscribe to events as they are produced, use `GET /events/stream`.
-
-Returns the queryable log of domain events published by this service. All query parameters are optional and combinable.
-
-Response: `200 OK` with an `eventList` body.
-
-**Query parameters:**
-
-| Parameter | Type | Description |
-|---|---|---|
-| `type` | string | Filter by CloudEvent `type` (PascalCase). Returns all events of this type across all interactions — e.g. `?type=ChatKitMessageRememberedV1` returns the full conversation history log. |
-| `correlationId` | string | Filter by correlation identifier — the command `id` returned by `POST /commands`. Returns only events produced in response to that specific command submission. |
-| `source` | string | Filter by event source — matches the CloudEvent `source` field (the string identifying the publishing service). |
-| `from` | string (ISO 8601) | Return only events published at or after this timestamp (e.g. `2025-07-01T00:00:00Z`). |
-| `to` | string (ISO 8601) | Return only events published at or before this timestamp. |
-| `limit` | integer | Maximum number of events to return. Servers may apply a lower ceiling. Defaults to a server-defined value. |
-| `after` | string | Pagination cursor. Pass the `nextCursor` value from a previous response to retrieve the next page. Opaque — do not construct manually. |
-
-**Pagination:**
-
-When more results exist beyond the current page, the response includes a `nextCursor` field. Pass it as `?after=<value>` in the next request, preserving all other parameters. When `nextCursor` is absent, the current page is the last.
-
-```
-GET /events?type=ChatKitMessageRememberedV1&limit=50
-→ { "events": [...50 items...], "nextCursor": "eyJpZCI6..." }
-
-GET /events?type=ChatKitMessageRememberedV1&limit=50&after=eyJpZCI6...
-→ { "events": [...next page...] }   ← no nextCursor means last page
-```
-
-### GET /events/{schema}/{version} — Versioned Event Schema Document
-
-Returns the raw JSON Schema document (`application/schema+json`) for a specific event type and version. Mirrors `GET /commands/{schema}/{version}` exactly.
-
-**Path parameters:**
-- `schema` — event schema name in kebab-case (e.g. `counter-proposed`)
-- `version` — version string (e.g. `1.0`)
-
-Returns `404` if not found.
-
-## Event Catalogue
-
-`GET /events` may also serve as an **event catalogue** — returning a list of all event types this service can produce. When used as a catalogue, each entry follows the same structure as a command catalogue entry:
-
-```json
-{
-  "events": [
-    {
-      "schema": "counter-proposed",
-      "version": "1.0",
-      "dataschema": "https://api.example.com/events/counter-proposed/1.0",
-      "description": "A counter-offer was proposed in a contract negotiation"
-    },
-    {
-      "schema": "temperature-read",
-      "version": "1.0",
-      "description": "A temperature reading from a sensor. No formal schema — data shape varies by sensor model."
-    }
-  ]
-}
-```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `schema` | string | yes | Event schema name in kebab-case. Used as the `{schema}` path segment in `GET /events/{schema}/{version}`. |
-| `version` | string | yes | Schema version string (e.g. `1.0`). |
-| `dataschema` | string (URI) | no | Resolvable URI to the JSON Schema for this event's `data` payload. Omitted for untyped events. |
-| `description` | string | no | Human-readable summary of what the event means. For untyped events, this is the primary documentation. |
-
-## Push Notification Channels
-
-Polling `GET /events` is a fallback. BEST defines push channels per transport binding so callers receive events as they are produced.
-
-### MCP — Server-to-Client Notifications
-
-When a caller maintains an active MCP session, the server **may** push domain events to the caller using MCP's server-to-client notification mechanism. Events are pushed as MCP notifications matched by the correlation identifier of a previously submitted command.
-
-To signal that an MCP endpoint supports push event delivery, add `"push": true` to the `mcp` block in the service definition:
-
-```json
-"mcp": {
-  "transport": "http",
-  "server": "https://mcp.example.com/mcp",
-  "push": true
-}
-```
-
-When `"push": true` is present, callers should prefer this channel over polling.
-
-### Webhook — HTTP Clients (optional)
-
-For callers using the HTTP binding, a webhook callback URL can be registered to receive events as they are produced:
-
-**POST /subscriptions** request:
-
-```json
-{
-  "serviceId": "invoice-comparison-agent",
-  "webhook": {
-    "url": "https://my-agent.example.com/BEST/events",
-    "secret": "hmac-signing-secret"
-  },
-  "filter": {
-    "types": ["CounterProposed", "ContractAccepted"]
-  }
-}
-```
-
-The `secret` field is write-only — never returned in read responses. When present, the server signs delivery payloads using HMAC. The `filter.types` array limits delivery to specific event types; omit it to receive all events. Both `filter.types` entries and the `accepts`/`produces` fields on service descriptors use CloudEvent `type` strings — PascalCase (e.g. `CounterProposed`).
-
-The optional `serviceId` field associates this subscription with a service descriptor (by its `id`) — useful for grouping and bulk cleanup. Subscriptions are removed via `DELETE /subscriptions/{id}`. Omit `serviceId` for standalone subscriptions that are not tied to a specific service.
-
-Response: `201 Created` with the subscription descriptor (`secret` omitted, plus a generated `id`).
-
-**DELETE /subscriptions/{id}** — Remove a subscription. Returns `204 No Content`.
-
-> **Security:** Servers MUST validate `webhook.url` before storing it. URLs resolving to loopback, link-local, private (RFC 1918), or internal addresses MUST be rejected. Delivery MUST NOT follow HTTP redirects without re-validating the redirect target. The resolved IP MUST be re-validated at delivery time to prevent DNS rebinding. See [Security Considerations](/specs/security#webhook-ssrf-protection).
-
-## Mapping Domain Records to BEST Events
-
-Many implementations do not have a native BEST event store — they have domain-specific records (audit entries, trade history, sensor readings, etc.). Implementers may map these to the BEST event shape at query time.
-
-The protocol only requires that the response conforms to the events schema — it does not prescribe how events are stored internally.
-
-## Schema
-
-See [events.json](../../protocol/v1/schemas/agents/events.json).
+Implementations without a native event store may map domain records (audit entries, trade history, sensor readings) to the BEST event shape at query time. The protocol only requires that responses conform to the events schema — it never prescribes internal storage.

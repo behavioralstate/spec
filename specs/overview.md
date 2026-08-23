@@ -2,9 +2,9 @@
 
 ## What is BEST?
 
-BEST (Behavioral State Protocol) is an open protocol that standardises **agent interoperability** — how agents discover each other, exchange events and commands, and observe what happened, across distributed systems.
+BEST (Behavioral State Protocol) is an open specification for **capability discovery and behavioural interoperability** in distributed and agentic systems. It addresses the problem that follows once an organisation deploys multiple AI agents: how those agents discover capabilities across heterogeneous systems, express intent through commands, read current state through queries, observe the resulting events, and correlate outcomes — in a consistent, machine-understandable way, without every integration becoming bespoke.
 
-> BEST lets **anyone expose skills, services, or capabilities** to any agent — without building bespoke integrations.
+> BEST lets **anyone expose skills, services, or capabilities** to any agent — one manifest exposes a whole platform's behaviour, with no bespoke integrations.
 
 ## Who is BEST For
 
@@ -26,7 +26,7 @@ Anyone who has something to offer — a person, a business, a service, an AI age
 1. **Protocol-first** — define the spec before the implementation; derive code from the protocol, not the other way around
 2. **Compose, don't invent** — build on existing standards (MCP, JSON Schema) rather than creating proprietary wire formats
 3. **Discoverable by default** — every BEST endpoint exposes a `/.well-known/best` manifest so consumers can dynamically discover capabilities
-4. **Transport-agnostic** — the same agent semantics work over HTTP, MCP, or gRPC
+4. **Transport-agnostic** — the same agent semantics work over HTTP or MCP
 5. **Modular capabilities** — implementers choose which capabilities to support; consumers discover what's available at runtime
 6. **LLM-readable** — JSON Schema is the canonical format because LLMs can read, generate, and reason about JSON natively
 7. **Implementation-agnostic** — BEST defines the interaction surface (commands in, events out); it never prescribes how a service processes commands internally
@@ -42,7 +42,7 @@ Layer 2: LLM / Tool Interface
          MCP (Model Context Protocol) for LLM access
 
 Layer 1: Transport
-         JSON-RPC over stdio/SSE | HTTP | gRPC
+         JSON-RPC over stdio/SSE | HTTP
 ```
 
 ## Core Primitives

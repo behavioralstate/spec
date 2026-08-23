@@ -15,7 +15,7 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 | Scope | Applies to |
 |---|---|
 | Read | `GET /events`, `GET /commands`, `GET /commands/{schema}/{version}`, `GET /queries` |
-| Write | `POST /commands`, `POST /subscriptions`, `DELETE /subscriptions/{id}` |
+| Write | `POST /commands` |
 
 `GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read domain events.
 
@@ -102,18 +102,6 @@ The `source` field in a command is **caller-declared** and **MUST NOT** be treat
 - If `source` is used for audit or observability, the server **SHOULD** either overwrite it with the verified principal identity (derived from the authenticated session) or record both the declared and verified values.
 - If a mismatch between `source` and the authenticated principal is a policy violation, the server **MUST** reject the command.
 
-## Webhook SSRF Protection
-
-When a subscription is registered with a `webhook.url`, the server will subsequently POST CloudEvents to that URL. A caller can exploit this to make the server issue requests to internal services.
-
-**Requirements:**
-- Servers **MUST** validate `webhook.url` before storing or using it.
-- Servers **MUST** reject URLs that resolve to loopback addresses, link-local addresses (`169.254.0.0/16`), RFC 1918 private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), multicast addresses, or internal DNS names.
-- `webhook.url` **MUST** be an absolute HTTPS URL and **MUST NOT** contain userinfo credentials in the URL.
-- Webhook delivery **MUST NOT** follow HTTP redirects, or **MUST** re-apply the same validation rules to any redirect target before following.
-- Servers **MUST** re-validate the resolved IP address at delivery time, not only at registration time, to prevent DNS rebinding attacks.
-- Servers **SHOULD** require proof of webhook endpoint ownership before activating delivery (for example, a challenge-response handshake or an out-of-band confirmation).
-
 ## Multi-Tenant Isolation
 
 For implementations that serve multiple tenants:
@@ -121,13 +109,13 @@ For implementations that serve multiple tenants:
 - Access to tenant-scoped manifests and resources **MUST** be authorised per tenant. Knowing or guessing another tenant's identifier **MUST NOT** grant access to their resources.
 - Tenant context **MUST** be derived from the authenticated identity (Bearer token, API key), not from caller-supplied path parameters, query strings, body fields, or CloudEvent attributes.
 - Tenant-specific HTTP responses **MUST** be isolated in caches (`Vary` headers or non-cacheable) and **MUST NOT** be served to a different tenant.
-- Command deduplication, event streams, and webhook configurations **MUST** be isolated per tenant.
+- Command deduplication and event streams **MUST** be isolated per tenant.
 
 ## Input Limits
 
-Servers **MUST** enforce maximum request body sizes for `POST /commands` and `POST /subscriptions` and **SHOULD** return `413 Payload Too Large` when exceeded. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
+Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
 
-Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission and subscription registration.
+Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission.
 
 ## Manifest Content
 

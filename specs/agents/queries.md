@@ -1,180 +1,43 @@
 # Queries — `io.best.agents.queries`
 
-Queries are **synchronous reads** of current domain state. They return data directly without changing anything. Unlike commands (which are queued and produce events asynchronously), queries return their result in the HTTP response body.
+Queries are **synchronous reads** of current domain state — the read-before-write complement to commands. Unlike commands (queued, results observed via events), a query returns its result directly in the HTTP response body and changes nothing. Optional capability, declared in the manifest like any other.
 
-## Design Rationale
+> Normative reference: [SPEC.md — Queries](https://github.com/behavioralstate/spec/blob/main/SPEC.md#queries--iobestagentsqueries). Canonical schema: [queries.json](../../protocol/v1/schemas/agents/queries.json).
 
-BEST's command/event model is write-side only: commands change state, events record what happened. This is intentional — it decouples the write path from the read path and allows asynchronous processing. However, many callers need to read current state before they can issue commands. For example, an AI agent needs to know which broker accounts exist before it can reference one in a `configure-indicator-alert` command.
-
-Queries fill this gap:
+The canonical use: an AI agent needs to know which broker accounts exist before it can reference one in a command.
 
 | Capability | HTTP | Returns | Changes state? |
 |---|---|---|---|
-| `agents.commands` | `POST /commands` | `201 Accepted` (async) | **Yes** |
+| `agents.commands` | `POST /commands` | `201` (async) | **Yes** |
 | `agents.events` | `GET /events` | Event history | No |
 | `agents.queries` | `GET /queries/{schema}` | Current state (sync) | **No** |
-
-Queries are **not** a replacement for OpenAPI or a general REST query language. They are a minimal, catalogue-driven read surface that follows exactly the same discovery pattern as commands — discoverable, schema-described, and consistent.
-
-<div class="BEST-diagram">
-  <div class="BEST-node">
-    <div class="BEST-node-title">Caller</div>
-    <div class="BEST-node-box">Any Caller</div>
-    <div class="BEST-node-sub">app · agent · LLM</div>
-  </div>
-  <div class="BEST-arrow">
-    <div class="BEST-arrow-label">GET /queries/{schema}</div>
-    <div class="BEST-arrow-track">→</div>
-  </div>
-  <div class="BEST-node">
-    <div class="BEST-node-title">BEST Endpoint</div>
-    <div class="BEST-node-box accent">Query Handler</div>
-    <div class="BEST-node-sub">reads current state</div>
-  </div>
-  <div class="BEST-arrow">
-    <div class="BEST-arrow-label">Sync response</div>
-    <div class="BEST-arrow-track">→</div>
-  </div>
-  <div class="BEST-node">
-    <div class="BEST-node-title">Result</div>
-    <div class="BEST-node-box">Current State</div>
-    <div class="BEST-node-sub">JSON in HTTP body</div>
-  </div>
-</div>
 
 ## HTTP API
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/queries` | Return the catalogue of all available query types |
-| GET | `/queries/{schema}/{version}` | Return the JSON Schema document for a specific query type and version |
-| GET | `/queries/{schema}` | Execute the query. Parameters passed as query string. |
+| GET | `/queries` | Catalogue of all available query types |
+| GET | `/queries/{schema}/{version}` | JSON Schema document for one query type and version |
+| GET | `/queries/{schema}` | Execute the query; parameters as query string |
 
-### GET /queries — Query Catalogue
+**Catalogue** (`GET /queries`) — same structure as the command catalogue: `schema` (kebab-case), `version`, `dataschema` (URI resolving to the schema document), optional `description`.
 
-Returns the list of query types this service supports. Same structure as the command catalogue.
+**Schema document** (`GET /queries/{schema}/{version}`) — three sections: optional `description`, optional `parameters` (JSON Schema for accepted query-string parameters), required `response` (JSON Schema for the response body). `404` for unknown name or version.
 
-Each catalogue entry has four fields:
+**Execution** (`GET /queries/{schema}`) — `200` with a body matching the `response` schema; `400` for missing/invalid parameters; `404` for an unknown schema name.
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `schema` | string | yes | Query schema name in kebab-case (e.g. `list-brokers`). Used as the `{schema}` path segment. |
-| `version` | string | yes | Latest version string (e.g. `1.0`). |
-| `dataschema` | string (URI) | yes | Resolvable URI to the JSON Schema document at `GET /queries/{schema}/{version}`. |
-| `description` | string | no | Human-readable summary of what the query returns. |
-
-```json
-{
-  "queries": [
-    {
-      "schema": "list-brokers",
-      "version": "1.0",
-      "dataschema": "https://api.example.com/queries/list-brokers/1.0",
-      "description": "List all configured broker accounts for this tenant."
-    },
-    {
-      "schema": "list-alerts",
-      "version": "1.0",
-      "dataschema": "https://api.example.com/queries/list-alerts/1.0",
-      "description": "List all configured alerts (indicators and strategies) for this tenant."
-    }
-  ]
-}
-```
-
-### GET /queries/{schema}/{version} — Query Schema Document
-
-Returns the JSON Schema document for a specific query. The document has two sections:
-
-| Section | Required | Description |
-|---|---|---|
-| `description` | no | Human-readable summary |
-| `parameters` | no | JSON Schema for accepted query string parameters |
-| `response` | yes | JSON Schema for the response body |
-
-**Example — `GET /queries/list-brokers/1.0`:**
-
-```json
-{
-  "description": "List all configured broker accounts for this tenant.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "includeStats": {
-        "type": "boolean",
-        "description": "Include performance statistics for each broker account."
-      }
-    }
-  },
-  "response": {
-    "type": "object",
-    "required": ["brokers"],
-    "properties": {
-      "brokers": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["id", "name"],
-          "properties": {
-            "id":          { "type": "string", "description": "Broker account identifier (BrokerId)" },
-            "name":        { "type": "string", "description": "Broker name (BrokerName, e.g. T212, IBKR)" },
-            "displayName": { "type": "string" },
-            "configured":  { "type": "boolean" },
-            "connected":   { "type": "boolean" }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-Returns `404` if the schema name or version is not found.
-
-### GET /queries/{schema} — Execute Query
-
-Executes the query synchronously. Parameters (if any) are passed as query string key-value pairs matching the `parameters` schema.
-
-Response: `200 OK` with the response body matching the `response` schema.
-
-**Example — `GET /queries/list-brokers?includeStats=false`:**
-
-```json
-{
-  "brokers": [
-    {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "T212",
-      "displayName": "Trading 212",
-      "configured": true,
-      "connected": false
-    }
-  ]
-}
-```
-
-Returns `404` if the schema name is not supported.
-
-Returns `400` if required parameters are missing or invalid.
-
-## Usage Pattern
+## Usage pattern
 
 ```
 GET /queries                          → discover available queries
 GET /queries/list-brokers/1.0         → learn input params and response shape
 GET /queries/list-brokers             → execute and get broker list
-POST /commands  (configure-indicator-alert)  → now you have the BrokerId you need
+POST /commands                        → now you have the BrokerId you need
 ```
 
-This is the canonical flow for an AI agent that needs to read state before issuing a command.
+## What queries are NOT
 
-## What Queries Are NOT
-
-- **Not a REST resource hierarchy** — there are no sub-resources, nested paths, or per-item GETs here. Each query is a named, flat operation. Standard REST GET endpoints (e.g. `GET /brokers/{id}`) belong in the service's own API and are out of BEST scope.
-- **Not a query language** — no filtering expressions, joins, aggregations, or sort clauses beyond simple parameters.
-- **Not event sourcing** — queries return current state as the service projects it, not a replay of events. The source of truth for historical facts remains `GET /events`.
-- **Not a replacement for OpenAPI** — OpenAPI describes every HTTP endpoint, parameter, and response exhaustively. BEST Queries defines a single, fixed GET pattern with catalogue-driven discovery. The two can coexist.
-
-## Schema
-
-See [queries.json](../../protocol/v1/schemas/agents/queries.json).
+- **Not a REST resource hierarchy** — no sub-resources, nested paths, or per-item GETs; each query is a named, flat operation.
+- **Not a query language** — no filter expressions, joins, or aggregations beyond simple parameters.
+- **Not event sourcing** — queries return current state as the service projects it; the source of truth for historical facts remains `GET /events`.
+- **Not a replacement for OpenAPI** — BEST queries are a single, fixed GET pattern with catalogue-driven discovery; the two can coexist.

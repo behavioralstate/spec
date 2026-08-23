@@ -42,6 +42,11 @@
           "format": "date-time",
           "description": "ISO 8601 timestamp of when the message was created."
         },
+        "correlationid": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CloudEvents extension attribute (lowercase per CE naming rules) carrying the correlation identifier that ties a business process together. For commands: optional — when omitted, the server adopts the command's id as the correlation identifier. For events: required on every event produced as a result of processing a command, set to that command's correlation identifier; events not caused by a command may omit it. Callers issuing follow-up commands within the same process SHOULD propagate the same value."
+        },
         "data": {
           "type": "object",
           "description": "The domain payload. For commands: validated against the schema at dataschema before queuing. For events: the recorded fact — opaque to the protocol.",
