@@ -11,7 +11,7 @@ Submit via the IANA protocol assignment form at <https://www.iana.org/form/proto
 | Field | Value |
 |---|---|
 | **URI suffix** | `best` |
-| **Change controller** | Riccardo D. — riccardo.d@xml-int.com (Behavioral State Protocol project, <https://behavioralstate.io/>) |
+| **Change controller** | Riccardo Di Nuzzo — riccardo@dinuzzo.it (Behavioral State Protocol project, <https://behavioralstate.io/>) |
 | **Specification document(s)** | BEST — Behavioral State Protocol, Discovery section: <https://github.com/behavioralstate/spec/blob/spec/v0.9.2/SPEC.md#discovery--well-knownbest> (also rendered at <https://behavioralstate.io/specs/discovery>) |
 | **Status** | provisional |
 | **Related information** | Discovery manifest JSON Schema: <https://behavioralstate.io/v1/schemas/discovery.json> · Protocol repository: <https://github.com/behavioralstate/spec> |
@@ -31,7 +31,7 @@ Paste into the [IANA protocol assignment form](https://www.iana.org/form/protoco
 >
 > URI suffix: best
 >
-> Change controller: Riccardo D. — riccardo.d@xml-int.com (Behavioral State Protocol project, https://behavioralstate.io/)
+> Change controller: Riccardo Di Nuzzo — riccardo@dinuzzo.it (Behavioral State Protocol project, https://behavioralstate.io/)
 >
 > Specification document(s): BEST — Behavioral State Protocol, Discovery section: https://github.com/behavioralstate/spec/blob/spec/v0.9.2/SPEC.md#discovery--well-knownbest (also rendered at https://behavioralstate.io/specs/discovery)
 >
