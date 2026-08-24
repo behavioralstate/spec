@@ -57,8 +57,8 @@ Spec reference: https://behavioralstate.io/docs
 | `list_connections` | List all configured connections with names, endpoints, and descriptions *(only shown when multiple connections are configured)* |
 | `get_command_catalogue` | List all commands this endpoint accepts (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_command_schema` | Fetch the full JSON Schema for a command type — learn the exact fields required |
-| `send_command` | Send a command (CloudEvent 1.0 envelope built automatically) |
-| `send_command_and_wait` | Send a command then poll a query until a condition is met |
+| `send_command` | Send a command (CloudEvent 1.0 envelope built automatically); optional `correlation_id` joins an existing chain, and the server's echoed correlation ID (spec 0.9.2+) is returned for use with the event tools |
+| `send_command_and_wait` | Send a command then poll a query until a condition is met (accepts `correlation_id` like `send_command`) |
 | `get_query_catalogue` | List all read queries this endpoint exposes (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
@@ -71,6 +71,8 @@ Spec reference: https://behavioralstate.io/docs
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
 
 Events flow: `get_manifest` (does the service declare events, and over which channels?) → `get_events` for what already happened (poll with the response cursor for turn-based drains) → `sample_event_stream` for a bounded window of what happens next. A turn-based client cannot hold the stream open — for standing reactions, configure the service's own alerting/webhook commands instead.
+
+Correlation (spec 0.9.2+): every accepted command has a correlation ID — the caller's `correlation_id`, or defaulting to the command's own ID — echoed as `correlationId` in the `send_command` response and stamped as `correlationid` on every event the command causes, across process chains. Filter `get_events` / `sample_event_stream` by it to observe a command's outcome. Pre-0.9.2 servers ignore the attribute and echo nothing; behaviour there is unchanged.
 
 Both catalogue tools truncate each entry's description by default, because a catalogue exists to let a caller *choose* an operation and a thoroughly documented service makes the full listing too large for that — one endpoint returns 47 KB for ~65 commands, which clients spill to disk before a model can read it. Truncation is ~60% smaller and still enough to pick from; the schema tools return one operation's complete text, and `detail: "full"` returns every description verbatim when you really need to compare across entries.
 Optionally call `get_workflows` first to see if the service publishes a ready-made recipe for a multi-step process.

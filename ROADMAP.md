@@ -35,7 +35,7 @@ Everything still open, in rough priority order:
 
 **Protocol design**
 - [ ] **Retention semantics** — no manifest declaration of event retention: pollers can't distinguish "not processed yet" from "already expired". A `retention` declaration on the events capability would close it; needs design discussion. (The correlation half of this item shipped in 0.9.2 — see below.)
-- [ ] Implement 0.9.2 `correlationid` in the deployments (dotquant, remundo) and surface it in `best-mcp` / `best-validate`
+- [ ] Implement 0.9.2 `correlationid` in the deployments (dotquant, remundo) and surface it in `best-validate`. Done in `best-mcp` (2026-08-24): optional `correlation_id` on the send tools, echoed `correlationId` surfaced with event-tool guidance; verified byte-identical behaviour against pre-0.9.2 servers
 
 **Standards track** (see table above)
 - [x] Submit the IANA registration — sent 2026-08-24 by email to iana@iana.org (provisional, spec ref = v0.9.2 tag); awaiting ticket + designated-expert review

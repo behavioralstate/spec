@@ -525,7 +525,8 @@ const TOOLS: Tool[] = [
       "The CloudEvent envelope is built automatically; 'source' defaults to this client's own " +
       "identity (BEST servers route by 'type', never by 'source' alone). Supply an explicit " +
       'source ONLY when the schema description documents a specific required value — never invent one. ' +
-      'Returns the accepted command ID on success.',
+      'Returns the accepted command ID on success, plus the correlation ID when the server echoes one ' +
+      '(spec 0.9.2+) — use it with get_events / sample_event_stream to observe the outcome events.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -544,6 +545,13 @@ const TOOLS: Tool[] = [
             `Defaults to '${CLIENT_SOURCE}' (this client). Set it ONLY when the schema description ` +
             'returned by get_command_schema documents a specific required value (legacy source-routing ' +
             'dialects); do not invent one.'
+        },
+        correlation_id: {
+          type: 'string',
+          description: 'Optional correlation ID (spec 0.9.2+). Omit it and the server correlates by the ' +
+            "command's own ID — the right default for a fresh piece of work. Pass a value ONLY to attach " +
+            'this command to an EXISTING chain: an earlier correlation ID from a send_command response or ' +
+            "from an event's correlationid attribute. Pre-0.9.2 servers ignore it."
         },
         data: {
           type: 'object',
@@ -579,6 +587,11 @@ const TOOLS: Tool[] = [
         source: {
           type: 'string',
           description: `Optional CloudEvent source — defaults to '${CLIENT_SOURCE}'. Set it ONLY when the schema description documents a specific required value.`
+        },
+        correlation_id: {
+          type: 'string',
+          description: 'Optional correlation ID (spec 0.9.2+) — same semantics as on send_command: omit for ' +
+            'a fresh chain, pass an existing correlation ID to join one. Pre-0.9.2 servers ignore it.'
         },
         data: {
           type: 'object',
@@ -934,6 +947,7 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
   const schema  = args.schema as string;
   const version = args.version as string;
   const source  = (args.source as string | undefined) ?? CLIENT_SOURCE;
+  const correlationId = args.correlation_id as string | undefined;
   const data    = args.data as Record<string, unknown>;
 
   // CloudEvent type is PascalCase: configure-broker → ConfigureBroker
@@ -951,11 +965,18 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
     // Absolute catalogue URI — BEST is a conformant CloudEvents 1.0 profile
     dataschema:      `${conn.endpoint.replace(/\/+$/, '')}/commands/${schema}/${version}`,
     time:            new Date().toISOString(),
+    // correlationid (spec 0.9.2+): only set when the caller joins an existing chain — omitted,
+    // the server defaults it to the command's own id. Pre-0.9.2 servers ignore the attribute.
+    ...(correlationId ? { correlationid: correlationId } : {}),
     data
   };
 
-  const result = await bestPost<{ id: string }>('/commands', cloudEvent, conn);
-  return `Command accepted. ID: ${result.id}`;
+  const result = await bestPost<{ id: string; correlationId?: string }>('/commands', cloudEvent, conn);
+  // A 0.9.2+ server echoes the effective correlation ID; older servers return only the command id.
+  const effectiveCorrelation = result.correlationId ?? correlationId;
+  return `Command accepted. ID: ${result.id}` + (effectiveCorrelation
+    ? `\nCorrelation ID: ${effectiveCorrelation} — pass it as get_events / sample_event_stream params {"correlationId": "${effectiveCorrelation}"} to observe the outcome events.`
+    : '');
 }
 
 async function handleSendCommandAndWait(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
@@ -1226,6 +1247,11 @@ CloudEvent envelope rules (enforced by send_command):
 - 'type': PascalCase of the schema name (configure-broker → ConfigureBroker). Converted automatically.
 - 'source': identifies the command's ORIGIN and defaults to this client's identity ('${CLIENT_SOURCE}') — BEST servers route by 'type', never by 'source' alone. Pass an explicit source ONLY when the schema description documents a specific required value; never invent one.
 - 'dataschema': the absolute catalogue URI '{endpoint}/commands/{schema}/{version}'. Built automatically from the connection endpoint.
+- 'correlationid' (spec 0.9.2+): omitted by default — the server then correlates by the command's own ID. Pass correlation_id only to join an existing chain.
+
+## Correlating commands with their outcomes
+
+On 0.9.2+ servers every accepted command has a correlation ID (yours, or defaulting to the command's ID), echoed as 'correlationId' in the send_command response; every event that command causes carries it as 'correlationid', including across multi-step process chains. To check what a command actually did: send it, then call get_events (or sample_event_stream for a live window) with params {"correlationId": "<the echoed value>"}. Pre-0.9.2 servers echo nothing and don't stamp events — there, fall back to the service's queries to confirm outcomes (send_command_and_wait automates that pattern).
 
 ## Receiving events (facts the service publishes)
 
