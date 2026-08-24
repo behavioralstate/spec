@@ -38,13 +38,14 @@ Everything still open, in rough priority order:
 - [ ] Implement 0.9.2 `correlationid` in the deployments (dotquant, remundo) and surface it in `best-mcp` / `best-validate`
 
 **Standards track** (see table above)
-- [ ] Submit the IANA registration — **current focus.** [standards/iana-well-known-best.md](standards/iana-well-known-best.md) has the template updated to the v0.9.2 tag plus a ready-to-send submission body for the [IANA form](https://www.iana.org/form/protocol-assignment); all referenced URLs verified live, `best` suffix confirmed unregistered (2026-08-23). Must be sent by the change controller — confirm the change-controller email before sending
-- [ ] Submit the Internet-Draft to the Datatracker + ISE — the conversion is **done** (2026-08-23): [standards/draft-dinuzzo-best-protocol-00.md](standards/draft-dinuzzo-best-protocol-00.md) is complete (all 12 sections expanded from SPEC.md at 0.9.2, including `correlationid`), validated via IETF Author Tools with 0 errors/0 flaws and clean idnits. Remaining: author's review pass, then upload at <https://datatracker.ietf.org/submit/> (free account) and email the ISE per <https://www.rfc-editor.org/about/independent/>
+- [x] Submit the IANA registration — sent 2026-08-24 by email to iana@iana.org (provisional, spec ref = v0.9.2 tag); awaiting ticket + designated-expert review
+- [x] Submit the Internet-Draft — posted 2026-08-24: <https://datatracker.ietf.org/doc/draft-dinuzzo-best-protocol/> (expires 2027-02-25; refresh with a -01 before then). ISE outcome: **deferred, not rejected** — the space is being chartered at the IETF (dawn + agentproto BoFs, IETF 126 in Nov); the ISE reconsiders if no WGs form or after initial RFCs, with a "substantial deployment" bar
+- [ ] Engage the IETF BoF lists — subscribe to `dawn@ietf.org` + `agentproto@ietf.org`; ask for BEST's inclusion in `draft-jimenez-dawn-discovery-landscape` (host-level self-description category); offer text for the "To be completed" /.well-known section of `draft-moussa-dawn-gap-analysis`
 
 **Operational**
 - [x] `npm deprecate @behavioralstate/bsp-mcp` pointing at `best-mcp` — done manually 2026-08-24
 - [ ] npm trusted publishing (OIDC) for `best-mcp`; revoke the bypass-2FA automation token
-- [ ] Run `best-validate` to completion: dotquant tenant-level probes (needs `--tenant` + `--api-key`; root manifest already CONFORMANT) and the remundo endpoint (root host still to identify — 404 on `remundo.com` and `api.remundo.com`)
+- [ ] Run `best-validate` to completion with credentials: dotquant tenant-level probes (needs `--tenant` + `--api-key`; root manifest CONFORMANT) and remundo authenticated probes. Remundo host identified 2026-08-24: `dev.api.baas.remundo.com` — root manifest CONFORMANT (0.9.1); tenant `XML-INT` manifest **fails** the 0.9.2 discovery schema (capability entry carries a `push` block — webhook leftover; drop it during the remundo 0.9.2 migration)
 
 ## Recently resolved (2026-08-23)
 
