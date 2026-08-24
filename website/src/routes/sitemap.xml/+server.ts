@@ -29,6 +29,7 @@ export async function GET() {
 		`${ORIGIN}/`,
 		`${ORIGIN}/specs`,
 		`${ORIGIN}/playground`,
+		`${ORIGIN}/roadmap`,
 		...slugs.map((slug) => `${ORIGIN}/specs/${slug}`)
 	];
 
