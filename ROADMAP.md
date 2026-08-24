@@ -1,6 +1,6 @@
 # BEST — Roadmap and Status
 
-Last updated: 2026-08-23 (post spec/v0.9.2).
+Last updated: 2026-08-24 (standards submissions sent; IETF BoF landscape reviewed).
 
 ## Where the protocol stands
 
@@ -23,8 +23,8 @@ The goal is legitimacy through the lightweight, achievable venues first; full st
 
 | Step | Artifact | Status |
 |---|---|---|
-| 1. IANA registration of `/.well-known/best` (provisional, RFC 8615) | [standards/iana-well-known-best.md](standards/iana-well-known-best.md) — ready to submit | **Waiting on submission** (must come from the change controller) |
-| 2. Internet-Draft → Informational RFC via the Independent Submission Stream | [standards/draft-best-protocol-00.md](standards/draft-best-protocol-00.md) — skeleton with TODO sections | Skeleton done; full SPEC.md → I-D conversion pending |
+| 1. IANA registration of `/.well-known/best` (provisional, RFC 8615) | [standards/iana-well-known-best.md](standards/iana-well-known-best.md) | **Submitted 2026-08-24** — awaiting ticket + expert review |
+| 2. Internet-Draft → Informational RFC via the Independent Submission Stream | [draft-dinuzzo-best-protocol-00](https://datatracker.ietf.org/doc/draft-dinuzzo-best-protocol/) | **Posted 2026-08-24**; ISE deferred pending dawn/agentproto chartering — engage those lists (see TODO) |
 | 3. Upgrade IANA entry to `permanent` citing the RFC | — | After step 2 |
 | 4. Optional: W3C Community Group for visibility / implementer recruitment | — | Undecided |
 | 5. Longer term: CNCF sandbox (natural home given the CloudEvents lineage) or IETF WG | — | Requires adoption + independent implementations |
@@ -34,8 +34,16 @@ The goal is legitimacy through the lightweight, achievable venues first; full st
 Everything still open, in rough priority order:
 
 **Protocol design**
-- [ ] **Retention semantics** — no manifest declaration of event retention: pollers can't distinguish "not processed yet" from "already expired". A `retention` declaration on the events capability would close it; needs design discussion. (The correlation half of this item shipped in 0.9.2 — see below.)
+- [ ] **Retention semantics + command idempotency** — one design session, two halves. (a) No manifest declaration of event retention: pollers can't distinguish "not processed yet" from "already expired"; a `retention` declaration on the events capability would close it. (b) The spec doesn't say what a server does on receiving a duplicate command `id`; "SHOULD treat `id` as an idempotency key within the retention window, returning the original 201" closes agentproto's sessionless duplicate/replay requirement (`draft-feng-agentproto-session-requirements`). Both need the same "window" defined — design them together.
 - [ ] Implement 0.9.2 `correlationid` in the deployments (dotquant, remundo) and surface it in `best-validate`. Done in `best-mcp` (2026-08-24): optional `correlation_id` on the send tools, echoed `correlationId` surfaced with event-tool guidance; verified byte-identical behaviour against pre-0.9.2 servers
+
+**Evolution candidates from the IETF BoF landscape** (reviewed 2026-08-24 against the dawn/agentproto drafts; all additive 0.9.x patches):
+- [ ] **Manifest extension point** — capability entries and the manifest root are `additionalProperties: false`, so vendor data has no lawful home (remundo's leftover `push` field failing validation is the preview). Add one free-form `extensions` object, ignored by the core, on capability entries and the root. Converts dawn's attestation/capacity/risk-data asks from "missing features" into "extensions BEST accommodates". Highest-value candidate.
+- [ ] **Security & privacy considerations for manifest content** — prose stating the two-tier visibility model explicitly: the public root manifest stays coarse (no tenant identifiers, internal hostnames, capacity data); fine detail belongs in authenticated tenant manifests. Addresses the dawn gap-analysis enumeration/scraping concern and strengthens the I-D's Security Considerations for resubmission.
+- [ ] **Manifest caching guidance** — non-normative: serve `/.well-known/best` with `ETag` + `Cache-Control`. (dawn wants static/dynamic property classification; plain HTTP semantics cover BEST's case.)
+- [ ] **`deprecated` capability status** — the lifecycle enum is `planned → partial → active`: birth but no death. Needed the first time a platform sunsets a capability; dawn requires lifecycle info in discovery.
+- **Watch, don't build**: cryptographic signing of discovery documents (dawn's anti-poisoning MUST — adopt whatever envelope dawn standardizes rather than inventing one; meanwhile document the TLS-as-trust-anchor stance in design-decisions) and channel-bound identity / verifier binding (agentproto's `-06` security drafts — same logic).
+- **Rejected by design**: descriptive/class-based search — that's the registry/directory layer BEST deliberately deleted; BEST manifests are the substrate directories index. Add a positioning sentence to SPEC.md instead of a feature. MoQ transports are orthogonal to the HTTP/JSON binding.
 
 **Standards track** (see table above)
 - [x] Submit the IANA registration — sent 2026-08-24 by email to iana@iana.org (provisional, spec ref = v0.9.2 tag); awaiting ticket + designated-expert review
