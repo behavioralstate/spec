@@ -80,16 +80,13 @@ npx @behavioralstate/best-validate https://api.example.com --api-key <key>
 # Multi-tenant host — expands tenants.manifest and validates the tenant manifest too
 npx @behavioralstate/best-validate https://api.example.com --api-key <key> --tenant <tenantId>
 
-# Pre-0.9.0 endpoint (BSP naming, relative dataschema tolerated as warnings)
-npx @behavioralstate/best-validate https://api.example.com --legacy-bsp
-
 # CI usage — machine-readable report, exit code as the verdict
 npx @behavioralstate/best-validate https://api.example.com --json
 ```
 
 The report lists each check as `OK`/`WARN`/`FAIL` grouped by section (discovery, multi-tenancy, commands, events, queries) and ends with a verdict. Exit code `0` = conformant (warnings allowed), `1` = at least one failure, `2` = internal error. Without `--api-key`, protected routes are still checked for existence — a `401` counts as "route exists, auth enforced".
 
-Full option reference: [validate-cli/README.md](validate-cli/README.md). The `--legacy-bsp` flag is temporary and will be removed once known pre-0.9.0 deployments have migrated (see [MIGRATION.md](MIGRATION.md)).
+Full option reference: [validate-cli/README.md](validate-cli/README.md).
 
 ## Cutting a Release
 

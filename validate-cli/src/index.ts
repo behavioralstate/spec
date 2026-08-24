@@ -21,7 +21,6 @@ import addFormats from 'ajv-formats';
 
 interface Options {
   url: string;
-  legacyBsp: boolean;
   apiKey?: string;
   authType?: string;    // bearer | apikey | none (overrides manifest declaration)
   authHeader: string;
@@ -38,9 +37,6 @@ function usage(): never {
 Validates a live endpoint against the BEST conformance checklist.
 
 Options:
-  --legacy-bsp          Validate a pre-0.9.0 endpoint: /.well-known/bsp, root key
-                        "bsp", io.bsp.* capability names, relative dataschema
-                        tolerated (reported as warnings).
   --api-key <key>       Credential for authenticated endpoints.
   --auth-type <t>       bearer | apikey | none. Default: what the manifest declares.
   --auth-header <name>  Header name for apikey auth (default: X-Api-Key).
@@ -59,7 +55,7 @@ Exit code: 0 when no checks fail (warnings allowed), 1 otherwise.
 
 function parseArgs(argv: string[]): Options {
   const opts: Options = {
-    url: '', legacyBsp: false, authHeader: 'X-Api-Key', authIn: 'header',
+    url: '', authHeader: 'X-Api-Key', authIn: 'header',
     authParam: 'apikey', json: false, timeoutMs: 10000
   };
   const take = (i: number, flag: string): string => {
@@ -71,7 +67,6 @@ function parseArgs(argv: string[]): Options {
     const a = argv[i];
     switch (a) {
       case '-h': case '--help': usage();
-      case '--legacy-bsp': opts.legacyBsp = true; break;
       case '--json': opts.json = true; break;
       case '--api-key': opts.apiKey = take(i, a); i++; break;
       case '--auth-type': opts.authType = take(i, a); i++; break;
@@ -90,11 +85,12 @@ function parseArgs(argv: string[]): Options {
   return opts;
 }
 
-// ── Naming (BEST vs legacy BSP) ───────────────────────────────────────────────
+// ── Naming ────────────────────────────────────────────────────────────────────
 
-interface Names { wellKnown: string; rootKey: string; ns: string; label: string; }
-const MODERN: Names = { wellKnown: '/.well-known/best', rootKey: 'best', ns: 'io.best.', label: 'BEST 0.9.x' };
-const LEGACY: Names = { wellKnown: '/.well-known/bsp',  rootKey: 'bsp',  ns: 'io.bsp.',  label: 'BSP 0.8.x (--legacy-bsp)' };
+const WELL_KNOWN = '/.well-known/best';
+const ROOT_KEY = 'best';
+const NS = 'io.best.';
+const MODE_LABEL = 'BEST 0.9.x';
 
 // ── Check collection ──────────────────────────────────────────────────────────
 
@@ -172,19 +168,14 @@ function ajvErrors(validate: ValidateFunction): string {
     .map(e => `${e.instancePath || '/'} ${e.message ?? ''}`).join('; ');
 }
 
-/** Legacy manifests use root key "bsp" and io.bsp.* names; normalize so the 0.9.0 schema applies. */
-function normalizeLegacy(manifest: unknown): unknown {
-  return JSON.parse(JSON.stringify(manifest).replaceAll('"bsp"', '"best"').replaceAll('io.bsp.', 'io.best.'));
-}
-
 // ── Manifest helpers ──────────────────────────────────────────────────────────
 
 type Dict = Record<string, unknown>;
 const asDict = (v: unknown): Dict | undefined =>
   v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Dict : undefined;
 
-function manifestRoot(manifest: unknown, names: Names): Dict | undefined {
-  return asDict(asDict(manifest)?.[names.rootKey]);
+function manifestRoot(manifest: unknown): Dict | undefined {
+  return asDict(asDict(manifest)?.[ROOT_KEY]);
 }
 
 interface Capability { name: string; status: string; service?: string; dict: Dict; }
@@ -215,13 +206,13 @@ const isAbsoluteUri = (s: string): boolean => /^[a-z][a-z0-9+.-]*:\/\//i.test(s)
 
 // ── Probe sections ────────────────────────────────────────────────────────────
 
-async function checkDiscovery(base: string, names: Names, opts: Options, ajv: Ajv2020): Promise<Dict | undefined> {
+async function checkDiscovery(base: string, opts: Options, ajv: Ajv2020): Promise<Dict | undefined> {
   const S = 'discovery';
-  const url = base + names.wellKnown;
+  const url = base + WELL_KNOWN;
   const res = await http('GET', url, opts, null);
-  if (res.error || res.status === 0) { record(S, 'fail', `GET ${names.wellKnown} unreachable`, res.error); return undefined; }
-  if (res.status !== 200) { record(S, 'fail', `GET ${names.wellKnown} returned ${res.status} — must be 200 without credentials`); return undefined; }
-  record(S, 'pass', `GET ${names.wellKnown} → 200 without credentials`);
+  if (res.error || res.status === 0) { record(S, 'fail', `GET ${WELL_KNOWN} unreachable`, res.error); return undefined; }
+  if (res.status !== 200) { record(S, 'fail', `GET ${WELL_KNOWN} returned ${res.status} — must be 200 without credentials`); return undefined; }
+  record(S, 'pass', `GET ${WELL_KNOWN} → 200 without credentials`);
 
   if (!res.contentType.includes('application/json')) {
     record(S, 'warn', `Content-Type is "${res.contentType}" — must be application/json`);
@@ -229,14 +220,13 @@ async function checkDiscovery(base: string, names: Names, opts: Options, ajv: Aj
 
   if (res.json === undefined) { record(S, 'fail', 'Response body is not valid JSON'); return undefined; }
 
-  const root = manifestRoot(res.json, names);
-  if (!root) { record(S, 'fail', `Manifest root key "${names.rootKey}" missing`); return undefined; }
-  record(S, 'pass', `Manifest root key "${names.rootKey}" present`);
+  const root = manifestRoot(res.json);
+  if (!root) { record(S, 'fail', `Manifest root key "${ROOT_KEY}" missing`); return undefined; }
+  record(S, 'pass', `Manifest root key "${ROOT_KEY}" present`);
 
-  const toValidate = opts.legacyBsp ? normalizeLegacy(res.json) : res.json;
   const validate = ajv.getSchema('https://behavioralstate.io/v1/schemas/discovery.json');
   if (validate) {
-    if (validate(toValidate)) record(S, 'pass', 'Manifest validates against discovery.json' + (opts.legacyBsp ? ' (legacy names normalized)' : ''));
+    if (validate(res.json)) record(S, 'pass', 'Manifest validates against discovery.json');
     else record(S, 'fail', 'Manifest fails discovery.json validation', ajvErrors(validate));
   }
 
@@ -245,9 +235,9 @@ async function checkDiscovery(base: string, names: Names, opts: Options, ajv: Aj
   } else record(S, 'fail', 'Root "version" missing or not MAJOR.MINOR.PATCH');
 
   for (const cap of capabilities(root)) {
-    if (cap.name.startsWith(names.ns)) {
+    if (cap.name.startsWith(NS)) {
       const missing = ['spec', 'schema'].filter(f => typeof cap.dict[f] !== 'string');
-      if (missing.length) record(S, 'fail', `${cap.name}: missing required ${missing.join(', ')} URL(s) for ${names.ns}* capabilities`);
+      if (missing.length) record(S, 'fail', `${cap.name}: missing required ${missing.join(', ')} URL(s) for ${NS}* capabilities`);
     }
     if (!['active', 'partial', 'planned'].includes(cap.status)) {
       record(S, 'fail', `${cap.name}: invalid status "${cap.status}"`);
@@ -256,7 +246,7 @@ async function checkDiscovery(base: string, names: Names, opts: Options, ajv: Aj
   return root;
 }
 
-async function checkTenancy(root: Dict, base: string, names: Names, opts: Options, ajv: Ajv2020): Promise<{ workingRoot: Dict; probeable: boolean }> {
+async function checkTenancy(root: Dict, base: string, opts: Options, ajv: Ajv2020): Promise<{ workingRoot: Dict; probeable: boolean }> {
   const S = 'multi-tenancy';
   const tenants = asDict(root.tenants);
   if (!tenants) { return { workingRoot: root, probeable: true }; }
@@ -269,7 +259,7 @@ async function checkTenancy(root: Dict, base: string, names: Names, opts: Option
   record(S, 'pass', 'tenants.manifest URI template declared');
 
   const tenantScoped = capabilities(root).filter(c =>
-    [`${names.ns}agents.commands`, `${names.ns}agents.events`, `${names.ns}agents.queries`].includes(c.name));
+    [`${NS}agents.commands`, `${NS}agents.events`, `${NS}agents.queries`].includes(c.name));
   if (tenantScoped.length) {
     record(S, 'fail', `Root manifest of a multi-tenant host declares tenant-scoped capabilities: ${tenantScoped.map(c => c.name).join(', ')}`);
   } else record(S, 'pass', 'Root manifest declares no tenant-scoped capabilities');
@@ -292,21 +282,20 @@ async function checkTenancy(root: Dict, base: string, names: Names, opts: Option
   if (raw.includes('{tenantId}')) record(S, 'fail', 'Tenant manifest contains {tenantId} placeholders — must be fully resolved');
   else record(S, 'pass', 'Tenant manifest fully resolved (no placeholders)');
 
-  const tRoot = manifestRoot(res.json, names);
-  if (!tRoot) { record(S, 'fail', `Tenant manifest missing root key "${names.rootKey}"`); return { workingRoot: root, probeable: false }; }
+  const tRoot = manifestRoot(res.json);
+  if (!tRoot) { record(S, 'fail', `Tenant manifest missing root key "${ROOT_KEY}"`); return { workingRoot: root, probeable: false }; }
   if (asDict(tRoot.tenants)) record(S, 'fail', 'Tenant manifest must not contain a tenants block');
   else record(S, 'pass', 'Tenant manifest has no tenants block');
 
-  const toValidate = opts.legacyBsp ? normalizeLegacy(res.json) : res.json;
   const validate = ajv.getSchema('https://behavioralstate.io/v1/schemas/discovery.json');
   if (validate) {
-    if (validate(toValidate)) record(S, 'pass', 'Tenant manifest validates against discovery.json');
+    if (validate(res.json)) record(S, 'pass', 'Tenant manifest validates against discovery.json');
     else record(S, 'fail', 'Tenant manifest fails discovery.json validation', ajvErrors(validate));
   }
   return { workingRoot: tRoot, probeable: true };
 }
 
-async function checkCommands(cap: Capability, ep: string, auth: AuthPlan | null, authDeclared: boolean, names: Names, opts: Options, ajv: Ajv2020): Promise<void> {
+async function checkCommands(cap: Capability, ep: string, auth: AuthPlan | null, authDeclared: boolean, opts: Options, ajv: Ajv2020): Promise<void> {
   const S = 'commands';
   const res = await http('GET', `${ep}/commands`, opts, auth);
   if (!auth && authDeclared && res.status === 401) {
@@ -315,20 +304,13 @@ async function checkCommands(cap: Capability, ep: string, auth: AuthPlan | null,
   }
   if (res.status !== 200 || res.json === undefined) { record(S, 'fail', `GET /commands returned ${res.status || res.error}`); return; }
   const entries = (asDict(res.json)?.commands ?? []) as Dict[];
-  // Legacy endpoints may serve relative dataschema URIs; absolutize before schema
-  // validation so the uri-format rule doesn't double-report what the per-entry
-  // check below already flags as a warning.
-  const catalogueToValidate = opts.legacyBsp
-    ? { commands: entries.map(e => ({ ...e, dataschema: isAbsoluteUri(String(e.dataschema ?? '')) ? e.dataschema : `${ep}/commands/${e.schema}/${e.version}` })) }
-    : res.json;
   const validate = ajv.getSchema('https://behavioralstate.io/v1/schemas/agents/commands.json#/$defs/commandCatalogue');
-  if (validate && !validate(catalogueToValidate)) record(S, 'fail', 'Command catalogue fails schema validation', ajvErrors(validate));
-  else record(S, 'pass', 'GET /commands → 200, catalogue validates' + (opts.legacyBsp ? ' (relative dataschema absolutized in legacy mode)' : ''));
+  if (validate && !validate(res.json)) record(S, 'fail', 'Command catalogue fails schema validation', ajvErrors(validate));
+  else record(S, 'pass', 'GET /commands → 200, catalogue validates');
   for (const e of entries.slice(0, 20)) {
     const ds = String(e.dataschema ?? '');
     if (!isAbsoluteUri(ds)) {
-      record(S, opts.legacyBsp ? 'warn' : 'fail',
-        `Catalogue entry "${e.schema}": dataschema "${ds}" is not an absolute URI${opts.legacyBsp ? ' (tolerated in legacy mode)' : ''}`);
+      record(S, 'fail', `Catalogue entry "${e.schema}": dataschema "${ds}" is not an absolute URI`);
     }
   }
   if (entries.length && isAbsoluteUri(String(entries[0].dataschema ?? ''))) {
@@ -392,11 +374,9 @@ async function checkEvents(cap: Capability, ep: string, auth: AuthPlan | null, a
 
   const first = asDict((body.events as unknown[])[0]);
   if (first && typeof first.specversion === 'string') {
-    const candidate = { ...first };
-    if (opts.legacyBsp) delete candidate.dataschema; // relative URIs tolerated in legacy mode
     const validate = ajv.getSchema('https://behavioralstate.io/v1/schemas/cloudEvent.json#/$defs/cloudEvent');
     if (validate) {
-      if (validate(candidate)) record(S, 'pass', 'First event validates as a BEST envelope');
+      if (validate(first)) record(S, 'pass', 'First event validates as a BEST envelope');
       else record(S, 'warn', 'First event fails envelope validation', ajvErrors(validate));
     }
   }
@@ -443,12 +423,12 @@ async function checkQueries(cap: Capability, ep: string, auth: AuthPlan | null, 
 
 // ── Output ────────────────────────────────────────────────────────────────────
 
-function report(opts: Options, names: Names): number {
+function report(opts: Options): number {
   const failures = checks.filter(c => c.level === 'fail').length;
   const warnings = checks.filter(c => c.level === 'warn').length;
   if (opts.json) {
     process.stdout.write(JSON.stringify({
-      endpoint: opts.url, mode: names.label, verdict: failures ? 'fail' : 'pass',
+      endpoint: opts.url, mode: MODE_LABEL, verdict: failures ? 'fail' : 'pass',
       failures, warnings, checks
     }, null, 2) + '\n');
     return failures ? 1 : 0;
@@ -460,7 +440,7 @@ function report(opts: Options, names: Names): number {
     process.stdout.write(`  ${icon[c.level]}  ${c.message}\n`);
     if (c.detail) process.stdout.write(`        ${c.detail}\n`);
   }
-  process.stdout.write(`\n${failures ? 'NOT CONFORMANT' : 'CONFORMANT'} — ${failures} failure(s), ${warnings} warning(s). Mode: ${names.label}\n`);
+  process.stdout.write(`\n${failures ? 'NOT CONFORMANT' : 'CONFORMANT'} — ${failures} failure(s), ${warnings} warning(s). Mode: ${MODE_LABEL}\n`);
   return failures ? 1 : 0;
 }
 
@@ -468,15 +448,14 @@ function report(opts: Options, names: Names): number {
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
-  const names = opts.legacyBsp ? LEGACY : MODERN;
   const base = opts.url.replace(/\/+$/, '');
   const ajv = loadAjv();
 
-  const root = await checkDiscovery(base, names, opts, ajv);
-  if (!root) { process.exitCode = report(opts, names); return; }
+  const root = await checkDiscovery(base, opts, ajv);
+  if (!root) { process.exitCode = report(opts); return; }
 
-  const { workingRoot, probeable } = await checkTenancy(root, base, names, opts, ajv);
-  if (!probeable) { process.exitCode = report(opts, names); return; }
+  const { workingRoot, probeable } = await checkTenancy(root, base, opts, ajv);
+  if (!probeable) { process.exitCode = report(opts); return; }
 
   const authDeclared = (asDict(workingRoot.authentication)?.type ?? 'none') !== 'none';
   const auth = buildAuthPlan(opts, asDict(workingRoot.authentication));
@@ -486,16 +465,16 @@ async function main(): Promise<void> {
       record('capabilities', 'skip', `${cap.name}: status "${cap.status}" — endpoint requirements do not apply`);
       continue;
     }
-    if (!cap.name.startsWith(names.ns + 'agents.')) continue; // custom capabilities: out of checklist scope
+    if (!cap.name.startsWith(NS + 'agents.')) continue; // custom capabilities: out of checklist scope
     const ep = endpointFor(cap, workingRoot);
     if (!ep) { record('capabilities', 'fail', `${cap.name}: cannot resolve an http endpoint (missing service/http.endpoint)`); continue; }
-    const kind = cap.name.slice((names.ns + 'agents.').length);
-    if (kind === 'commands') await checkCommands(cap, ep, auth, authDeclared, names, opts, ajv);
+    const kind = cap.name.slice((NS + 'agents.').length);
+    if (kind === 'commands') await checkCommands(cap, ep, auth, authDeclared, opts, ajv);
     else if (kind === 'events') await checkEvents(cap, ep, auth, authDeclared, opts, ajv);
     else if (kind === 'queries') await checkQueries(cap, ep, auth, authDeclared, opts, ajv);
   }
 
-  process.exitCode = report(opts, names);
+  process.exitCode = report(opts);
 }
 
 main().catch(e => { process.stderr.write(`best-validate internal error: ${e?.stack ?? e}\n`); process.exitCode = 2; });

@@ -14,7 +14,6 @@ Exit code `0` = conformant (warnings allowed), `1` = one or more failures, `2` =
 
 | Flag | Description |
 |---|---|
-| `--legacy-bsp` | Validate a pre-0.9.0 endpoint: `/.well-known/bsp`, root key `bsp`, `io.bsp.*` names; relative `dataschema` URIs are tolerated and reported as warnings. Temporary — will be removed once known deployments migrate. |
 | `--api-key <key>` | Credential for authenticated endpoints. Without it, protected routes are only checked for existence (a `401` counts as "route exists, auth enforced"). |
 | `--auth-type <t>` | `bearer` \| `apikey` \| `none` — overrides what the manifest declares. |
 | `--auth-header <name>` | Header name for `apikey` auth (default `X-Api-Key`, or the manifest's `scheme`). |
@@ -32,8 +31,8 @@ best-validate https://api.example.com
 # Authenticated multi-tenant host
 best-validate https://api.example.com --api-key $KEY --tenant acme
 
-# Pre-migration endpoint, CI mode
-best-validate https://api.example.com --legacy-bsp --api-key $KEY --json
+# CI mode
+best-validate https://api.example.com --api-key $KEY --json
 ```
 
 ## What is checked

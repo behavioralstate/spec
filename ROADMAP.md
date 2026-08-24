@@ -42,10 +42,9 @@ Everything still open, in rough priority order:
 - [ ] Submit the Internet-Draft to the Datatracker + ISE — the conversion is **done** (2026-08-23): [standards/draft-dinuzzo-best-protocol-00.md](standards/draft-dinuzzo-best-protocol-00.md) is complete (all 12 sections expanded from SPEC.md at 0.9.2, including `correlationid`), validated via IETF Author Tools with 0 errors/0 flaws and clean idnits. Remaining: author's review pass, then upload at <https://datatracker.ietf.org/submit/> (free account) and email the ISE per <https://www.rfc-editor.org/about/independent/>
 
 **Operational**
-- [ ] `npm deprecate @behavioralstate/bsp-mcp` pointing at `best-mcp` — attempted 2026-08-23, blocked: the local npm token is invalid; needs `npm login` first
+- [x] `npm deprecate @behavioralstate/bsp-mcp` pointing at `best-mcp` — done manually 2026-08-24
 - [ ] npm trusted publishing (OIDC) for `best-mcp`; revoke the bypass-2FA automation token
 - [ ] Run `best-validate` to completion: dotquant tenant-level probes (needs `--tenant` + `--api-key`; root manifest already CONFORMANT) and the remundo endpoint (root host still to identify — 404 on `remundo.com` and `api.remundo.com`)
-- [ ] Remove `--legacy-bsp` from [validate-cli/](validate-cli/) — both deployments are on 0.9.x, so the mode is dead
 
 ## Recently resolved (2026-08-23)
 
