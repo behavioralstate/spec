@@ -19,7 +19,8 @@
 			items: [
 				{ label: 'Commands', href: '/specs/agents/commands' },
 				{ label: 'Events', href: '/specs/agents/events' },
-				{ label: 'Queries', href: '/specs/agents/queries' }
+				{ label: 'Queries', href: '/specs/agents/queries' },
+				{ label: 'Workflows', href: '/specs/agents/workflows' }
 			]
 		},
 		{

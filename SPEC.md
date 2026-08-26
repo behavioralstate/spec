@@ -15,6 +15,7 @@
 - [Commands — `io.best.agents.commands`](#commands--iobestagentscommands)
 - [Events — `io.best.agents.events`](#events--iobestagentsevents)
 - [Queries — `io.best.agents.queries`](#queries--iobestagentsqueries)
+- [Workflows — `io.best.agents.workflows`](#workflows--iobestagentsworkflows)
 - [Composing Multi-Step Processes](#composing-multi-step-processes)
 - [HTTP Transport](#http-transport)
 - [MCP Transport](#mcp-transport)
@@ -69,8 +70,8 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 | Tier | Capabilities | Meaning |
 |---|---|---|
 | **Core** | `/.well-known/best` discovery · `io.best.agents.commands` · `io.best.agents.events` | Required. A service implementing only these three is fully BEST-compliant. |
-| **Extended** | `io.best.agents.queries` | Optional. Declared in the manifest; consumers discover it at runtime. |
-| **Out of scope** | Execution runtimes, workflow orchestration, durable execution, retries, checkpointing, memory contracts, domain models, identity providers | Never owned by BEST. These belong to the service's internals or a separate execution layer. |
+| **Extended** | `io.best.agents.queries` · `io.best.agents.workflows` | Optional. Declared in the manifest; consumers discover them at runtime. |
+| **Out of scope** | Execution runtimes, workflow execution, durable execution, retries, checkpointing, memory contracts, domain models, identity providers | Never owned by BEST. These belong to the service's internals or a separate execution layer. |
 
 > **The core is intentionally small.** A minimal BEST endpoint is three things: a discovery manifest, a command entry point, and an event log. Everything else is additive.
 
@@ -273,6 +274,7 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 | `version` | yes | Schema version (`1.0`, `2.1`) — first-class, no URI parsing needed |
 | `dataschema` | yes | Resolvable URI to the JSON Schema for `data` — the canonical value for a command's `dataschema` field. Resolves to `GET /commands/{schema}/{version}` on this same surface. |
 | `description` | no | What the command does |
+| `workflows` | no | Ids of [published workflows](#workflows--iobestagentsworkflows) this command participates in — servers **should** populate it for every operation that appears in a recipe |
 
 ### Ingestion Semantics
 
@@ -355,7 +357,7 @@ Queries are **synchronous reads** of current state — the read-before-write com
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/queries` | Query catalogue — same entry shape as the command catalogue (`schema`, `version`, `dataschema`, `description`) |
+| GET | `/queries` | Query catalogue — same entry shape as the command catalogue (`schema`, `version`, `dataschema`, `description`, optional `workflows`) |
 | GET | `/queries/{schema}/{version}` | Query schema document |
 | GET | `/queries/{schema}` | **Execute** — parameters as query string; returns `200` with the result body |
 
@@ -372,12 +374,57 @@ Execution returns `400` for missing/invalid parameters, `404` for an unknown sch
 
 Queries are **not** a query language (no filter expressions, joins, or aggregations), not a REST resource hierarchy (no per-item GETs), and not event sourcing (they return current state as the service projects it — historical facts live in `GET /events`).
 
+## Workflows — `io.best.agents.workflows`
+
+Workflows are **published recipes**: read-only, named sequences of catalogue operations with per-step guidance, for multi-step processes whose order is a fixed, well-known happy path. The capability is **strictly descriptive** — the service never executes, retries, tracks, or branches the steps; the caller (typically an LLM agent) sends each operation itself and waits for its outcome before proceeding. Optional capability; declared in the manifest like any other. Schema: [`workflows.json`](protocol/v1/schemas/agents/workflows.json)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/workflows` | Workflow index — `id`, `name`, `description` per recipe, **never the steps** |
+| GET | `/workflows/{id}` | One full recipe with its ordered steps; `404` for an unknown id |
+
+The index is deliberately shallow so a consumer can hold the entire list in one read and choose; full recipes are fetched one at a time.
+
+**Workflow ids** are stable, service-defined, URL-path-safe strings — reverse-domain (`io.example.workflows.onboard-a-worker`) or kebab-case. Renaming an id is a breaking change for anything linking to it.
+
+**Steps.** Each step carries:
+
+| Field | Required | Description |
+|---|---|---|
+| `kind` | yes | `"command"` or `"query"` — whether the step is a `POST /commands` or a `GET /queries/{schema}` |
+| `dataschema` | yes | Resolvable URI of the operation's schema document in this service's **live catalogue** — recipes reference the catalogue, never duplicate it, so they cannot drift from the real contracts |
+| `optional` | no | `true` when the step applies only in some runs; absent means required |
+| `guidance` | no | How this step combines with the others — what to carry forward, what to wait for, when to skip. Anything about the single operation in isolation belongs in that operation's schema description instead. |
+
+```json
+GET /workflows/io.example.workflows.onboard-a-worker
+{
+  "id": "io.example.workflows.onboard-a-worker",
+  "name": "Onboard a worker",
+  "description": "Create the engagement, assign a contact, and invite the worker. Drive each step yourself and wait for its outcome before the next.",
+  "steps": [
+    { "kind": "command", "dataschema": "https://api.example.com/commands/submit-employee/1.0",
+      "guidance": "Creates the engagement. Keep the correlationId — every later step references it." },
+    { "kind": "query",   "dataschema": "https://api.example.com/queries/list-employees/1.0",
+      "guidance": "Poll until the new engagement appears — commands are asynchronous." },
+    { "kind": "command", "dataschema": "https://api.example.com/commands/invite-worker/1.0",
+      "optional": true, "guidance": "Only when the user wants the invitation sent immediately." }
+  ]
+}
+```
+
+**Cross-linking from the catalogues.** A command or query catalogue entry **may** carry a `workflows` array naming the workflow ids the operation participates in. Servers **should** populate it for every operation that appears in a recipe: the catalogue is the first thing an agent reads, and without the link a catalogue-first consumer reconstructs multi-step choreography from raw schemas, never learning a recipe exists. Schema-document descriptions **should** additionally name the recipe where the prose has room.
+
+**Boundary.** The moment a service executes, retries, persists, or branches steps on the caller's behalf, it has built an execution runtime — out of BEST scope, and not something to put behind this capability (put Temporal, Durable Functions, or similar *behind* the service instead).
+
+> Before 0.9.4 this surface existed only as a vendor-extension convention (`/workflows` under an implementer-owned namespace). Existing publishers migrate by declaring the capability, splitting the old full-list response into index + per-id detail, and adopting the step shape above.
+
 ## Composing Multi-Step Processes
 
-BEST deliberately owns no orchestration. Two non-normative patterns cover multi-step work:
+BEST deliberately owns no orchestration. Two patterns cover multi-step work:
 
 - **Choreography** — the caller sends a command, observes correlated events, decides the next command. Needs nothing beyond the core.
-- **Descriptive sequences (`/workflows`)** — a service **may** publish read-only, named recipes: an ordered list of command schemas with per-step guidance. This is a **vendor extension** under the implementer's own namespace — never `io.best.*`, and the service does not execute the steps; it only describes them. The caller drives each step and waits for its outcome before the next.
+- **Published workflows** — the service publishes the fixed happy-path recipe via the optional [workflows capability](#workflows--iobestagentsworkflows); the caller still drives each step and waits for its outcome before the next.
 
 The moment a service executes, retries, persists, or branches steps on the caller's behalf, it has become an execution runtime — out of BEST scope (put Temporal, Durable Functions, or similar *behind* the service).
 
@@ -437,7 +484,7 @@ The reference server [`@behavioralstate/best-mcp`](mcp-server/README.md) exposes
 | `get_query_catalogue` | `GET /queries` |
 | `get_query_schema` | `GET /queries/{schema}/{version}` |
 | `execute_query` | `GET /queries/{schema}` |
-| `get_workflows` | `GET /workflows` — the optional [descriptive-sequence extension](#composing-multi-step-processes); returns a note when the service publishes none |
+| `get_workflows` | `GET /workflows` (index), or `GET /workflows/{id}` when `workflow_id` is passed — the optional [workflows capability](#workflows--iobestagentsworkflows); returns a note when the service publishes none |
 | *(push)* | Server-to-client MCP notifications deliver correlated events when `"push": true` |
 
 `send_command` derives the envelope `type` by PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`), sets `dataschema` to the absolute catalogue URI (`{endpoint}/commands/{schema}/{version}`), and requires the caller to supply `source` — the expected value is documented in the schema description, never invented.
@@ -506,6 +553,7 @@ Per-capability required endpoints (for `active` capabilities; `partial` is exemp
 | `io.best.agents.commands` | `GET /commands`, `POST /commands` |
 | `io.best.agents.events` | `GET /events` |
 | `io.best.agents.queries` | `GET /queries`, `GET /queries/{schema}/{version}`, `GET /queries/{schema}` |
+| `io.best.agents.workflows` | `GET /workflows`, `GET /workflows/{id}` |
 
 Multi-tenant root manifests additionally follow the [Multi-Tenancy rules](#multi-tenancy).
 

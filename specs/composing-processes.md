@@ -2,8 +2,10 @@
 
 > **This is a non-normative guide.** It describes *patterns* for combining BEST
 > commands and events into multi-step business processes. It defines no new
-> capability, no required endpoint, and no wire format. Nothing here is needed
-> for conformance — see [Conformance](./conformance.md) for what is.
+> capability, no required endpoint, and no wire format — the workflows capability
+> referenced by Pattern 2 is normatively defined on
+> [its own page](./agents/workflows.md). Nothing here is needed for conformance —
+> see [Conformance](./conformance.md) for what is.
 
 BEST gives you the primitives for a single interaction: send a command, observe
 the events it produces. Real systems rarely stop there. Onboarding a user,
@@ -27,7 +29,7 @@ two answers, and they are not mutually exclusive.
 | Pattern | Who decides the next step | What the service exposes |
 |---|---|---|
 | **Choreography** | The caller reacts to each event and sends the next command | Nothing extra — just commands and events |
-| **Descriptive sequence** | The caller still drives, but follows a published recipe | An optional, read-only list describing the steps |
+| **Published workflows** | The caller still drives, but follows a published recipe | The optional, read-only [workflows capability](./agents/workflows.md) |
 
 Neither pattern lets the *service* run the workflow for you. In both, the caller
 (an application, a Process Manager, an AI agent) sends each command and waits for
@@ -98,59 +100,62 @@ notification) and react the moment each event is published — see
 - A step's outcome can branch the process (success vs. a `…Failed` event).
 - You want the process to be reactive and loosely coupled.
 
-## Pattern 2 — Descriptive sequence (published workflows)
+## Pattern 2 — Published workflows (`io.best.agents.workflows`)
 
 Sometimes the steps are a fixed, well-known recipe — a linear happy path a caller
 should follow in order. Rather than make every caller rediscover that order, a
-service can **publish it as read-only metadata**: a named list of command schemas
-with an order and a human description of each step. This is what services
-conventionally expose at `GET /workflows` (and what the `best-mcp`
-`get_workflows` tool reads).
+service can **publish it as read-only metadata** through the optional
+[workflows capability](./agents/workflows.md): a shallow index at
+`GET /workflows` (id, name, description per recipe — small enough for an agent
+to hold in one read) and one full recipe with its ordered steps at
+`GET /workflows/{id}` (this is what the `best-mcp` `get_workflows` tool reads).
 
 This is purely descriptive. It is a *hint*, not an engine: the caller still sends
 each command and waits for its `201` before the next. The service neither
 executes nor tracks the sequence.
 
-A representative response shape:
-
 ```json
-GET /workflows
+GET /workflows/io.example.workflows.onboard-a-worker
 {
-  "workflows": [
-    {
-      "name": "worker-onboarding",
-      "description": "Onboard a new worker. Execute steps in order, waiting for a 201 before proceeding.",
-      "steps": [
-        { "order": 1, "schema": "submit-employee",      "description": "Create the engagement record. Note the returned id." },
-        { "order": 2, "schema": "add-point-of-contact", "description": "Assign a point of contact, using the id from step 1." },
-        { "order": 3, "schema": "invite-worker",        "description": "Send the onboarding invitation, using the id from step 1." }
-      ]
-    }
+  "id": "io.example.workflows.onboard-a-worker",
+  "name": "Onboard a worker",
+  "description": "Onboard a new worker. Execute steps in order, waiting for each outcome before proceeding.",
+  "steps": [
+    { "kind": "command", "dataschema": "https://api.example.com/commands/submit-employee/1.0",
+      "guidance": "Create the engagement record. Keep the correlationId — later steps reference it." },
+    { "kind": "command", "dataschema": "https://api.example.com/commands/add-point-of-contact/1.0",
+      "guidance": "Assign a point of contact, using the id established in step 1." },
+    { "kind": "command", "dataschema": "https://api.example.com/commands/invite-worker/1.0",
+      "optional": true, "guidance": "Send the onboarding invitation, when the user wants it sent immediately." }
   ]
 }
 ```
 
-Each step references a `schema` that already exists in the command catalogue
+Each step's `dataschema` references an operation that already exists in the
+command or query catalogue
 ([Commands — the catalogue](./agents/commands.md#the-catalogue-get-commands)).
-The recipe adds ordering and intent on top of commands the service already
-accepts; it introduces no new command types.
+The recipe adds ordering and intent on top of operations the service already
+accepts; it introduces no new command types — and because it links the live
+catalogue instead of duplicating it, it cannot drift from the real contracts.
 
-> **This is a vendor extension, not a core capability.** BEST does not define a
-> `/workflows` endpoint or a workflow capability. A service offering this must
-> declare it under its **own** namespace (e.g. `io.acme.workflows`) in the
-> discovery manifest — never under the reserved `io.best.*` namespace
-> ([Discovery](./discovery.md)) — so that generic consumers can ignore what they
-> do not understand and extension-aware consumers can opt in.
+> **Make the recipes discoverable.** The catalogue is the first thing an agent
+> reads — so catalogue entries carry an optional `workflows` array naming the
+> recipes each operation participates in, and servers **should** populate it for
+> every operation that appears in one. Without the link, a catalogue-first
+> consumer reconstructs the choreography from raw schemas, never learning a
+> recipe exists. (Before 0.9.4 this surface was a vendor-extension convention
+> under implementer-owned namespaces; see the
+> [capability page](./agents/workflows.md) for the migration note.)
 
 ### Keep it descriptive
 
-The descriptive-sequence pattern stays on the right side of the protocol's scope
+The workflows capability stays on the right side of the protocol's scope
 boundary **only while it remains a flat, read-only description**. The moment a
 service starts executing the steps for the caller, retrying them, persisting
 run state, or branching on conditions, it has built an execution runtime — which
 is explicitly out of scope ([Overview](./overview.md#protocol-scope)). That is a
-legitimate thing to build; it just is not BEST, and it does not belong behind a
-BEST capability.
+legitimate thing to build; it just is not BEST, and it does not belong behind
+the workflows capability.
 
 | Stays descriptive (fine) | Becomes a runtime (out of scope) |
 |---|---|

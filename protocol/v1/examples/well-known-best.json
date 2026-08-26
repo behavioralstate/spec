@@ -58,6 +58,18 @@
           { "method": "POST", "path": "/commands",                          "description": "Command ingestion — send a CloudEvent command" },
           { "method": "GET",  "path": "/commands/{schema}/{version}",  "description": "Get a versioned command schema document" }
         ]
+      },
+      {
+        "name": "io.best.agents.workflows",
+        "version": "{{BEST_VERSION}}",
+        "service": "io.best.agents",
+        "description": "Published multi-step recipes — read-only; the caller drives every step",
+        "spec": "https://behavioralstate.io/specs/agents/workflows",
+        "schema": "https://behavioralstate.io/v1/schemas/agents/workflows.json",
+        "endpoints": [
+          { "method": "GET", "path": "/workflows",      "description": "Workflow index — id, name, description per recipe" },
+          { "method": "GET", "path": "/workflows/{id}", "description": "One full recipe with its ordered steps" }
+        ]
       }
     ],
     "agents": [

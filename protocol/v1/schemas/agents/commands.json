@@ -32,6 +32,11 @@
         "description": {
           "type": "string",
           "description": "Human-readable description of what this command does."
+        },
+        "workflows": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ids of published workflows (io.best.agents.workflows) this command participates in. Servers SHOULD populate it for every operation that appears in a recipe, so catalogue-first consumers discover the recipe instead of reconstructing the choreography from raw schemas."
         }
       },
       "additionalProperties": false

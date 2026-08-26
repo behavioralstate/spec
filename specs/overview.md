@@ -78,7 +78,7 @@ Layer 1: Transport
 - Domain models (what events and commands mean in a specific business)
 - AI/LLM provider integration
 - Actuator execution (what happens when a command is dispatched)
-- Workflow graphs, durable execution, retries, checkpointing — these are execution runtime concerns, not protocol concerns
+- Workflow *execution* — graphs, durable execution, retries, checkpointing are execution runtime concerns, not protocol concerns (publishing a read-only recipe is the [workflows capability](agents/workflows.md); running one never is)
 
 ### Capability Tiers — Core vs Extended vs Out of Scope
 
@@ -87,8 +87,8 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
 | Tier | Capabilities | What it means |
 |---|---|---|
 | **Core** | `/.well-known/best` discovery · `io.best.agents.commands` · `io.best.agents.events` | Required for any functional BEST endpoint. A service that implements only these three is fully BEST-compliant. |
-| **Extended** | `io.best.agents.queries` | Optional. Declared in the manifest so consumers discover it at runtime. Omitting it does not affect core compliance. |
-| **Out of scope** | Execution runtime · workflow orchestration · durable execution · memory contracts · retry policies · checkpointing | BEST never owns these. They belong to the service's internal implementation or a separate execution layer (e.g. Temporal, Durable Functions, an actor runtime). |
+| **Extended** | `io.best.agents.queries` · `io.best.agents.workflows` | Optional. Declared in the manifest so consumers discover them at runtime. Omitting them does not affect core compliance. |
+| **Out of scope** | Execution runtime · workflow execution · durable execution · memory contracts · retry policies · checkpointing | BEST never owns these. They belong to the service's internal implementation or a separate execution layer (e.g. Temporal, Durable Functions, an actor runtime). |
 
 <div class="BEST-diagram">
   <div class="BEST-node">
@@ -101,7 +101,7 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
   </div>
   <div class="BEST-node">
     <div class="BEST-node-title">Extended</div>
-    <div class="BEST-node-box">Queries</div>
+    <div class="BEST-node-box">Queries<br/>Workflows</div>
     <div class="BEST-node-sub">optional — declared in manifest</div>
   </div>
   <div class="BEST-arrow">
@@ -109,7 +109,7 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
   </div>
   <div class="BEST-node">
     <div class="BEST-node-title">Out of scope</div>
-    <div class="BEST-node-box">Execution runtime<br/>Workflows<br/>Memory</div>
+    <div class="BEST-node-box">Execution runtime<br/>Durable execution<br/>Memory</div>
     <div class="BEST-node-sub">never BEST's</div>
   </div>
 </div>

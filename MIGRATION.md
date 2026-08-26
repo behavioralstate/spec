@@ -1,8 +1,27 @@
 # Migration Guide
 
+- [0.9.x → 0.9.4](#migrating-from-09x-to-094) — workflows promoted from vendor-extension convention to the Extended capability `io.best.agents.workflows`
 - [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.x to 0.9.4
+
+Spec 0.9.4 is **purely additive**: the descriptive-sequence pattern (`GET /workflows`), previously a vendor-extension convention under implementer-owned namespaces, is promoted to the standard **Extended-tier capability `io.best.agents.workflows`**. Nothing a 0.9.x client sends becomes invalid; a server that publishes no workflows changes nothing. See [SPEC.md — Workflows](SPEC.md#workflows--iobestagentsworkflows) and the [capability page](specs/agents/workflows.md).
+
+## Added — `io.best.agents.workflows` (optional)
+
+- `GET /workflows` returns a shallow **index** (`id`, `name`, `description` per recipe — never the steps); `GET /workflows/{id}` returns one full recipe. The split exists so an LLM agent can hold the whole list in one read and fetch recipes one at a time.
+- Steps carry `kind` (`command`/`query`), `dataschema` (a resolvable URI into the service's **live** catalogue — recipes reference contracts, never duplicate them), optional `optional`, and `guidance`.
+- Command and query **catalogue entries gain an optional `workflows` array** naming the recipe ids the operation participates in — the discoverability link for catalogue-first consumers. Servers **should** populate it for every operation appearing in a recipe.
+- The capability is **strictly descriptive**; executing, retrying, persisting, or branching steps server-side remains out of BEST scope.
+
+## Migrating an existing vendor-extension publisher
+
+- **Servers**: declare `io.best.agents.workflows` in the manifest (replacing the vendor capability entry); split the old full-list `GET /workflows` response into index + per-id detail; adopt the normative step shape; stamp `workflows` onto participating catalogue entries. Existing recipe ids (e.g. `io.acme.workflows.*`) remain valid — ids stay service-defined.
+- **Clients**: no change required — pre-0.9.4 consumers ignore the unknown manifest entry and the new catalogue field. Consumers of a migrated server's `GET /workflows` must fetch `GET /workflows/{id}` for steps (the index no longer carries them); `@behavioralstate/best-mcp` ≥ 2.3.0 handles both shapes.
 
 ---
 
