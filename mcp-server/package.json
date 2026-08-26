@@ -1,6 +1,6 @@
 {
   "name": "@behavioralstate/best-mcp",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "MCP server for any BEST-compliant endpoint — exposes commands and queries as tools for LLM clients",
   "type": "module",
   "bin": {
