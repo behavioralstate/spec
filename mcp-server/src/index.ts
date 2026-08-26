@@ -85,6 +85,11 @@
 
 import { createServer as createHttpServer, type IncomingHttpHeaders } from 'http';
 import { randomUUID } from 'crypto';
+import { createRequire } from 'module';
+
+// The real published version, surfaced to hosts in the initialize result — a hardcoded constant
+// here once drifted to '1.0.0' and made "which best-mcp am I running?" unanswerable.
+const PACKAGE_VERSION: string = createRequire(import.meta.url)('../package.json').version;
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -489,6 +494,9 @@ const TOOLS: Tool[] = [
       'Returns the command catalogue: every command type with its schema name, version, dataschema URI, and description. ' +
       'Call this first to discover what you can send. ' +
       'Examples: configure-broker, configure-indicator-alert, submit-signal, archive-broker. ' +
+      "An entry's 'workflows' array names the published recipes that command participates in — when your task " +
+      'spans several operations, read the recipe FIRST (get_workflows with that id) instead of assembling the ' +
+      'sequence from raw schemas. ' +
       "Descriptions are truncated by default so the listing stays small — call get_command_schema for one " +
       "command's complete description and fields, or pass detail='full' to get every description verbatim.",
     inputSchema: { type: 'object', properties: { ...CONNECTION_PROP, ...CATALOGUE_DETAIL_PROP }, required: [] }
@@ -498,7 +506,10 @@ const TOOLS: Tool[] = [
     description:
       'Fetch the full JSON Schema for a specific command type and version. ' +
       'Use this to discover the exact fields required before calling send_command. ' +
-      'Get the schema name and version from get_command_catalogue.',
+      'Get the schema name and version from get_command_catalogue. ' +
+      "If the command's catalogue entry or description names a workflow, fetch that recipe " +
+      '(get_workflows with workflow_id) before planning a multi-step process — it carries the ' +
+      'ordering and cross-step guidance the schema alone cannot.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -631,6 +642,7 @@ const TOOLS: Tool[] = [
       'Returns the query catalogue: every query type with its schema name, version, dataschema URI, and description. ' +
       'Call this to discover what current-state data you can read. ' +
       'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds). ' +
+      "An entry's 'workflows' array names the published recipes that query participates in (see get_workflows). " +
       "Descriptions are truncated by default so the listing stays small — call get_query_schema for one " +
       "query's complete description and parameters, or pass detail='full' to get every description verbatim.",
     inputSchema: { type: 'object', properties: { ...CONNECTION_PROP, ...CATALOGUE_DETAIL_PROP }, required: [] }
@@ -1331,9 +1343,12 @@ If a command fails, relay the error message verbatim to the user — it is actio
 `).trim();
 
 function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
+  // `instructions` in the initialize result is the ONLY channel most hosts (Copilot, Claude
+  // Desktop, Cursor) read server guidance from — the tools/list `_meta` copy below is kept for
+  // hosts that surface it, but was the sole carrier before 2.3.1 and standard hosts never saw it.
   const server = new Server(
-    { name: 'best-mcp', version: '1.0.0' },
-    { capabilities: { tools: {} } }
+    { name: 'best-mcp', version: PACKAGE_VERSION },
+    { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
