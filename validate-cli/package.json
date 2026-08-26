@@ -1,6 +1,6 @@
 {
   "name": "@behavioralstate/best-validate",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Conformance validator for BEST (Behavioral State Protocol) endpoints — runs the spec's conformance checklist against a live endpoint",
   "type": "module",
   "bin": {
