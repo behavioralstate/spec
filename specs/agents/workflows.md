@@ -30,9 +30,11 @@ The canonical use: an agent connects to a service, reads the command catalogue, 
 | `optional` | no | `true` when the step applies only in some runs |
 | `guidance` | no | How this step combines with the others — what to carry forward, what to wait for, when to skip. Anything about the single operation in isolation belongs in that operation's schema description instead. |
 
-## Discoverability — linking from the catalogues
+## Discoverability — one mechanism, the `workflows` cross-link
 
-A command or query catalogue entry **may** carry a `workflows` array naming the workflow ids the operation participates in. Servers **should** populate it for every operation that appears in a recipe: the catalogue is the first thing an agent reads, and without the link a catalogue-first consumer never learns a recipe exists. Schema-document descriptions **should** additionally name the recipe where the prose has room.
+The protocol defines **exactly one** way an operation advertises the recipes it belongs to: the `workflows` array — the ids of the published workflows the operation participates in. It is carried wherever the operation is described, so the pointer is present at whichever surface a consumer reads before acting:
+
+**On the catalogue entry** (`GET /commands`, `GET /queries`):
 
 ```json
 {
@@ -43,6 +45,24 @@ A command or query catalogue entry **may** carry a `workflows` array naming the 
   "workflows": ["io.example.workflows.onboard-a-worker"]
 }
 ```
+
+**On the schema document** (`GET /commands/{schema}/{version}`, `GET /queries/{schema}/{version}`), as a top-level member — JSON Schema tolerates unknown keywords, and BEST names this one; validators ignore it:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Create a worker engagement record.",
+  "type": "object",
+  "properties": { "...": "..." },
+  "workflows": ["io.example.workflows.onboard-a-worker"]
+}
+```
+
+Rules:
+
+- Servers publishing workflows **should** stamp the array in **both** places, for every operation that appears in a recipe, and both surfaces **must** carry the same ids. Deriving both from the recipe definitions themselves (rather than maintaining them by hand) keeps drift impossible.
+- Consumers **should** fetch the referenced recipe (`GET /workflows/{id}`) before composing a multi-step sequence themselves — the recipe carries the ordering and cross-step guidance the individual schemas cannot.
+- Human-readable descriptions are free to *mention* recipes, but the protocol attaches **no discoverability role to prose**. The cross-link array is the mechanism, and there is no other — a consumer that honours it needs nothing else, and a reviewer auditing the surface has one field to check.
 
 ## Usage pattern
 

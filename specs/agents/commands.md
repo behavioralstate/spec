@@ -79,3 +79,5 @@ The **`correlationid`** envelope attribute (a CloudEvents extension, lowercase o
 Returns the raw JSON Schema for one command version — the canonical target of the catalogue's `dataschema` URI. `404` for unknown name or version.
 
 The document **may** declare `produces`: an array of PascalCase event types the command can raise, e.g. `["CounterProposed", "NegotiationFailed"]`. Failure outcomes are ordinary events in that list; the naming convention (`*Failed`) is service-defined. Silent failures are handled client-side via timeout — services should document expected processing times and always publish a failure event rather than silently dropping a command.
+
+When the service publishes [workflows](workflows.md), the document **should** also carry the operation's `workflows` cross-link array — the same ids the catalogue entry carries (see [Workflows — Discoverability](workflows.md#discoverability-one-mechanism-the-workflows-cross-link)).

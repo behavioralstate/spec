@@ -302,7 +302,7 @@ GET  /events/stream?correlationId=abc123 → what happens next (push)
 
 The caller **may** set `correlationid` on the command; when omitted, the server adopts the command's `id` — either way the `201` response echoes the effective value as `correlationId`. Every event produced by processing the command **must** carry that identifier in its `correlationid` envelope attribute, so any consumer — including one that never saw the command — can match events to their originating submission. Multi-step processes propagate it: a follow-up command issued in reaction to an event **should** carry the same `correlationid`, which is what makes one identifier traverse a chain of services.
 
-The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait.
+The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait. When the service publishes [workflows](#workflows--iobestagentsworkflows), the document **should** also carry the operation's `workflows` cross-link array.
 
 ## Events — `io.best.agents.events`
 
@@ -361,7 +361,7 @@ Queries are **synchronous reads** of current state — the read-before-write com
 | GET | `/queries/{schema}/{version}` | Query schema document |
 | GET | `/queries/{schema}` | **Execute** — parameters as query string; returns `200` with the result body |
 
-The schema document has up to three sections: `description`, `parameters` (JSON Schema for accepted query-string parameters — omitted when the query takes none), and `response` (JSON Schema for the result body; required).
+The schema document has up to three sections: `description`, `parameters` (JSON Schema for accepted query-string parameters — omitted when the query takes none), and `response` (JSON Schema for the result body; required) — plus the optional `workflows` cross-link array when the service publishes [workflows](#workflows--iobestagentsworkflows).
 
 ```
 GET /queries                    → discover available queries
@@ -413,7 +413,12 @@ GET /workflows/io.example.workflows.onboard-a-worker
 }
 ```
 
-**Cross-linking from the catalogues.** A command or query catalogue entry **may** carry a `workflows` array naming the workflow ids the operation participates in. Servers **should** populate it for every operation that appears in a recipe: the catalogue is the first thing an agent reads, and without the link a catalogue-first consumer reconstructs multi-step choreography from raw schemas, never learning a recipe exists. Schema-document descriptions **should** additionally name the recipe where the prose has room.
+**Cross-linking — the single discoverability mechanism.** The protocol defines exactly one way an operation advertises the recipes it belongs to: the **`workflows` array** — the ids of the published workflows the operation participates in — carried wherever the operation is described:
+
+- on its **catalogue entry** (`GET /commands`, `GET /queries`), and
+- on its **schema document** (`GET /commands/{schema}/{version}`, `GET /queries/{schema}/{version}`) as a top-level member. JSON Schema tolerates unknown keywords, and BEST names this one; validators ignore it.
+
+Both surfaces carry the same array, so the pointer is present at whichever read a consumer performs before acting. Servers publishing workflows **should** stamp it in both places for every operation that appears in a recipe; consumers **should** fetch the referenced recipe (`GET /workflows/{id}`) before composing a multi-step sequence themselves. Human-readable descriptions are free to mention recipes, but the protocol attaches **no** discoverability role to prose — the cross-link array is the mechanism, and there is no other.
 
 **Boundary.** The moment a service executes, retries, persists, or branches steps on the caller's behalf, it has built an execution runtime — out of BEST scope, and not something to put behind this capability (put Temporal, Durable Functions, or similar *behind* the service instead).
 

@@ -29,7 +29,7 @@
         "workflows": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Ids of published workflows (io.best.agents.workflows) this query participates in. Servers SHOULD populate it for every operation that appears in a recipe, so catalogue-first consumers discover the recipe instead of reconstructing the choreography from raw schemas."
+          "description": "Ids of published workflows (io.best.agents.workflows) this query participates in — the protocol's single workflow-discoverability mechanism, stamped both here and on the query's schema document. Servers SHOULD populate it for every operation that appears in a recipe; consumers SHOULD read the recipe before composing a multi-step sequence themselves."
         }
       },
       "additionalProperties": false
@@ -62,6 +62,11 @@
         "response": {
           "type": "object",
           "description": "JSON Schema for the query response body."
+        },
+        "workflows": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ids of published workflows (io.best.agents.workflows) this query participates in — the same cross-link array the catalogue entry carries, stamped here too so the pointer is present at whichever surface a consumer reads."
         }
       },
       "additionalProperties": false
