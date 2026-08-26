@@ -1,9 +1,27 @@
 # Migration Guide
 
+- [0.9.4 → 0.9.5](#migrating-from-094-to-095) — the `workflows` cross-link becomes the single discoverability mechanism, stamped on schema documents as well as catalogue entries; prose loses its specced role
 - [0.9.x → 0.9.4](#migrating-from-09x-to-094) — workflows promoted from vendor-extension convention to the Extended capability `io.best.agents.workflows`
 - [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.4 to 0.9.5
+
+Spec 0.9.5 is a clarification-and-addition pass on workflow discoverability, prompted by live agent testing: with the pointer spread across prose and structure, catalogue-first consumers still missed the recipes. 0.9.5 names **one mechanism and removes the rest**.
+
+## The `workflows` cross-link is the single discoverability mechanism
+
+- The `workflows` array (recipe ids the operation participates in) is now carried on **both** surfaces that describe an operation: its **catalogue entry** (as in 0.9.4) and its **schema document** (`GET /commands/{schema}/{version}`, `GET /queries/{schema}/{version}`) as a top-level member — JSON Schema tolerates unknown keywords, and BEST names this one. Both **must** carry the same ids; deriving both from the recipe definitions keeps drift impossible.
+- Consumers **should** fetch the referenced recipe before composing a multi-step sequence themselves.
+- **Prose loses its specced role**: 0.9.4's suggestion that schema-document *descriptions* additionally name the recipe is withdrawn. Descriptions may still mention recipes, but the protocol attaches no discoverability function to text — the cross-link array is the mechanism, and there is no other.
+
+## Migrating
+
+- **Servers**: stamp the existing catalogue `workflows` arrays onto the matching schema documents too (an injection at serve time, derived from the same source as the catalogue, is the recommended shape). Nothing is removed; 0.9.4 servers remain conformant — the schema-document member is a SHOULD.
+- **Clients**: no change required. Clients that surface the cross-link to their model when a schema document is fetched (as `@behavioralstate/best-mcp` ≥ 2.3.2 does) give servers the discoverability behaviour mechanically.
 
 ---
 

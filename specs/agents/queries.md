@@ -22,7 +22,7 @@ The canonical use: an AI agent needs to know which broker accounts exist before 
 
 **Catalogue** (`GET /queries`) — same structure as the command catalogue: `schema` (kebab-case), `version`, `dataschema` (URI resolving to the schema document), optional `description`.
 
-**Schema document** (`GET /queries/{schema}/{version}`) — three sections: optional `description`, optional `parameters` (JSON Schema for accepted query-string parameters), required `response` (JSON Schema for the response body). `404` for unknown name or version.
+**Schema document** (`GET /queries/{schema}/{version}`) — three sections: optional `description`, optional `parameters` (JSON Schema for accepted query-string parameters), required `response` (JSON Schema for the response body), plus the optional `workflows` cross-link array when the service publishes [workflows](workflows.md). `404` for unknown name or version.
 
 **Execution** (`GET /queries/{schema}`) — `200` with a body matching the `response` schema; `400` for missing/invalid parameters; `404` for an unknown schema name.
 

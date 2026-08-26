@@ -138,13 +138,15 @@ The recipe adds ordering and intent on top of operations the service already
 accepts; it introduces no new command types — and because it links the live
 catalogue instead of duplicating it, it cannot drift from the real contracts.
 
-> **Make the recipes discoverable.** The catalogue is the first thing an agent
-> reads — so catalogue entries carry an optional `workflows` array naming the
-> recipes each operation participates in, and servers **should** populate it for
-> every operation that appears in one. Without the link, a catalogue-first
-> consumer reconstructs the choreography from raw schemas, never learning a
-> recipe exists. (Before 0.9.4 this surface was a vendor-extension convention
-> under implementer-owned namespaces; see the
+> **Make the recipes discoverable.** The protocol defines exactly one mechanism
+> for it: the `workflows` cross-link array, carried on an operation's catalogue
+> entry AND its schema document, naming the recipes the operation participates
+> in. Servers **should** stamp it for every operation that appears in a recipe;
+> consumers **should** read the recipe before composing the sequence themselves.
+> Without the link, a catalogue-first consumer reconstructs the choreography
+> from raw schemas, never learning a recipe exists — and prose mentions carry
+> no discoverability role. (Before 0.9.4 this surface was a vendor-extension
+> convention under implementer-owned namespaces; see the
 > [capability page](./agents/workflows.md) for the migration note.)
 
 ### Keep it descriptive
