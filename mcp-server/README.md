@@ -77,6 +77,8 @@ Correlation (spec 0.9.2+): every accepted command has a correlation ID — the c
 Both catalogue tools truncate each entry's description by default, because a catalogue exists to let a caller *choose* an operation and a thoroughly documented service makes the full listing too large for that — one endpoint returns 47 KB for ~65 commands, which clients spill to disk before a model can read it. Truncation is ~60% smaller and still enough to pick from; the schema tools return one operation's complete text, and `detail: "full"` returns every description verbatim when you really need to compare across entries.
 Before hand-assembling a multi-step process, call `get_workflows` — catalogue entries may point at recipes via their `workflows` array — then `get_workflows` with `workflow_id` for the chosen recipe's steps.
 
+High-impact commands (spec 0.9.6): when a command's schema document or catalogue entry carries an `impact` annotation (financial, destructive, irreversible, compliance), `get_command_schema` appends a deterministic HIGH-IMPACT note — including the server's `warning` text — telling the model to surface the warning and obtain the user's explicit confirmation before `send_command`. The annotation is descriptive; the server's own controls still apply.
+
 When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
 
 ---

@@ -1,10 +1,30 @@
 # Migration Guide
 
+- [0.9.5 → 0.9.6](#migrating-from-095-to-096) — the optional `impact` annotation makes high-impact commands discoverable; human-facing consumers warn and confirm before submitting
 - [0.9.4 → 0.9.5](#migrating-from-094-to-095) — the `workflows` cross-link becomes the single discoverability mechanism, stamped on schema documents as well as catalogue entries; prose loses its specced role
 - [0.9.x → 0.9.4](#migrating-from-09x-to-094) — workflows promoted from vendor-extension convention to the Extended capability `io.best.agents.workflows`
 - [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.5 to 0.9.6
+
+Spec 0.9.6 is **purely additive**: the optional **`impact`** annotation marks a command as high-impact (in the sense of [Security — High-impact commands](specs/security.md#high-impact-commands)) so that clients can finally discover the obligation the security section has carried since 0.9.1. Nothing a 0.9.5 client sends becomes invalid; a server that annotates nothing changes nothing.
+
+## Added — the `impact` annotation (optional)
+
+- Command **catalogue entries** gain an optional `impact` object: `categories` (`financial` / `destructive` / `irreversible` / `compliance`, open vocabulary), `confirmation` (`required` | `recommended`), optional `warning` text.
+- Following the `workflows` precedent, the annotation is stamped on **both** surfaces that describe the operation — the catalogue entry and the **schema document** (`GET /commands/{schema}/{version}`) as a top-level member. Both must carry the same value.
+- Consumer semantics: a consumer acting on behalf of a human **must not** submit a `confirmation: "required"` command without explicit, per-submission confirmation from that human, and **should** surface the `warning` text substantially intact. `recommended` permits proceeding under durable prior authorization.
+- The annotation is descriptive — it never replaces the server-side high-impact controls, and automation with no human principal is governed by those controls alone.
+
+## Migrating
+
+- **Servers**: annotate the commands that move money, destroy data, or cannot be undone (derive both surfaces from the same source, as with `workflows`). Nothing is removed; 0.9.5 servers remain conformant — the annotation is optional.
+- **Clients**: honor the annotation where a human is in the loop. Clients that surface it mechanically when a schema or catalogue is fetched (as `@behavioralstate/best-mcp` ≥ 2.3.4 does) give servers the warn-and-confirm behaviour without prompt engineering.
+- **Validators**: `best-validate` releases predating 0.9.6 fail a catalogue carrying `impact` (`additionalProperties: false`) — use the matching validator version.
 
 ---
 

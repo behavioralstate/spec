@@ -275,6 +275,35 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 | `dataschema` | yes | Resolvable URI to the JSON Schema for `data` — the canonical value for a command's `dataschema` field. Resolves to `GET /commands/{schema}/{version}` on this same surface. |
 | `description` | no | What the command does |
 | `workflows` | no | Ids of [published workflows](#workflows--iobestagentsworkflows) this command participates in — servers **should** populate it for every operation that appears in a recipe |
+| `impact` | no | [High-impact annotation](#impact-annotations) — declares that the command is high-impact and that a human-facing consumer must warn and confirm before submitting |
+
+### Impact Annotations
+
+Some commands do not share a blast radius with the rest of the catalogue: they move money, destroy data, or cannot be undone. The [Security Requirements](#security-requirements) already oblige servers to place extra controls on such commands — but until a client can *discover* which commands those are, only the server side of the obligation is implementable. The optional **`impact`** annotation closes that gap:
+
+```json
+{
+  "schema": "submit-order",
+  "version": "1.0",
+  "dataschema": "https://api.example.com/commands/submit-order/1.0",
+  "description": "Submit a market order to the caller's broker connection",
+  "impact": {
+    "categories": ["financial"],
+    "confirmation": "required",
+    "warning": "Places a real order on your broker account. Capital is at risk."
+  }
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `categories` | yes | What kind of impact — named values: `financial` (moves money or puts capital at risk), `destructive` (removes data or state), `irreversible` (no compensating command), `compliance` (bypasses or alters a compliance control). The vocabulary is open; consumers treat unknown values as high-impact. |
+| `confirmation` | yes | `required`: a consumer acting on behalf of a human **must not** submit the command without explicit, per-submission confirmation from that human. `recommended`: the consumer **should** confirm but **may** proceed where the human has durably authorized this class of operation. |
+| `warning` | no | Human-readable warning the consumer **should** surface to the human, substantially intact, before asking for confirmation. |
+
+Like `workflows`, the annotation is carried on **both** surfaces that describe an operation — the catalogue entry and the schema document (`GET /commands/{schema}/{version}`) as a top-level member — and both **must** carry the same value.
+
+The annotation is **descriptive, not enforcement**. It tells a well-behaved consumer what to do before submitting; it never replaces the server-side controls of [Security Requirements — high-impact commands](#security-requirements), because a server cannot rely on clients honoring it. Service-to-service automation with no human principal is governed by those server-side controls alone — the annotation does not require inventing a human to ask.
 
 ### Ingestion Semantics
 
@@ -302,7 +331,7 @@ GET  /events/stream?correlationId=abc123 → what happens next (push)
 
 The caller **may** set `correlationid` on the command; when omitted, the server adopts the command's `id` — either way the `201` response echoes the effective value as `correlationId`. Every event produced by processing the command **must** carry that identifier in its `correlationid` envelope attribute, so any consumer — including one that never saw the command — can match events to their originating submission. Multi-step processes propagate it: a follow-up command issued in reaction to an event **should** carry the same `correlationid`, which is what makes one identifier traverse a chain of services.
 
-The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait. When the service publishes [workflows](#workflows--iobestagentsworkflows), the document **should** also carry the operation's `workflows` cross-link array.
+The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait. When the service publishes [workflows](#workflows--iobestagentsworkflows), the document **should** also carry the operation's `workflows` cross-link array; when the catalogue entry carries an [`impact` annotation](#impact-annotations), the document **must** carry the same annotation as a top-level `impact` member.
 
 ## Events — `io.best.agents.events`
 
@@ -585,6 +614,7 @@ Condensed from the normative set — every conformant implementation observes th
 - **`dataschema` SSRF** — servers select validation schemas from their own catalogue keyed by `type`; they **must not** fetch caller-supplied `dataschema` URIs, and **should** reject commands whose `dataschema` doesn't match a catalogue entry.
 - **Replay protection** — envelope `id` is an idempotency key; duplicates rejected within a retention window, scoped to the authenticated tenant/sender; same `id` + different payload → `409`.
 - **`source` is untrusted** — caller-declared; never grant permissions or make security decisions from it; overwrite with (or record alongside) the verified principal for audit.
+- **High-impact commands** — commands that are destructive, irreversible, or bypass a compliance control **should** require a control beyond the submitting credential (human approval, a second principal, out-of-band confirmation); that control **must not** be self-serviceable. Servers **should** declare the [`impact` annotation](#impact-annotations) on such commands so consumers can discover the obligation; the annotation never substitutes for the server-side control.
 - **Tenant isolation** — tenant context derives from authenticated identity, never from caller-supplied paths/params/fields; caches, dedup stores, and streams isolated per tenant; guessing a tenant ID grants nothing.
 - **Credential passthrough** (intermediaries such as MCP servers or gateways) — opt-in per connection, off by default; forward only to the configured endpoint; explicit per-request keys take precedence over ambient bearer tokens; never log credentials; multi-user intermediaries should fail closed.
 - **Input limits** — bound body size (`413`), JSON depth, collection sizes, string lengths; rate-limit per client and per tenant.

@@ -46,6 +46,7 @@ Command payloads routinely carry fields naming a person or subject — an approv
 - Commands that are destructive, irreversible, or that bypass a compliance control **SHOULD** require a control beyond the submitting credential: human approval, a second principal, or an out-of-band confirmation.
 - Such a control **MUST NOT** be self-serviceable. If the approval step can be performed by the same credential that submitted the command, it is an audit trail, not a control.
 - Where a server offers an approval mode that only logs what it would otherwise reject, that mode **MUST NOT** be the default, and its active mode **MUST** be discoverable by operators.
+- Servers **SHOULD** declare the [`impact` annotation](agents/commands.md#high-impact-annotations-impact) on high-impact commands, so consumers can discover which commands carry these obligations and warn the human before submitting. The annotation is descriptive: it **MUST NOT** be relied upon as the control itself — clients that ignore it must still meet the server-side requirements above.
 
 ## Credential Passthrough at Intermediaries
 

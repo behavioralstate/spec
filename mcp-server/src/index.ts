@@ -500,6 +500,8 @@ const TOOLS: Tool[] = [
       "An entry's 'workflows' array names the published recipes that command participates in — when your task " +
       'spans several operations, read the recipe FIRST (get_workflows with that id) instead of assembling the ' +
       'sequence from raw schemas. ' +
+      "An entry's 'impact' object marks a HIGH-IMPACT command (e.g. financial, destructive, irreversible): " +
+      'surface its warning to the user and obtain their explicit confirmation before sending it. ' +
       "Descriptions are truncated by default so the listing stays small — call get_command_schema for one " +
       "command's complete description and fields, or pass detail='full' to get every description verbatim.",
     inputSchema: { type: 'object', properties: { ...CONNECTION_PROP, ...CATALOGUE_DETAIL_PROP }, required: [] }
@@ -540,7 +542,10 @@ const TOOLS: Tool[] = [
       "identity (BEST servers route by 'type', never by 'source' alone). Supply an explicit " +
       'source ONLY when the schema description documents a specific required value — never invent one. ' +
       'Returns the accepted command ID on success, plus the correlation ID when the server echoes one ' +
-      '(spec 0.9.2+) — use it with get_events / sample_event_stream to observe the outcome events.',
+      '(spec 0.9.2+) — use it with get_events / sample_event_stream to observe the outcome events. ' +
+      "If the command carries an 'impact' annotation (spec 0.9.6 — high-impact: financial, destructive, " +
+      'irreversible), do NOT call this until the user has seen its warning and explicitly confirmed this ' +
+      'specific submission.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -969,7 +974,7 @@ async function handleGetCommandSchema(args: Record<string, unknown>, conn: BestC
   const schema  = args.schema as string;
   const version = args.version as string;
   const doc = await bestGet<unknown>(`/commands/${schema}/${version}`, conn);
-  return JSON.stringify(doc, null, 2) + await workflowNote(doc, 'commands', schema, conn);
+  return JSON.stringify(doc, null, 2) + await workflowNote(doc, 'commands', schema, conn) + await impactNote(doc, schema, conn);
 }
 
 // ── Workflow cross-link surfacing (spec 0.9.5) ───────────────────────────────
@@ -992,7 +997,7 @@ async function workflowNote(
   if (doc !== null && typeof doc === 'object' && Array.isArray((doc as Record<string, unknown>).workflows)) {
     ids = ((doc as Record<string, unknown>).workflows as unknown[]).filter((w): w is string => typeof w === 'string');
   }
-  if (!ids.length) ids = (await catalogueWorkflowLinks(kind, conn)).get(schemaName) ?? [];
+  if (!ids.length) ids = (await catalogueEntryMeta(kind, conn)).get(schemaName)?.workflows ?? [];
   if (!ids.length) return '';
   const noun = kind === 'commands' ? 'command' : 'query';
   return (
@@ -1002,20 +1007,55 @@ async function workflowNote(
   );
 }
 
+// ── High-impact annotation surfacing (spec 0.9.6) ────────────────────────────
+
 /**
- * Catalogue fallback for 0.9.4 servers that stamp `workflows` only on catalogue entries. Cached
- * per connection so the fallback costs one extra request per catalogue per TTL, not per schema
- * fetch; a failed catalogue read yields no note, never an error.
+ * The `impact` annotation marks a command as high-impact (financial, destructive, irreversible,
+ * compliance) and obliges a human-facing consumer to warn and confirm before submitting. Like the
+ * workflows cross-link, surfacing it is the CLIENT's job: the note is appended deterministically
+ * when the schema document (or its catalogue entry) carries the annotation, so the warn-and-confirm
+ * obligation reaches the model mechanically at the moment it is about to plan the send.
  */
-const catalogueLinksCache = new Map<string, { at: number; byName: Map<string, string[]> }>();
-const CATALOGUE_LINKS_TTL_MS = 5 * 60_000;
+async function impactNote(doc: unknown, schemaName: string, conn: BestConnection): Promise<string> {
+  let impact: Record<string, unknown> | null = null;
+  if (doc !== null && typeof doc === 'object') {
+    const candidate = (doc as Record<string, unknown>).impact;
+    if (candidate !== null && typeof candidate === 'object') impact = candidate as Record<string, unknown>;
+  }
+  if (!impact) impact = (await catalogueEntryMeta('commands', conn)).get(schemaName)?.impact ?? null;
+  if (!impact) return '';
 
-async function catalogueWorkflowLinks(kind: 'commands' | 'queries', conn: BestConnection): Promise<Map<string, string[]>> {
+  const categories = Array.isArray(impact.categories)
+    ? (impact.categories as unknown[]).filter((c): c is string => typeof c === 'string')
+    : [];
+  // Unknown or absent confirmation level is treated as the strict one — fail safe.
+  const confirmation = impact.confirmation === 'recommended' ? 'recommended' : 'required';
+  const warning = typeof impact.warning === 'string' ? impact.warning : '';
+
+  return (
+    `\n\nHIGH-IMPACT COMMAND (${categories.join(', ') || 'unspecified'}; confirmation ${confirmation}). ` +
+    (warning ? `Show the user this warning, substantially intact, before asking: "${warning}" ` : '') +
+    (confirmation === 'required'
+      ? 'Do NOT send this command until the user has explicitly confirmed this specific submission — a standing instruction or earlier approval of a different submission does not count.'
+      : 'Confirm with the user before sending unless they have durably authorized this class of operation.')
+  );
+}
+
+/**
+ * Catalogue fallback for servers that stamp `workflows` (0.9.4) or `impact` (0.9.6) only on
+ * catalogue entries. Cached per connection so the fallback costs one extra request per catalogue
+ * per TTL, not per schema fetch; a failed catalogue read yields no note, never an error.
+ */
+interface CatalogueEntryMeta { workflows: string[]; impact: Record<string, unknown> | null }
+const catalogueMetaCache = new Map<string, { at: number; byName: Map<string, CatalogueEntryMeta> }>();
+const CATALOGUE_META_TTL_MS = 5 * 60_000;
+
+async function catalogueEntryMeta(kind: 'commands' | 'queries', conn: BestConnection): Promise<Map<string, CatalogueEntryMeta>> {
   const key = `${conn.name}:${kind}`;
-  const hit = catalogueLinksCache.get(key);
-  if (hit && Date.now() - hit.at < CATALOGUE_LINKS_TTL_MS) return hit.byName;
+  const hit = catalogueMetaCache.get(key);
+  if (hit && Date.now() - hit.at < CATALOGUE_META_TTL_MS) return hit.byName;
 
-  const byName = new Map<string, string[]>();
+  const byName = new Map<string, CatalogueEntryMeta>();
   try {
     const data = await bestGet<Record<string, unknown>>(`/${kind}`, conn);
     const entries = data[kind];
@@ -1023,16 +1063,21 @@ async function catalogueWorkflowLinks(kind: 'commands' | 'queries', conn: BestCo
       for (const entry of entries) {
         if (entry !== null && typeof entry === 'object') {
           const e = entry as Record<string, unknown>;
-          if (typeof e.schema === 'string' && Array.isArray(e.workflows)) {
-            byName.set(e.schema, (e.workflows as unknown[]).filter((w): w is string => typeof w === 'string'));
-          }
+          if (typeof e.schema !== 'string') continue;
+          const workflows = Array.isArray(e.workflows)
+            ? (e.workflows as unknown[]).filter((w): w is string => typeof w === 'string')
+            : [];
+          const impact = e.impact !== null && typeof e.impact === 'object'
+            ? (e.impact as Record<string, unknown>)
+            : null;
+          if (workflows.length || impact) byName.set(e.schema, { workflows, impact });
         }
       }
     }
   } catch {
     // Catalogue unreadable — cache the empty map so a broken endpoint is not re-hit per schema fetch.
   }
-  catalogueLinksCache.set(key, { at: Date.now(), byName });
+  catalogueMetaCache.set(key, { at: Date.now(), byName });
   return byName;
 }
 

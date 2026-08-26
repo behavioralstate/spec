@@ -37,6 +37,30 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Ids of published workflows (io.best.agents.workflows) this command participates in — the protocol's single workflow-discoverability mechanism, stamped both here and as a top-level member of the command's schema document. Servers SHOULD populate it for every operation that appears in a recipe; consumers SHOULD read the recipe before composing a multi-step sequence themselves."
+        },
+        "impact": { "$ref": "#/$defs/impact" }
+      },
+      "additionalProperties": false
+    },
+    "impact": {
+      "type": "object",
+      "description": "High-impact annotation — declares that this command is high-impact in the sense of the Security Requirements (destructive, irreversible, financial, or compliance-relevant) and that a consumer acting on behalf of a human must warn that human and obtain explicit confirmation before submitting it. Stamped both on the catalogue entry and as a top-level member of the command's schema document; both surfaces MUST carry the same value. Descriptive only: it never replaces the server-side controls the Security Requirements demand for high-impact commands.",
+      "required": ["categories", "confirmation"],
+      "properties": {
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "What kind of impact the command has. Named values: 'financial' (moves money or puts capital at risk), 'destructive' (removes data or state), 'irreversible' (cannot be undone by a compensating command), 'compliance' (bypasses or alters a compliance control). The vocabulary is open — implementers MAY add their own values; consumers treat unknown values as high-impact."
+        },
+        "confirmation": {
+          "type": "string",
+          "enum": ["recommended", "required"],
+          "description": "'required': a consumer acting on behalf of a human MUST NOT submit this command without explicit, per-submission confirmation from that human. 'recommended': the consumer SHOULD confirm but MAY proceed when the human has durably authorized this class of operation. Service-to-service automation with no human principal is governed by the server-side High-impact controls instead."
+        },
+        "warning": {
+          "type": "string",
+          "description": "Human-readable warning the consumer SHOULD surface to the human, substantially intact, before asking for confirmation (e.g. 'Places a real order on your broker account. Capital at risk.')."
         }
       },
       "additionalProperties": false

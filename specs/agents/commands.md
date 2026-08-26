@@ -44,7 +44,7 @@ Commands ride the [CloudEvents 1.0 envelope](/specs/design-decisions#cloudevents
 
 ### The catalogue (`GET /commands`)
 
-Each entry: `schema` (kebab-case name, the `{schema}` path segment — distinct from the PascalCase envelope `type`), `version`, `dataschema` (resolvable URI, the exact value to put on the command envelope), optional `description`.
+Each entry: `schema` (kebab-case name, the `{schema}` path segment — distinct from the PascalCase envelope `type`), `version`, `dataschema` (resolvable URI, the exact value to put on the command envelope), optional `description`, optional `workflows` (recipe cross-links), optional `impact` (high-impact annotation — see below).
 
 ```json
 {
@@ -81,3 +81,19 @@ Returns the raw JSON Schema for one command version — the canonical target of 
 The document **may** declare `produces`: an array of PascalCase event types the command can raise, e.g. `["CounterProposed", "NegotiationFailed"]`. Failure outcomes are ordinary events in that list; the naming convention (`*Failed`) is service-defined. Silent failures are handled client-side via timeout — services should document expected processing times and always publish a failure event rather than silently dropping a command.
 
 When the service publishes [workflows](workflows.md), the document **should** also carry the operation's `workflows` cross-link array — the same ids the catalogue entry carries (see [Workflows — Discoverability](workflows.md#discoverability-one-mechanism-the-workflows-cross-link)).
+
+### High-impact annotations (`impact`)
+
+A command that moves money, destroys data, or cannot be undone **may** carry an `impact` annotation — on its catalogue entry and, identically, as a top-level member of its schema document:
+
+```json
+"impact": {
+  "categories": ["financial"],
+  "confirmation": "required",
+  "warning": "Places a real order on your broker account. Capital is at risk."
+}
+```
+
+`categories` names the kind of impact (`financial`, `destructive`, `irreversible`, `compliance` — open vocabulary; unknown values are treated as high-impact). `confirmation: "required"` means a consumer acting on behalf of a human **must not** submit the command without explicit, per-submission confirmation from that human; `"recommended"` allows proceeding under a durable prior authorization. `warning` is text the consumer **should** surface, substantially intact, before asking.
+
+The annotation is the *discovery half* of the [high-impact controls in Security](/specs/security#high-impact-commands): it tells well-behaved consumers what to do, and never replaces the server-side control — a server cannot rely on clients honoring it. Normative reference: [SPEC.md — Impact Annotations](https://github.com/behavioralstate/spec/blob/main/SPEC.md#impact-annotations).

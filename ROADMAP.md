@@ -68,6 +68,9 @@ Everything still open, in rough priority order:
 
 | Version | Date | Highlights |
 |---|---|---|
+| spec/v0.9.6 | 2026-08-26 | Optional `impact` annotation on command catalogue entries + schema documents — high-impact commands (financial/destructive/irreversible/compliance) become discoverable; human-facing consumers warn and confirm before submitting |
+| spec/v0.9.5 | 2026-08-26 | `workflows` cross-link consolidated as the single workflow-discoverability mechanism, stamped on schema documents as well as catalogue entries |
+| spec/v0.9.4 | 2026-08-26 | Workflows promoted from vendor-extension convention to the Extended capability `io.best.agents.workflows` |
 | spec/v0.9.2 | 2026-08-23 | First-class `correlationid` envelope attribute; webhook subscriptions and gRPC transport declaration removed; removed-capability residue deleted; `specs/` pages slimmed |
 | spec/v0.9.1 | 2026-07-30 | Command authorisation requirements (deny-by-default, actor binding, high-impact controls); schema selection relaxed to any server-owned identifier; same-identifier rule for selection/authz/dispatch. No wire change |
 | spec/v0.9.0 | 2026-07-22 | BSP → BEST rename; conformant CloudEvents 1.0 profile; MIGRATION.md; standards artifacts |
