@@ -21,6 +21,7 @@ For each capability an endpoint claims to support:
 | `agents.commands` | GET /commands, POST /commands |
 | `agents.events` | GET /events |
 | `agents.queries` | GET /queries, GET /queries/{schema}/{version}, GET /queries/{schema} |
+| `agents.workflows` | GET /workflows, GET /workflows/{id} |
 
 > **Path resolution:** All paths above are relative to the `http.endpoint` base URL declared in the discovery manifest. For example, if `http.endpoint` is `https://app.example.com/BEST/`, then `GET /commands` resolves to `https://app.example.com/BEST/commands`. The paths are never relative to the domain root unless `http.endpoint` itself is the domain root.
 

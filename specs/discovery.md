@@ -65,7 +65,7 @@ The manifest endpoint is **always public** — an implementation that requires a
 
 ## Capability Entries
 
-The three standard capabilities are `io.best.agents.commands`, `io.best.agents.events`, and `io.best.agents.queries`. Each entry carries:
+The four standard capabilities are `io.best.agents.commands`, `io.best.agents.events`, `io.best.agents.queries`, and `io.best.agents.workflows`. Each entry carries:
 
 | Field | Description |
 |---|---|

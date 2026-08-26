@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://behavioralstate.io/v1/schemas/agents/workflows.json",
+  "title": "BEST Workflows",
+  "description": "Schema for the published-workflow capability (io.best.agents.workflows) — read-only, named recipes of catalogue operations. Strictly descriptive: the service never executes, retries, tracks, or branches the steps; the caller drives every one.",
+  "$defs": {
+    "workflowIndexEntry": {
+      "type": "object",
+      "description": "An entry in the workflow index — one published recipe, identified and summarised but without its steps. The index stays shallow by design so a consumer (typically an LLM agent) can hold the whole list in one read.",
+      "required": ["id", "name", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable, service-defined, URL-path-safe workflow identifier (reverse-domain such as io.example.workflows.onboard-a-worker, or kebab-case). Used as the {id} path segment in GET /workflows/{id} and referenced from catalogue entries' workflows arrays."
+        },
+        "name": {
+          "type": "string",
+          "description": "Short human-readable display name."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the recipe accomplishes and when to follow it — the text a consumer chooses by."
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflowIndex": {
+      "type": "object",
+      "description": "Response body for GET /workflows. Lists every published workflow as an index entry — never the steps.",
+      "required": ["workflows"],
+      "properties": {
+        "workflows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflowIndexEntry" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflowStep": {
+      "type": "object",
+      "description": "One step of a workflow: a reference to a live catalogue operation plus cross-step guidance. Recipes reference the catalogue — they never duplicate schemas, so they cannot drift from the real contracts.",
+      "required": ["kind", "dataschema"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["command", "query"],
+          "description": "Whether the step sends a command (POST /commands) or executes a query (GET /queries/{schema})."
+        },
+        "dataschema": {
+          "type": "string",
+          "format": "uri",
+          "description": "Resolvable URI of the operation's schema document in this service's live command or query catalogue — the same value the catalogue entry carries."
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the step applies only in some runs of the recipe. Absent means required."
+        },
+        "guidance": {
+          "type": "string",
+          "description": "How this step combines with the others — what to carry forward, what to wait for, when to skip. Anything about the single operation in isolation belongs in that operation's schema description instead."
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "description": "Response body for GET /workflows/{id}. One full recipe: identity, summary, and the ordered steps the caller drives.",
+      "required": ["id", "name", "description", "steps"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": {
+          "type": "string",
+          "description": "What the recipe accomplishes, the frame it enforces, and any boundaries the caller must respect while following it."
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workflowStep" },
+          "description": "The steps in execution order. The caller sends each operation itself and waits for its outcome before proceeding — the service never runs them."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

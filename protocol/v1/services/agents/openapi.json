@@ -432,6 +432,77 @@
         }
       }
     },
+    "/workflows": {
+      "get": {
+        "operationId": "listWorkflows",
+        "summary": "List published workflows",
+        "description": "Returns the workflow index — id, name, and description for every published recipe, never the steps. The index is deliberately shallow so a consumer can hold the whole list in one read; fetch full recipes one at a time via GET /workflows/{id}.",
+        "tags": [
+          "Workflows"
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/workflows.json#/$defs/workflowIndex"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/workflows/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "description": "Workflow id from the index (e.g. io.example.workflows.onboard-a-worker)"
+        }
+      ],
+      "get": {
+        "operationId": "getWorkflow",
+        "summary": "Get one published workflow",
+        "description": "Returns one full recipe: identity, summary, and the ordered steps. Each step references a live catalogue operation by its dataschema URI; the caller drives every step itself — the service never executes them.",
+        "tags": [
+          "Workflows"
+        ],
+        "responses": {
+          "200": {
+            "description": "One workflow recipe with its ordered steps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/agents/workflows.json#/$defs/workflow"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Workflow id not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/error.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/commands/{schema}/{version}": {
       "parameters": [
         {
@@ -504,6 +575,10 @@
     {
       "name": "Queries",
       "description": "io.best.agents.queries — Discover query types (GET /queries), fetch versioned query schemas (GET /queries/{schema}/{version}), and execute queries (GET /queries/{schema})"
+    },
+    {
+      "name": "Workflows",
+      "description": "io.best.agents.workflows — List published workflow recipes (GET /workflows) and fetch one recipe with its ordered steps (GET /workflows/{id}). Strictly descriptive: the caller drives every step."
     }
   ],
   "components": {

@@ -80,6 +80,7 @@
 				<li><a href="/specs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
 				<li><a href="/specs/agents/events">Events</a><span>Events published by services</span></li>
 				<li><a href="/specs/agents/queries">Queries</a><span>Synchronous reads of current state</span></li>
+				<li><a href="/specs/agents/workflows">Workflows</a><span>Published multi-step recipes, caller-driven</span></li>
 			</ul>
 		</section>
 
