@@ -88,8 +88,11 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 
 // The real published version, surfaced to hosts in the initialize result — a hardcoded constant
-// here once drifted to '1.0.0' and made "which best-mcp am I running?" unanswerable.
+// here once drifted to '1.0.0' and made "which best-mcp am I running?" unanswerable. Hosts don't
+// hand serverInfo to the MODEL, so the version also rides the server instructions and the
+// get_manifest result (as CLIENT_ID) — the two places the model can actually read it.
 const PACKAGE_VERSION: string = createRequire(import.meta.url)('../package.json').version;
+const CLIENT_ID = `@behavioralstate/best-mcp ${PACKAGE_VERSION}`;
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -1275,13 +1278,13 @@ async function handleGetManifest(conn: BestConnection): Promise<string> {
     const tenantUrl = template.replace('{tenantId}', encodeURIComponent(tenantId));
     try {
       const tenantManifest = await fetchManifest(tenantUrl);
-      return JSON.stringify({ manifestUrl: tenantUrl, scope: 'tenant', manifest: tenantManifest }, null, 2);
+      return JSON.stringify({ client: CLIENT_ID, manifestUrl: tenantUrl, scope: 'tenant', manifest: tenantManifest }, null, 2);
     } catch {
       // Fall through to the global manifest — better a coarser answer than none.
     }
   }
 
-  return JSON.stringify({ manifestUrl: globalUrl, scope: 'global', manifest: globalManifest }, null, 2);
+  return JSON.stringify({ client: CLIENT_ID, manifestUrl: globalUrl, scope: 'global', manifest: globalManifest }, null, 2);
 }
 
 async function handleGetWorkflows(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
@@ -1341,7 +1344,10 @@ const connectionSummary = MULTI
   : `\n\nConnected to: ${CONNECTIONS[0].endpoint}`;
 
 const SERVER_INSTRUCTIONS = (`
-You are connected to one or more BEST-compliant service endpoints.
+You are connected to one or more BEST-compliant service endpoints, through the
+@behavioralstate/best-mcp client, version ${PACKAGE_VERSION}. If asked which best-mcp / MCP client
+version is in use, that is the answer — the version a service's manifest reports is the BEST SPEC
+version its server implements, a different thing.
 ${connectionSummary}
 
 ## Discovering running services
