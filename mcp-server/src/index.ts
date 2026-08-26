@@ -966,7 +966,71 @@ async function handleGetCommandSchema(args: Record<string, unknown>, conn: BestC
   const schema  = args.schema as string;
   const version = args.version as string;
   const doc = await bestGet<unknown>(`/commands/${schema}/${version}`, conn);
-  return JSON.stringify(doc, null, 2);
+  return JSON.stringify(doc, null, 2) + await workflowNote(doc, 'commands', schema, conn);
+}
+
+// ── Workflow cross-link surfacing (spec 0.9.5) ───────────────────────────────
+
+/**
+ * The `workflows` cross-link is the protocol's single workflow-discoverability mechanism, and
+ * surfacing it is the CLIENT's job: when a fetched schema document carries it (0.9.5), or its
+ * catalogue entry does (0.9.4), a deterministic note is appended to the tool result — the nudge
+ * reaches the model mechanically at the moment it is about to plan, instead of relying on prose
+ * salience or on the host forwarding server instructions. Fetching a schema means the model is
+ * one step from acting, so this is the one place the pointer must not be missable.
+ */
+async function workflowNote(
+  doc: unknown,
+  kind: 'commands' | 'queries',
+  schemaName: string,
+  conn: BestConnection
+): Promise<string> {
+  let ids: string[] = [];
+  if (doc !== null && typeof doc === 'object' && Array.isArray((doc as Record<string, unknown>).workflows)) {
+    ids = ((doc as Record<string, unknown>).workflows as unknown[]).filter((w): w is string => typeof w === 'string');
+  }
+  if (!ids.length) ids = (await catalogueWorkflowLinks(kind, conn)).get(schemaName) ?? [];
+  if (!ids.length) return '';
+  const noun = kind === 'commands' ? 'command' : 'query';
+  return (
+    `\n\nNOTE: this ${noun} is a step of published workflow${ids.length > 1 ? 's' : ''}: ${ids.join(', ')}. ` +
+    `Read the recipe FIRST (get_workflows with workflow_id) before composing a multi-step sequence yourself — ` +
+    `it carries the ordering and cross-step guidance this schema cannot.`
+  );
+}
+
+/**
+ * Catalogue fallback for 0.9.4 servers that stamp `workflows` only on catalogue entries. Cached
+ * per connection so the fallback costs one extra request per catalogue per TTL, not per schema
+ * fetch; a failed catalogue read yields no note, never an error.
+ */
+const catalogueLinksCache = new Map<string, { at: number; byName: Map<string, string[]> }>();
+const CATALOGUE_LINKS_TTL_MS = 5 * 60_000;
+
+async function catalogueWorkflowLinks(kind: 'commands' | 'queries', conn: BestConnection): Promise<Map<string, string[]>> {
+  const key = `${conn.name}:${kind}`;
+  const hit = catalogueLinksCache.get(key);
+  if (hit && Date.now() - hit.at < CATALOGUE_LINKS_TTL_MS) return hit.byName;
+
+  const byName = new Map<string, string[]>();
+  try {
+    const data = await bestGet<Record<string, unknown>>(`/${kind}`, conn);
+    const entries = data[kind];
+    if (Array.isArray(entries)) {
+      for (const entry of entries) {
+        if (entry !== null && typeof entry === 'object') {
+          const e = entry as Record<string, unknown>;
+          if (typeof e.schema === 'string' && Array.isArray(e.workflows)) {
+            byName.set(e.schema, (e.workflows as unknown[]).filter((w): w is string => typeof w === 'string'));
+          }
+        }
+      }
+    }
+  } catch {
+    // Catalogue unreadable — cache the empty map so a broken endpoint is not re-hit per schema fetch.
+  }
+  catalogueLinksCache.set(key, { at: Date.now(), byName });
+  return byName;
 }
 
 async function handleSendCommand(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
@@ -1043,7 +1107,7 @@ async function handleGetQuerySchema(args: Record<string, unknown>, conn: BestCon
   const schema  = args.schema as string;
   const version = args.version as string;
   const doc = await bestGet<unknown>(`/queries/${schema}/${version}`, conn);
-  return JSON.stringify(doc, null, 2);
+  return JSON.stringify(doc, null, 2) + await workflowNote(doc, 'queries', schema, conn);
 }
 
 /**
