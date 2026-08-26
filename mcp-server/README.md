@@ -66,7 +66,7 @@ Spec reference: https://behavioralstate.io/docs
 | `get_events` | Query the historical event log (`GET /events`) — filter by correlationId/type/source/time, paginate with the response cursor |
 | `get_event_schema` | Fetch the JSON Schema for a typed event (`GET /events/{schema}/{version}`) |
 | `sample_event_stream` | Open the live SSE stream (`GET /events/stream`), collect events until `max_events`/`max_seconds`, then return them — bounded client-side, so it works against any conformant endpoint |
-| `get_workflows` | List the service's published "descriptive sequence" recipes — an optional vendor extension; returns a note if the service publishes none |
+| `get_workflows` | List the service's published workflow recipes (`GET /workflows` — always answered as a shallow index), or fetch one full recipe with its steps via `workflow_id` (`GET /workflows/{id}`). Handles both the 0.9.4 `io.best.agents.workflows` capability and pre-0.9.4 vendor-extension servers; returns a note if the service publishes none |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
 
@@ -75,7 +75,7 @@ Events flow: `get_manifest` (does the service declare events, and over which cha
 Correlation (spec 0.9.2+): every accepted command has a correlation ID — the caller's `correlation_id`, or defaulting to the command's own ID — echoed as `correlationId` in the `send_command` response and stamped as `correlationid` on every event the command causes, across process chains. Filter `get_events` / `sample_event_stream` by it to observe a command's outcome. Pre-0.9.2 servers ignore the attribute and echo nothing; behaviour there is unchanged.
 
 Both catalogue tools truncate each entry's description by default, because a catalogue exists to let a caller *choose* an operation and a thoroughly documented service makes the full listing too large for that — one endpoint returns 47 KB for ~65 commands, which clients spill to disk before a model can read it. Truncation is ~60% smaller and still enough to pick from; the schema tools return one operation's complete text, and `detail: "full"` returns every description verbatim when you really need to compare across entries.
-Optionally call `get_workflows` first to see if the service publishes a ready-made recipe for a multi-step process.
+Before hand-assembling a multi-step process, call `get_workflows` — catalogue entries may point at recipes via their `workflows` array — then `get_workflows` with `workflow_id` for the chosen recipe's steps.
 
 When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
 

@@ -793,13 +793,27 @@ const TOOLS: Tool[] = [
   {
     name: 'get_workflows',
     description:
-      "List the service's published workflows — optional, read-only \"descriptive sequence\" recipes: " +
-      'a named, ordered list of command schemas with per-step guidance for a multi-step process. ' +
-      'Workflows are a vendor extension (BEST does not require them) — many services publish none, ' +
-      'in which case this returns a short note. Each step\'s "schema" is a command from ' +
-      'get_command_catalogue: follow the steps in order, sending each command (and waiting for its ' +
-      'result) before the next. The service does not execute the steps for you — it only describes them.',
-    inputSchema: { type: 'object', properties: { ...CONNECTION_PROP }, required: [] }
+      "List the service's published workflows, or fetch ONE full recipe by passing workflow_id. " +
+      'Workflows are read-only recipes for multi-step processes — an ordered list of catalogue ' +
+      'operations (commands and queries) with per-step guidance — the optional ' +
+      'io.best.agents.workflows capability (spec 0.9.4+; older vendor-extension servers are handled ' +
+      'transparently). Without workflow_id you get the INDEX (id, name, description per recipe — ' +
+      'steps elided); pass a workflow_id from the index to read that recipe\'s steps. Follow the ' +
+      'steps in order, sending each command / executing each query yourself and waiting for its ' +
+      'result before the next — the service never executes the sequence for you. Command and query ' +
+      'catalogue entries may carry a "workflows" array naming the recipes they participate in. ' +
+      'Many services publish none, in which case this returns a short note.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        workflow_id: {
+          type: 'string',
+          description: "A workflow id from the index (e.g. 'io.acme.workflows.onboard-a-worker') — returns that recipe with its full steps."
+        }
+      },
+      required: []
+    }
   }
 ];
 // ── Argument validation ───────────────────────────────────────────────────────
@@ -1194,17 +1208,47 @@ async function handleGetManifest(conn: BestConnection): Promise<string> {
   return JSON.stringify({ manifestUrl: globalUrl, scope: 'global', manifest: globalManifest }, null, 2);
 }
 
-async function handleGetWorkflows(conn: BestConnection): Promise<string> {
-  // Workflows are an optional vendor extension (see the BEST "Composing Commands into Processes"
-  // guide). A service that doesn't publish them simply has no /workflows endpoint — treat that as
-  // "none offered" rather than an error, so the agent can move on.
+async function handleGetWorkflows(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  // Workflows are the optional io.best.agents.workflows capability (spec 0.9.4). 0.9.4 servers
+  // serve a shallow index at /workflows and one full recipe at /workflows/{id}; pre-0.9.4
+  // vendor-extension servers serve every recipe, steps included, in the one list. A service that
+  // publishes neither simply has no /workflows endpoint — treat that as "none offered" rather
+  // than an error, so the agent can move on.
+  const workflowId = args.workflow_id as string | undefined;
+
+  if (workflowId) {
+    try {
+      const recipe = await bestGet<unknown>(`/workflows/${encodeURIComponent(workflowId)}`, conn);
+      return JSON.stringify(recipe, null, 2);
+    } catch {
+      // No per-id route (pre-0.9.4) or unknown id — the full list settles which.
+    }
+    try {
+      const data = await bestGet<{ workflows?: Array<Record<string, unknown>> }>('/workflows', conn);
+      const workflows = data.workflows ?? [];
+      const match = workflows.find(w => w.id === workflowId || w.name === workflowId);
+      if (match) return JSON.stringify(match, null, 2);
+      const ids = workflows.map(w => String(w.id ?? w.name ?? '?'));
+      return `No workflow '${workflowId}' here. Published workflows: ${ids.join(', ') || '(none)'}.`;
+    } catch (error) {
+      return `This endpoint does not publish workflows (an optional capability). Details: ${String(error)}`;
+    }
+  }
+
   try {
-    const data = await bestGet<{ workflows?: unknown[] }>('/workflows', conn);
+    const data = await bestGet<{ workflows?: Array<Record<string, unknown>> }>('/workflows', conn);
     const workflows = data.workflows ?? [];
     if (!workflows.length) return 'This endpoint publishes no workflows.';
-    return JSON.stringify(workflows, null, 2);
+    // Always answer with an index, whichever shape the server serves: the list must stay small
+    // enough for an agent to read in one turn and choose — steps come from a workflow_id call.
+    const carriedSteps = workflows.some(w => Array.isArray(w.steps));
+    const index = workflows.map(({ steps: _steps, ...rest }) => rest);
+    const note = carriedSteps
+      ? 'Steps elided — pass workflow_id to read one full recipe.'
+      : 'Pass workflow_id to read one full recipe with its steps.';
+    return `${JSON.stringify(index, null, 2)}\n\n${note}`;
   } catch (error) {
-    return `This endpoint does not publish workflows (an optional vendor extension). Details: ${String(error)}`;
+    return `This endpoint does not publish workflows (an optional capability). Details: ${String(error)}`;
   }
 }
 
@@ -1271,10 +1315,13 @@ get_command_catalogue and configure those instead.
 
 ## Following a published workflow (optional)
 
-Some services publish read-only "recipes" for common multi-step processes. Call get_workflows to
-list them. Each workflow is an ordered list of steps; each step names a 'schema' that is a command
-(or query) you already have. Follow the steps in order — send each command and wait for its result
-before the next, threading ids from earlier results into later steps. The service does not run the
+Some services publish read-only "recipes" for common multi-step processes. BEFORE hand-assembling a
+multi-step process from raw schemas, check for a recipe: command/query catalogue entries may carry a
+'workflows' array naming the recipes they participate in, and get_workflows lists every recipe's id,
+name and description. Pass workflow_id to read one recipe's ordered steps; each step references a
+command or query you already have (by its dataschema URI) plus guidance on how the steps combine.
+Follow the steps in order — send each command / execute each query and wait for its result before
+the next, threading ids from earlier results into later steps. The service does not run the
 sequence for you; it only describes it. Workflows are optional — if get_workflows reports none, fall
 back to discovering commands/queries directly.
 
@@ -1329,7 +1376,7 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
         case 'get_events':            text = await handleGetEvents(safeArgs, conn);            break;
         case 'get_event_schema':      text = await handleGetEventSchema(safeArgs, conn);       break;
         case 'sample_event_stream':   text = await handleSampleEventStream(safeArgs, conn);    break;
-        case 'get_workflows':         text = await handleGetWorkflows(conn);                   break;
+        case 'get_workflows':         text = await handleGetWorkflows(safeArgs, conn);         break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }
