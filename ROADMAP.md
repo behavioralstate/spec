@@ -1,6 +1,6 @@
 # BEST — Roadmap and Status
 
-Last updated: 2026-08-29 (IANA registration rejected by the designated expert; unregistered-use stance adopted).
+Last updated: 2026-08-29 (0.9.7 released — manifest `extensions`; both IETF list posts sent; I-D `-01` posted; IANA unregistered-use stance adopted).
 
 ## Where the protocol stands
 
@@ -38,7 +38,7 @@ Everything still open, in rough priority order:
 - [ ] Implement 0.9.2 `correlationid` in the deployments (dotquant, remundo) and surface it in `best-validate`. Done in `best-mcp` (2026-08-24): optional `correlation_id` on the send tools, echoed `correlationId` surfaced with event-tool guidance; verified byte-identical behaviour against pre-0.9.2 servers
 
 **Evolution candidates from the IETF BoF landscape** (reviewed 2026-08-24 against the dawn/agentproto drafts; all additive 0.9.x patches):
-- [ ] **Manifest extension point** — capability entries and the manifest root are `additionalProperties: false`, so vendor data has no lawful home (remundo's leftover `push` field failing validation is the preview). Add one free-form `extensions` object, ignored by the core, on capability entries and the root. Converts dawn's attestation/capacity/risk-data asks from "missing features" into "extensions BEST accommodates". Highest-value candidate.
+- [x] **Manifest extension point** — shipped in **0.9.7** as the `extensions` object (manifest root + capability entries), deliberately narrower than first sketched: the governing rule is **domain-first** — anything dynamic, behavioral, or obtainable after authentication is modeled as ordinary capability surface (custom capability, query, event, workflow), and `extensions` exists only for static, discovery-time declarations that must ride in the manifest document itself (indexer-facing facts, future manifest-integrity data, per-element annotations). Reverse-domain keys, core ignores contents, never required for core interaction, manifest-hygiene rule applies. Converts dawn's attestation/capacity/risk-data asks into "extensions BEST accommodates; promoted to core only if a standard defines them". See [design decisions](specs/design-decisions.md#manifest-extensions--one-escape-hatch-domain-first) and [MIGRATION.md](MIGRATION.md#migrating-from-096-to-097).
 - [ ] **Security & privacy considerations for manifest content** — prose stating the two-tier visibility model explicitly: the public root manifest stays coarse (no tenant identifiers, internal hostnames, capacity data); fine detail belongs in authenticated tenant manifests. Addresses the dawn gap-analysis enumeration/scraping concern and strengthens the I-D's Security Considerations for resubmission.
 - [ ] **Manifest caching guidance** — non-normative: serve `/.well-known/best` with `ETag` + `Cache-Control`. (dawn wants static/dynamic property classification; plain HTTP semantics cover BEST's case.)
 - [ ] **`deprecated` capability status** — the lifecycle enum is `planned → partial → active`: birth but no death. Needed the first time a platform sunsets a capability; dawn requires lifecycle info in discovery.
@@ -70,6 +70,7 @@ Everything still open, in rough priority order:
 
 | Version | Date | Highlights |
 |---|---|---|
+| spec/v0.9.7 | 2026-08-29 | Optional `extensions` object on the manifest root and capability entries — vendor data gets one lawful home under a domain-first rule (dynamic/behavioral data stays ordinary capability surface) |
 | spec/v0.9.6 | 2026-08-26 | Optional `impact` annotation on command catalogue entries + schema documents — high-impact commands (financial/destructive/irreversible/compliance) become discoverable; human-facing consumers warn and confirm before submitting |
 | spec/v0.9.5 | 2026-08-26 | `workflows` cross-link consolidated as the single workflow-discoverability mechanism, stamped on schema documents as well as catalogue entries |
 | spec/v0.9.4 | 2026-08-26 | Workflows promoted from vendor-extension convention to the Extended capability `io.best.agents.workflows` |

@@ -318,7 +318,7 @@ CloudEvents 1.0 is a widely understood, well-structured envelope that LLM client
 | `dataschema` presence | Optional | Required for commands; optional for events | Commands are validated before queuing; untyped events are a supported pattern. |
 | `dataschema` value | Absolute URI | The catalogue entry's absolute URI (resolves to `GET /commands/{schema}/{version}`) | One canonical value; servers still validate from their **own** catalogue and **never fetch** the caller-supplied URI (SSRF — see [Security](/specs/security#command-ingestion-schema-selection)). |
 | `source` | URI-reference, absolute recommended | Same, with an added rule: never treated as authenticated identity | Caller-declared origin; authorisation derives from credentials, not `source`. |
-| Extension attributes | Producers may add them | Permitted; BEST defines none and messages must not rely on them | Consumers **must** ignore unknown attributes rather than reject — this also implements BEST's forward-compatibility rule (see [Versioning](/specs/versioning)). |
+| Extension attributes | Producers may add them | Permitted; BEST defines one (`correlationid`, since 0.9.2) and messages must not rely on others | Consumers **must** ignore unknown attributes rather than reject — this also implements BEST's forward-compatibility rule (see [Versioning](/specs/versioning)). |
 
 ### Implication for implementers
 
@@ -326,3 +326,27 @@ CloudEvents 1.0 is a widely understood, well-structured envelope that LLM client
 - Servers validate command payloads against their **own** catalogue schema, selected by `type` or by the schema name `dataschema` carries; the wire `dataschema` is a selector, never fetched.
 - Consumers and servers must tolerate unknown envelope attributes (ignore, don't reject).
 - CloudEvents broker integration requires no envelope adaptation.
+
+---
+
+## Manifest Extensions — one escape hatch, domain-first
+
+### The decision
+
+Since 0.9.7 the manifest root and each capability entry accept one optional free-form `extensions` object — the single lawful home for vendor-defined data in a manifest that is otherwise strictly closed (`additionalProperties: false` everywhere). Keys are reverse-domain identifiers owned by the declarer; the core never interprets the contents; consumers ignore what they don't understand; no extension may be required to use a core capability.
+
+The rule that governs it is **domain-first**: anything dynamic, behavioral, or obtainable after authentication **must** be modeled as ordinary capability surface — a custom capability, a query, an event, a workflow. `extensions` exists only for static, discovery-time declarations that must ride in the manifest document itself.
+
+### Why
+
+The strict schema is a feature — it keeps the core contract unambiguous — but it left vendor data with literally no legal position in the document: every extra key, useful or leftover, was equally non-conformant. The first casualty was real (a deployment's leftover per-capability configuration failing validation with nowhere to migrate to).
+
+The obvious fix — open the whole manifest up — would dissolve the contract. The obvious alternative — model everything as domain surface — is BEST's own philosophy (it is why registry, lifecycle, and memory were deleted) and covers almost everything… except the narrow class of facts a consumer needs *before* it can interact at all: data an unauthenticated indexer reads while classifying hosts, integrity data that must cover the manifest document itself, or a static annotation on a specific manifest element. A query cannot serve those, because reaching a query already presumes the manifest was read, trusted, and credentials obtained.
+
+So the escape hatch is exactly as large as that residue and no larger. It also gives external standardization efforts (e.g. IETF discovery work on attestation, capacity, or risk metadata) a compatibility path: such data enters as a namespaced extension, and is promoted into the core only if a standard defines it.
+
+### What this is not
+
+- Not a side-channel API — dynamic data behind `extensions` instead of a query is a design error.
+- Not a private channel — the root manifest is public, and the manifest-hygiene rule applies to extension content identically.
+- Not a second capability mechanism — behavior is declared as a capability, never as an extension.

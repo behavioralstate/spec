@@ -42,6 +42,9 @@
         },
         "tenants": {
           "$ref": "#/$defs/tenants"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
         }
       },
       "additionalProperties": false
@@ -214,6 +217,9 @@
         },
         "push": {
           "$ref": "#/$defs/pushChannels"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
         }
       },
       "additionalProperties": false
@@ -230,6 +236,11 @@
         }
       },
       "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Vendor-defined static declarations that must ride in the manifest document itself. Keys should be reverse-domain identifiers owned by the declarer (e.g. com.acme.region); the io.best.* prefix remains reserved for the specification and must not be used by implementers. The core protocol never interprets the contents, validators check only that this is an object, and consumers must ignore extensions they do not understand. Extensions must never be required in order to use a core capability, and must never carry anything obtainable through ordinary capability surface (commands, queries, events, workflows) — anything dynamic, behavioral, or available after authentication belongs there instead. As part of the public manifest, contents are limited to information intended for unauthenticated disclosure.",
+      "additionalProperties": true
     },
     "pushChannels": {
       "type": "object",

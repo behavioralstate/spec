@@ -1,11 +1,31 @@
 # Migration Guide
 
+- [0.9.6 → 0.9.7](#migrating-from-096-to-097) — the optional `extensions` object gives vendor data a lawful home in the manifest (root and capability entries); domain-first rule governs what belongs there
 - [0.9.5 → 0.9.6](#migrating-from-095-to-096) — the optional `impact` annotation makes high-impact commands discoverable; human-facing consumers warn and confirm before submitting
 - [0.9.4 → 0.9.5](#migrating-from-094-to-095) — the `workflows` cross-link becomes the single discoverability mechanism, stamped on schema documents as well as catalogue entries; prose loses its specced role
 - [0.9.x → 0.9.4](#migrating-from-09x-to-094) — workflows promoted from vendor-extension convention to the Extended capability `io.best.agents.workflows`
 - [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.6 to 0.9.7
+
+Spec 0.9.7 is **purely additive**: the manifest root and each capability entry accept one optional free-form **`extensions`** object — the single lawful home for vendor-defined data in a manifest that stays strictly closed everywhere else. Nothing a 0.9.6 manifest declares becomes invalid; a manifest that declares no extensions changes nothing.
+
+## Added — the `extensions` object (optional)
+
+- The manifest root (`best.extensions`) and each **capability entry** gain an optional `extensions` object. Keys **should** be reverse-domain identifiers owned by the declarer (`com.acme.region`); `io.best.*` stays reserved for the spec.
+- The core never interprets the contents; validators check only that the value is an object; consumers **must** ignore extensions they don't understand.
+- **Domain-first rule** (normative): anything dynamic, behavioral, or obtainable after authentication is modeled as ordinary capability surface — a custom capability, query, event, or workflow — never as an extension. `extensions` is only for static, discovery-time declarations that must ride in the manifest document itself.
+- No extension may be required in order to use a core capability, and the manifest-hygiene rule applies to extension content unchanged (the root manifest is public).
+
+## Migrating
+
+- **Servers**: nothing required. If you have vendor fields that were failing validation (leftover or deliberate), move them under `extensions` with a namespaced key — or delete them if they describe capability surface that no longer exists.
+- **Clients**: nothing required — pre-0.9.7 consumers that follow the ignore-unknown-fields rule already tolerate the new member.
+- **Validators**: `best-validate` releases predating 0.9.7 fail a manifest carrying `extensions` (`additionalProperties: false`) — use the matching validator version.
 
 ---
 

@@ -155,6 +155,7 @@ Schema: [`discovery.json`](protocol/v1/schemas/discovery.json) · Full example: 
 | `best.authentication` | no | Credential requirements for all non-discovery endpoints (omit for public endpoints) |
 | `best.tenants` | no | Multi-tenant manifest discovery — see [Multi-Tenancy](#multi-tenancy) |
 | `best.agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) — a discovery hint, not a live directory |
+| `best.extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |
 
 ### Authentication Block
 
@@ -203,10 +204,35 @@ Multiple transports expose the **same capability surface** — they are alternat
 | `endpoints` | no | Machine-readable list of `{ method, path, description? }`. Paths are appended to the service's `http.endpoint`. This is how consumers self-bootstrap without reading spec pages. |
 | `push` | no | Push channels supported (events capability): `{ "sse": true, "mcp": true }` |
 | `extends` | no | Parent capability, if any |
+| `extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |
 
 **Status semantics:** `active` means all required endpoints exist and are callable — declaring `active` while returning `404`/`501` on required routes is a conformance violation. `partial` means a subset is implemented; consumers must not assume full coverage and should consult the `endpoints` array. `planned` means nothing is callable yet.
 
 **Command types are domain data, not capabilities.** Individual command types (`ProposeCounter`) must never appear as manifest capability entries — the capability declares the command *surface*; the specific types are discovered at runtime via `GET /commands`.
+
+### Extensions
+
+The manifest root and each capability entry accept one optional free-form object, **`extensions`**, for vendor-defined declarations. Everything else in the manifest stays strictly closed (`additionalProperties: false`) — this is the single lawful home for data the spec doesn't define:
+
+```json
+{
+  "name": "io.best.agents.events",
+  "version": "1.0",
+  "spec": "…", "schema": "…",
+  "extensions": {
+    "com.acme.region": "eu-west-1",
+    "org.example.attestation": { "format": "…", "value": "…" }
+  }
+}
+```
+
+Rules:
+
+- **Domain-first.** Anything dynamic, behavioral, or obtainable after authentication **must** be modeled as ordinary capability surface — a custom capability, a query, an event, a workflow — never as an extension. `extensions` exists solely for **static, discovery-time declarations that must ride in the manifest document itself**: facts a consumer needs *before* deciding to interact (an unauthenticated indexer classifying hosts, integrity data covering the manifest), or facts that annotate a specific manifest element in place.
+- Keys **should** be reverse-domain identifiers owned by the declarer (`com.acme.region`); `io.best.*` remains reserved for the specification.
+- The core protocol never interprets the contents; validators check only that `extensions` is an object. Consumers **must** ignore extensions they don't understand.
+- An extension **must never** be required in order to use a core capability — a manifest whose core surface only works when a consumer reads an extension is non-conformant.
+- The manifest-hygiene rule applies unchanged: the root manifest is public, so extension content there is limited to information intended for unauthenticated disclosure.
 
 ### Service Descriptor
 
@@ -618,4 +644,4 @@ Condensed from the normative set — every conformant implementation observes th
 - **Tenant isolation** — tenant context derives from authenticated identity, never from caller-supplied paths/params/fields; caches, dedup stores, and streams isolated per tenant; guessing a tenant ID grants nothing.
 - **Credential passthrough** (intermediaries such as MCP servers or gateways) — opt-in per connection, off by default; forward only to the configured endpoint; explicit per-request keys take precedence over ambient bearer tokens; never log credentials; multi-user intermediaries should fail closed.
 - **Input limits** — bound body size (`413`), JSON depth, collection sizes, string lengths; rate-limit per client and per tenant.
-- **Manifest hygiene** — the public manifest carries only information intended for unauthenticated disclosure; no internal addresses, credential hints, or sensitive integration names.
+- **Manifest hygiene** — the public manifest carries only information intended for unauthenticated disclosure; no internal addresses, credential hints, or sensitive integration names. This applies to [`extensions`](#extensions) content identically — an extension is not a private channel.

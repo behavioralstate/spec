@@ -62,6 +62,7 @@ The manifest endpoint is **always public** — an implementation that requires a
 | `authentication` | no | Credential requirements — `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus `scheme`, `in`, `scopes`, `tokenUrl`, `docs`. Consumers **must** read it before calling anything else. Hosts requiring credentials **should** set `docs` to an onboarding page — for multi-tenant hosts it should cover acquiring both the API key and the tenant ID, since neither is derivable from the manifest. |
 | `tenants` | no | Multi-tenant discovery — see below |
 | `agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) |
+| `extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |
 
 ## Capability Entries
 
@@ -76,6 +77,7 @@ The four standard capabilities are `io.best.agents.commands`, `io.best.agents.ev
 | `status` | `active` (default) · `partial` · `planned`. `active` means every required endpoint is callable — declaring it while returning `404`/`501` is a conformance violation |
 | `endpoints` | Machine-readable `{ method, path }` list. Paths are appended to the service's `http.endpoint` (the leading slash is a separator, not root-relative) — this is how consumers self-bootstrap without reading spec pages |
 | `push` | Events capability only — declared push channels |
+| `extensions` | Vendor-defined static declarations — see [Extensions](#extensions) |
 
 ```json
 "push": { "sse": true, "mcp": true }
@@ -87,6 +89,10 @@ The four standard capabilities are `io.best.agents.commands`, `io.best.agents.ev
 | `push.mcp` | Server-to-client MCP notifications supported — see [MCP transport](transports/mcp.md) |
 
 **Command types are domain data, not capabilities** — individual types (`ProposeCounter`) never appear as capability entries; they are discovered at runtime via `GET /commands`.
+
+## Extensions
+
+The manifest root and each capability entry accept one optional free-form **`extensions`** object — the single lawful home for vendor-defined data in an otherwise strictly closed manifest. Keys **should** be reverse-domain identifiers owned by the declarer (`com.acme.region`); the core never interprets the contents; consumers ignore what they don't understand; and no extension may be required to use a core capability. The rule is **domain-first**: anything dynamic, behavioral, or obtainable after authentication is modeled as ordinary capability surface (a custom capability, query, event, or workflow) — `extensions` is only for static, discovery-time declarations that must ride in the manifest document itself. See [SPEC.md — Extensions](https://github.com/behavioralstate/spec/blob/main/SPEC.md#extensions).
 
 ## Service Descriptor
 

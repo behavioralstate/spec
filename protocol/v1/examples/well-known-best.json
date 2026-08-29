@@ -44,6 +44,9 @@
         "push": {
           "sse": true,
           "mcp": true
+        },
+        "extensions": {
+          "com.example.region": "eu-west-1"
         }
       },
       {
