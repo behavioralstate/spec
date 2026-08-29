@@ -329,7 +329,7 @@ CloudEvents 1.0 is a widely understood, well-structured envelope that LLM client
 
 ---
 
-## Manifest Extensions — one escape hatch, domain-first
+## Manifest Extensions
 
 ### The decision
 
