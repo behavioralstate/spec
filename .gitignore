@@ -36,3 +36,6 @@ validate-cli/schemas/
 **/*.njsproj
 **/*.sln
 **/*.sw?
+
+# Claude Code local session config (browser-pane launch config, local permission grants)
+.claude/
