@@ -39,6 +39,18 @@ It returns a JSON manifest describing the services, capabilities, transport bind
 
 The manifest endpoint is **always public** — an implementation that requires auth on `/.well-known/best` is non-conformant. The response **must** use `Content-Type: application/json`; the path is canonical (`/.well-known/best.json` may be served as an alias, but consumers must not rely on it).
 
+## Origin Discovery
+
+The manifest solves *endpoint* discovery. It does not, by itself, solve *origin* discovery: an agent pointed at a product's public web origin (`https://example.com`) has no defined path to a BEST endpoint that lives on another host (`https://api.example.com`).
+
+A deployment whose BEST endpoint is not the public web origin **should** bridge the gap ([SPEC.md — Origin Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#origin-discovery)):
+
+1. **Serve `/.well-known/best` on the public origin** — the manifest itself, or a `301`/`308` redirect to the canonical manifest on the API host. Consumers **must** follow redirects on this path.
+2. **Advertise the bridge in the origin's HTML**: `<link rel="alternate" type="application/json" href="/.well-known/best" title="BEST service manifest">`.
+3. **Optionally serve `/llms.txt`** on the origin with a prose pointer to the discovery URL and this specification, for agents that read text before they read protocols.
+
+With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
+
 ## Manifest Root
 
 ```json

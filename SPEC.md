@@ -145,6 +145,32 @@ This endpoint is **always public** — an implementation that requires auth on i
 
 Schema: [`discovery.json`](protocol/v1/schemas/discovery.json) · Full example: [`well-known-best.json`](protocol/v1/examples/well-known-best.json)
 
+### Origin Discovery
+
+The manifest above solves *endpoint* discovery — a consumer that already holds the BEST endpoint's URL learns everything else from it. It does not, by itself, solve *origin* discovery: an agent pointed at a product's public web origin (`https://example.com`) has no defined path to the BEST endpoint, which commonly lives on another host (`https://api.example.com`).
+
+A deployment whose BEST endpoint is not the public web origin **should** bridge the gap:
+
+1. **Serve `/.well-known/best` on the public origin.** Either return the manifest directly, or redirect (`301`/`308`) to the canonical manifest on the API host. Consumers **must** follow redirects on this path; the redirect target is the canonical endpoint for all subsequent interaction. The origin copy keeps the same public/no-auth requirement as the canonical one.
+
+   ```
+   https://example.com/.well-known/best
+                 │ 308
+                 ▼
+   https://api.example.com/.well-known/best
+   ```
+
+2. **Advertise the bridge in the origin's HTML**, so agents that fetch the page discover the manifest without prior BEST knowledge:
+
+   ```html
+   <link rel="alternate" type="application/json"
+         href="/.well-known/best" title="BEST service manifest">
+   ```
+
+3. **Optionally serve `/llms.txt`** on the origin with a prose pointer to the discovery URL and this specification, for agents that read text before they read protocols.
+
+With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
+
 ### Manifest Root
 
 | Field | Required | Description |
