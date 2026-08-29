@@ -1,6 +1,6 @@
 # BEST — Roadmap and Status
 
-Last updated: 2026-08-24 (standards submissions sent; IETF BoF landscape reviewed).
+Last updated: 2026-08-29 (IANA registration rejected by the designated expert; unregistered-use stance adopted).
 
 ## Where the protocol stands
 
@@ -23,9 +23,9 @@ The goal is legitimacy through the lightweight, achievable venues first; full st
 
 | Step | Artifact | Status |
 |---|---|---|
-| 1. IANA registration of `/.well-known/best` (provisional, RFC 8615) | [standards/iana-well-known-best.md](standards/iana-well-known-best.md) | **Submitted 2026-08-24** — awaiting ticket + expert review |
+| 1. IANA registration of `/.well-known/best` (provisional, RFC 8615) | [standards/iana-well-known-best.md](standards/iana-well-known-best.md) | **Rejected 2026-08-25** by the designated expert — single common words are reserved for recognised SDOs. `/.well-known/best` is served unregistered (RFC 8615 permits use; registration is collision-avoidance) and registration rides the IETF path. Pre-check for a distinctive suffix (`best-protocol`) filed as [protocol-registries/well-known-uris#104](https://github.com/protocol-registries/well-known-uris/issues/104) (2026-08-29) |
 | 2. Internet-Draft → Informational RFC via the Independent Submission Stream | [draft-dinuzzo-best-protocol-00](https://datatracker.ietf.org/doc/draft-dinuzzo-best-protocol/) | **Posted 2026-08-24**; ISE deferred pending dawn/agentproto chartering — engage those lists (see TODO) |
-| 3. Upgrade IANA entry to `permanent` citing the RFC | — | After step 2 |
+| 3. Register `/.well-known/best` citing the RFC (the expert's SDO objection dissolves once the spec is in the IETF stream) | — | After step 2 |
 | 4. Optional: W3C Community Group for visibility / implementer recruitment | — | Undecided |
 | 5. Longer term: CNCF sandbox (natural home given the CloudEvents lineage) or IETF WG | — | Requires adoption + independent implementations |
 
@@ -46,9 +46,10 @@ Everything still open, in rough priority order:
 - **Rejected by design**: descriptive/class-based search — that's the registry/directory layer BEST deliberately deleted; BEST manifests are the substrate directories index. Add a positioning sentence to SPEC.md instead of a feature. MoQ transports are orthogonal to the HTTP/JSON binding.
 
 **Standards track** (see table above)
-- [x] Submit the IANA registration — sent 2026-08-24 by email to iana@iana.org (provisional, spec ref = v0.9.2 tag); awaiting ticket + designated-expert review
+- [x] Submit the IANA registration — sent 2026-08-24 by email to iana@iana.org; **rejected 2026-08-25** by the designated expert (registry policy: single common words / short terms only for recognised SDOs; registry guidelines also require multi-owner repos or significant deployment). `/.well-known/best` continues to be served unregistered — RFC 8615 permits this; registration will be revisited via the IETF path. The I-D `-01` refresh must update its IANA Considerations accordingly
 - [x] Submit the Internet-Draft — posted 2026-08-24: <https://datatracker.ietf.org/doc/draft-dinuzzo-best-protocol/> (expires 2027-02-25; refresh with a -01 before then). ISE outcome: **deferred, not rejected** — the space is being chartered at the IETF (dawn + agentproto BoFs, IETF 126 in Nov); the ISE reconsiders if no WGs form or after initial RFCs, with a "substantial deployment" bar
-- [ ] Engage the IETF BoF lists — subscribe to `dawn@ietf.org` + `agentproto@ietf.org`; ask for BEST's inclusion in `draft-jimenez-dawn-discovery-landscape` (host-level self-description category); offer text for the "To be completed" /.well-known section of `draft-moussa-dawn-gap-analysis`
+- [x] Engage the IETF BoF lists — **both first posts sent**: dawn 2026-08-24 ([standards/dawn-landscape-email.md](standards/dawn-landscape-email.md) — landscape-draft §4.2 inclusion + gap-analysis text offer) and agentproto 2026-08-29 ([standards/agentproto-intro-email.md](standards/agentproto-intro-email.md) — sessionless/capability-card mapping onto draft-feng, sent ahead of the 2026-09-03 IESG telechat on the dawn charter)
+- [ ] Follow up on the list posts — if no on-list reply to the dawn post by ~2026-09-07, write directly to the `draft-jimenez-dawn-discovery-landscape` authors referencing the archive post; watch the 2026-09-03 IESG telechat outcome on the dawn charter; respond to any replies on either list
 
 **Operational**
 - [x] `npm deprecate @behavioralstate/bsp-mcp` pointing at `best-mcp` — done manually 2026-08-24

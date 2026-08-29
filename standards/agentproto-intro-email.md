@@ -1,5 +1,12 @@
 # agentproto Mailing List Post — sessionless interaction + capability cards
 
+**SENT 2026-08-29 13:57** from riccardo@dinuzzo.it via Gmail (plain-text mode).
+Body below matches the sent version. Pre-send checks done same day:
+draft-feng still at -02, draft-rosenberg still at -00, so references were
+accurate as drafted. Sent five days after the dawn post and ahead of the
+2026-09-03 IESG telechat reviewing the dawn charter (whose exclusion of
+post-discovery communications is the scope argument this post leans on).
+
 First post to the agentproto list. Goal: position BEST as deployed running
 code for the *interaction* side (the REST-contrast argument lives here, per
 2026-08-24 discussion — dawn got the neutral discovery framing). Maps BEST
