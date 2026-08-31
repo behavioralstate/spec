@@ -60,6 +60,17 @@ An intermediary that sits between end callers and a BEST endpoint (an MCP server
 
 The reference MCP server (`@behavioralstate/best-mcp`) implements this contract via its `allowBearerPassthrough` connection setting — see the [mcp-server README](https://github.com/behavioralstate/spec/tree/main/mcp-server#http--per-request-credential-overrides-multi-user-backends).
 
+## Token Exchange and Query-String Credentials
+
+Not every legitimate client can set HTTP headers — URL-only integrations, webhook targets, embedded widgets, legacy tooling that accepts nothing but an endpoint address. The escalation path for such clients is: prefer headers; fall back to a body-based token exchange; and only then to a query parameter carrying a **short-lived** token. The rule that keeps the weaker channels safe is that the long-lived credential is exchanged for a disposable one before it goes anywhere weaker than a header.
+
+- When the manifest declares `authentication.type: "oauth2"`, `tokenUrl` **MUST** name an [RFC 6749](https://www.rfc-editor.org/rfc/rfc6749) token endpoint. Hosts intending to serve header-constrained clients **SHOULD** accept the `client_credentials` grant — a form-encoded POST requiring no custom request headers — and return `access_token`, `token_type`, and `expires_in` per RFC 6749 §5.1.
+- Tokens issued by this exchange **SHOULD** be short-lived — minutes, not days. The exchange exists to make the credential that reaches weaker channels disposable; a long-lived exchange output defeats it.
+- The exchange request carries only the credential. Tenant context **MUST** be derived from the credential itself, per [Multi-Tenant Isolation](#multi-tenant-isolation) — a tenant identifier submitted alongside it is at most a routing hint, and a server **MUST** reject an exchange whose declared tenant does not match the credential's tenant binding.
+- A **long-lived** credential **SHOULD NOT** be declared or accepted as a query parameter (`apiKey` with `in: "query"`). Query strings leak through request logs, proxies, `Referer` headers, and browser history. A host that needs to serve URL-only clients **SHOULD** offer the token exchange and accept the resulting short-lived token via the `access_token` query parameter, under the constraints of [RFC 6750 §2.3](https://www.rfc-editor.org/rfc/rfc6750#section-2.3).
+- Servers accepting any credential in a query parameter **MUST NOT** write the credential value to logs, **SHOULD** send `Cache-Control: no-store` on responses to such requests, and **SHOULD** issue query-eligible tokens with reduced scope — in particular, a query-borne token **SHOULD NOT** be able to submit [high-impact commands](#high-impact-commands).
+- One-time login links — a single-use, short-lived code minted out of band (e.g. from an operator dashboard) and redeemed for a scoped token — are a valid implementation of this exchange for URL-only onboarding. BEST does not standardise their issuance; a host advertising one does so under a namespaced [`extensions`](discovery.md#extensions) key until a standard exists to promote.
+
 ## Command Ingestion — Schema Selection
 
 The `dataschema` field in an inbound command is a **selector, not a location**. It names an entry the server already owns and serves at `GET /commands/{schema}/{version}`, and a conformant client takes its value verbatim from the command catalogue. The security property that matters is that the validating schema comes from the server's own catalogue — *not* which server-owned identifier keys that lookup.

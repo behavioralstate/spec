@@ -1,6 +1,6 @@
 # BEST — Roadmap and Status
 
-Last updated: 2026-08-29 (0.9.7 released — manifest `extensions`; both IETF list posts sent; I-D `-01` posted; IANA unregistered-use stance adopted).
+Last updated: 2026-08-31 (0.9.8 released — token exchange for header-constrained clients, query-string credential rules; no wire change).
 
 ## Where the protocol stands
 
@@ -70,6 +70,7 @@ Everything still open, in rough priority order:
 
 | Version | Date | Highlights |
 |---|---|---|
+| spec/v0.9.8 | 2026-08-31 | Token exchange for header-constrained clients — `tokenUrl` defined as an RFC 6749 token endpoint (`client_credentials`, short-lived output); query strings carry exchanged tokens only, never long-lived keys; no wire change |
 | spec/v0.9.7 | 2026-08-29 | Optional `extensions` object on the manifest root and capability entries — vendor data gets one lawful home under a domain-first rule (dynamic/behavioral data stays ordinary capability surface) |
 | spec/v0.9.6 | 2026-08-26 | Optional `impact` annotation on command catalogue entries + schema documents — high-impact commands (financial/destructive/irreversible/compliance) become discoverable; human-facing consumers warn and confirm before submitting |
 | spec/v0.9.5 | 2026-08-26 | `workflows` cross-link consolidated as the single workflow-discoverability mechanism, stamped on schema documents as well as catalogue entries |

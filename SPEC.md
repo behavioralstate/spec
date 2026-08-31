@@ -200,10 +200,22 @@ With the bridge in place, "point an agent at `https://example.com`" is a complet
 | `scheme` | no | For `bearer`: the Authorization prefix (`"Bearer"`). For `apiKey`: the header or query parameter name. |
 | `in` | no | `"header"` or `"query"` (for `apiKey`) |
 | `scopes` | no | Required OAuth2/token scopes |
-| `tokenUrl` | no | Token endpoint for OAuth2/token flows |
+| `tokenUrl` | no | Token endpoint for OAuth2/token flows — an RFC 6749 token endpoint; see [Token Exchange](#token-exchange-for-constrained-clients) |
 | `docs` | no | Human-readable onboarding documentation URL |
 
 Consumers **must** read this block before calling anything else. Hosts requiring credentials **should** set `docs` to a page explaining how to obtain them — for multi-tenant hosts, that page should cover acquiring both the API key and the tenant ID, since neither is derivable from the manifest.
+
+### Token Exchange for Constrained Clients
+
+Some legitimate clients cannot set HTTP headers — URL-only integrations, webhook targets, legacy tooling. The escalation path is: prefer headers; fall back to a body-based token exchange; only then to a query parameter carrying a **short-lived** token. The long-lived credential never appears in a URL.
+
+| Client can | Mechanism |
+|---|---|
+| Set headers | `Authorization: Bearer <token>` or the `apiKey` header — always preferred |
+| POST a body, but not set custom headers | Exchange the long-lived credential at `tokenUrl` for a short-lived token |
+| Only control a URL | Send the **exchanged short-lived token** as the `access_token` query parameter per [RFC 6750 §2.3](https://www.rfc-editor.org/rfc/rfc6750#section-2.3) |
+
+When `type` is `"oauth2"`, `tokenUrl` names an [RFC 6749](https://www.rfc-editor.org/rfc/rfc6749) token endpoint. Hosts intending to serve header-constrained clients **should** accept the `client_credentials` grant — a form-encoded `POST` requiring no custom headers — and return `access_token`, `token_type`, and `expires_in` per RFC 6749 §5.1. Exchange-issued tokens **should** be short-lived (minutes, not days), and tenant context derives from the credential itself, never from a tenant identifier submitted alongside it. Declaring `apiKey` with `in: "query"` for a **long-lived** credential **should not** be done — offer the exchange instead. Full normative rules: [Security Requirements](#security-requirements) and [specs/security.md](specs/security.md#token-exchange-and-query-string-credentials).
 
 ### Services and Transport Bindings
 
@@ -669,5 +681,6 @@ Condensed from the normative set — every conformant implementation observes th
 - **High-impact commands** — commands that are destructive, irreversible, or bypass a compliance control **should** require a control beyond the submitting credential (human approval, a second principal, out-of-band confirmation); that control **must not** be self-serviceable. Servers **should** declare the [`impact` annotation](#impact-annotations) on such commands so consumers can discover the obligation; the annotation never substitutes for the server-side control.
 - **Tenant isolation** — tenant context derives from authenticated identity, never from caller-supplied paths/params/fields; caches, dedup stores, and streams isolated per tenant; guessing a tenant ID grants nothing.
 - **Credential passthrough** (intermediaries such as MCP servers or gateways) — opt-in per connection, off by default; forward only to the configured endpoint; explicit per-request keys take precedence over ambient bearer tokens; never log credentials; multi-user intermediaries should fail closed.
+- **Query-string credentials** — long-lived keys should not ride in URLs (logs, referrers, history). URL-only clients bootstrap via the RFC 6749 exchange at `tokenUrl` (`client_credentials`, short-lived output) and send the result per RFC 6750 §2.3; servers never log query-borne tokens, mark those responses `no-store`, and should deny them high-impact commands. Tenant context binds to the exchanged credential, never to a caller-supplied tenant field.
 - **Input limits** — bound body size (`413`), JSON depth, collection sizes, string lengths; rate-limit per client and per tenant.
 - **Manifest hygiene** — the public manifest carries only information intended for unauthenticated disclosure; no internal addresses, credential hints, or sensitive integration names. This applies to [`extensions`](#extensions) content identically — an extension is not a private channel.

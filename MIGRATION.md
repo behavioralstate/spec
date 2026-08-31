@@ -1,5 +1,6 @@
 # Migration Guide
 
+- [0.9.7 → 0.9.8](#migrating-from-097-to-098) — token exchange for header-constrained clients: `tokenUrl` defined as an RFC 6749 token endpoint; query-string credential rules. No wire change
 - [0.9.6 → 0.9.7](#migrating-from-096-to-097) — the optional `extensions` object gives vendor data a lawful home in the manifest (root and capability entries); domain-first rule governs what belongs there
 - [0.9.5 → 0.9.6](#migrating-from-095-to-096) — the optional `impact` annotation makes high-impact commands discoverable; human-facing consumers warn and confirm before submitting
 - [0.9.4 → 0.9.5](#migrating-from-094-to-095) — the `workflows` cross-link becomes the single discoverability mechanism, stamped on schema documents as well as catalogue entries; prose loses its specced role
@@ -10,7 +11,22 @@
 
 ---
 
-# Migrating from 0.9.6 to 0.9.7
+# Migrating from 0.9.7 to 0.9.8
+
+Spec 0.9.8 is **normative guidance only — no wire change**. It defines what the manifest's `authentication.tokenUrl` has always implied (an RFC 6749 token endpoint), gives header-constrained clients a sanctioned bootstrap path, and constrains query-string credentials. The discovery schema's shape is untouched (description text only); every 0.9.7 manifest remains conformant byte-for-byte.
+
+## Clarified — token exchange for constrained clients
+
+- `authentication.type: "oauth2"` + `tokenUrl` now normatively means an RFC 6749 token endpoint. Hosts serving clients that cannot set custom headers **SHOULD** accept the `client_credentials` grant (form-encoded POST, no custom headers needed) and return a **short-lived** `access_token` per RFC 6749 §5.1.
+- URL-only clients send the *exchanged* short-lived token as the `access_token` query parameter under RFC 6750 §2.3 constraints — long-lived credentials **SHOULD NOT** be declared or accepted via `apiKey` + `in: "query"`.
+- Servers accepting query-borne credentials **MUST NOT** log the value, **SHOULD** mark those responses `Cache-Control: no-store`, and **SHOULD** deny query-borne tokens high-impact commands.
+- Tenant context binds to the exchanged credential itself — a tenant identifier in the exchange body is never authoritative, and a mismatch with the credential's tenant binding **MUST** be rejected.
+
+## Migrating
+
+- **Servers**: nothing required. Hosts currently declaring `apiKey` with `in: "query"` for a long-lived key should plan a move to the token exchange; the declaration remains schema-valid meanwhile.
+- **Clients**: nothing required. Clients that can set headers keep doing exactly what they did.
+- **Validators**: no change — schema shape is identical, so any `best-validate` release that handles 0.9.7 handles 0.9.8.
 
 Spec 0.9.7 is **purely additive**: the manifest root and each capability entry accept one optional free-form **`extensions`** object — the single lawful home for vendor-defined data in a manifest that stays strictly closed everywhere else. Nothing a 0.9.6 manifest declares becomes invalid; a manifest that declares no extensions changes nothing.
 

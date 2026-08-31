@@ -71,7 +71,7 @@ With the bridge in place, "point an agent at `https://example.com`" is a complet
 | `version` | yes | BEST spec version (semver) |
 | `services` | yes | Service definitions with transport bindings |
 | `capabilities` | yes | Supported capabilities with spec/schema URLs |
-| `authentication` | no | Credential requirements — `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus `scheme`, `in`, `scopes`, `tokenUrl`, `docs`. Consumers **must** read it before calling anything else. Hosts requiring credentials **should** set `docs` to an onboarding page — for multi-tenant hosts it should cover acquiring both the API key and the tenant ID, since neither is derivable from the manifest. |
+| `authentication` | no | Credential requirements — `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus `scheme`, `in`, `scopes`, `tokenUrl`, `docs`. Consumers **must** read it before calling anything else. `tokenUrl` names an RFC 6749 token endpoint — the bootstrap path for clients that cannot set headers (see [Security — Token Exchange](security.md#token-exchange-and-query-string-credentials)). Hosts requiring credentials **should** set `docs` to an onboarding page — for multi-tenant hosts it should cover acquiring both the API key and the tenant ID, since neither is derivable from the manifest. |
 | `tenants` | no | Multi-tenant discovery — see below |
 | `agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) |
 | `extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |

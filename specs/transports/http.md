@@ -56,10 +56,11 @@ When the discovery manifest declares an `authentication` block, consumers must i
 |---|---|
 | `bearer` | `Authorization: Bearer <token>` header |
 | `apiKey` (header) | Custom header named in `authentication.scheme` |
-| `apiKey` (query) | Query parameter named in `authentication.scheme` |
+| `apiKey` (query) | Query parameter named in `authentication.scheme` — short-lived exchanged tokens only, never long-lived keys |
+| `oauth2` | Obtain a token from `authentication.tokenUrl`, then `Authorization: Bearer <token>` |
 | `none` | No credentials required |
 
-The security schemes are formally declared in the OpenAPI `securitySchemes` component. Consumers should read the discovery manifest's `authentication.tokenUrl` to obtain tokens programmatically.
+The security schemes are formally declared in the OpenAPI `securitySchemes` component. `authentication.tokenUrl` names an RFC 6749 token endpoint; hosts should accept the `client_credentials` grant so that clients unable to set custom headers can still bootstrap — POST the long-lived credential as a form body, receive a short-lived `access_token`, and (for URL-only clients) send it as the `access_token` query parameter under the constraints in [Security — Token Exchange and Query-String Credentials](../security.md#token-exchange-and-query-string-credentials).
 
 ## Error Responses
 

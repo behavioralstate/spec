@@ -305,7 +305,7 @@
         "in": {
           "type": "string",
           "enum": ["header", "query"],
-          "description": "Where the API key is passed when type is 'apiKey'."
+          "description": "Where the API key is passed when type is 'apiKey'. Query placement should carry only short-lived exchanged tokens, never long-lived keys — see the security spec on token exchange and query-string credentials."
         },
         "scopes": {
           "type": "array",
@@ -315,7 +315,7 @@
         "tokenUrl": {
           "type": "string",
           "format": "uri",
-          "description": "Token endpoint URL for OAuth2 or token-based flows."
+          "description": "Token endpoint URL for OAuth2 or token-based flows. Names an RFC 6749 token endpoint; hosts serving header-constrained clients should accept the client_credentials grant and return a short-lived access token."
         },
         "docs": {
           "type": "string",
