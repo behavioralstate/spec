@@ -4,6 +4,41 @@ When an organisation deploys multiple AI agents, a problem follows: how do those
 
 BEST is an open specification for **capability discovery and behavioural interoperability** in distributed and agentic systems. Each system exposes its behaviour as one machine-understandable manifest; any caller — an AI agent, a Process Manager, a UI, another service — discovers its capabilities, expresses intent through **commands**, reads current state through **queries**, observes the resulting **events**, and correlates outcomes across services via a first-class correlation identifier. BEST doesn't care how a system works internally; it defines only the interaction surface, across any runtime, platform, language, or transport.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    box RGB(240, 244, 248) AI Agent Ecosystem
+    actor User/Agent as AI Agent / LLM Client
+    participant MCP as best-mcp Bridge
+    end
+
+    box RGB(255, 251, 242) Your BEST Service
+    participant Web as /.well-known/best
+    participant API as Endpoint Surface
+    participant Log as Event Log
+    end
+
+    Note over User/Agent, Web: 1. DISCOVERY PHASE
+    User/Agent->>Web: GET /.well-known/best (No Auth)
+    Web-->>User/Agent: Returns Manifest JSON
+
+    Note over User/Agent, MCP: 2. AUTO-CONFIGURATION
+    User/Agent->>MCP: Expose as Tools
+    Note over MCP: Tools mapped dynamically
+
+    Note over User/Agent, Log: 3. CQRS INTERACTION
+    User/Agent->>API: POST /commands (Type: SubmitOrder, ID: "cmd_123")
+    API-->>User/Agent: HTTP 201 Accepted
+
+    critical Async Processing
+        API->>Log: Persist State Change Fact
+    end
+
+    User/Agent->>Log: GET /events/stream?correlationId=cmd_123 (Live SSE)
+    Log-->>User/Agent: Event: OrderSubmitted
+```
+
+
 ## Documentation
 
 **[SPEC.md](SPEC.md)** is the consolidated specification — the whole protocol in one document: design, discovery, commands, events, queries, transports, conformance, and security. Start there.
