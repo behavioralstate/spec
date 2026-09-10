@@ -21,7 +21,7 @@
 		</h1>
 		<HeroDiagram />
 		<p class="hero-subtitle">
-			Expose one manifest and your system's behaviour becomes machine-understandable. Any agent discovers its capabilities, sends commands, runs queries, observes the resulting events, and correlates outcomes — across a whole platform, with no bespoke integration.
+			Give an agent a machine-readable description of what your service can do — and let it figure out the workflow. Discover commands, queries, and recipes through a manifest, with no SDK or scraping required.
 		</p>
 		<div class="hero-actions">
 			<a href="/specs" class="btn-primary">Read the docs</a>
