@@ -10,7 +10,6 @@ Use this when you have an existing service and want to add a BEST surface to it.
 
 ```
 Make my [ASP.NET Core / Express / FastAPI / Spring Boot] service BEST-compliant.
-
 Spec reference: https://behavioralstate.io/specs
 ```
 
