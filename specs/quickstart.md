@@ -11,18 +11,10 @@ Use this when you have an existing service and want to add a BEST surface to it.
 ```
 Make my [ASP.NET Core / Express / FastAPI / Spring Boot] service BEST-compliant.
 
-I need these four endpoints:
-- GET /.well-known/best — discovery manifest
-- GET /commands — catalogue listing accepted commands with JSON Schema
-- POST /commands — CloudEvents 1.0 entry point
-- GET /queries — query catalogue
-
-Auth: X-Api-Key header. Set authentication.type = "apikey" in the manifest.
-
 Spec reference: https://behavioralstate.io/specs
 ```
 
-**What to expect:** The LLM will scaffold the four routes, a manifest class or JSON file, and a command handler stub. Review the generated `/.well-known/best` and ensure it includes the `authentication` block and at least one entry in `capabilities`.
+**What to expect:** The LLM will use the specification to determine the required discovery, command, query, and event surfaces for your service.
 
 ---
 
