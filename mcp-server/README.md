@@ -54,7 +54,7 @@ Spec reference: https://behavioralstate.io/docs
 
 | Tool | What it does |
 |---|---|
-| `list_connections` | List all configured connections with names, endpoints, and descriptions *(only shown when multiple connections are configured)* |
+| `list_connections` | List the configured connections (names, endpoints, descriptions) plus every further service the apps' root manifests list, reachable as `<app>/<serviceId>` |
 | `get_command_catalogue` | List all commands this endpoint accepts (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_command_schema` | Fetch the full JSON Schema for a command type — learn the exact fields required |
 | `send_command` | Send a command (CloudEvent 1.0 envelope built automatically); optional `correlation_id` joins an existing chain, and the server's echoed correlation ID (spec 0.9.2+) is returned for use with the event tools |
@@ -66,7 +66,7 @@ Spec reference: https://behavioralstate.io/docs
 | `get_events` | Query the historical event log (`GET /events`) — filter by correlationId/type/source/time, paginate with the response cursor |
 | `get_event_schema` | Fetch the JSON Schema for a typed event (`GET /events/{schema}/{version}`) |
 | `sample_event_stream` | Open the live SSE stream (`GET /events/stream`), collect events until `max_events`/`max_seconds`, then return them — bounded client-side, so it works against any conformant endpoint |
-| `exchange_device_code` | Last step of a device-authorization onboarding (RFC 8628): POSTs the device code to the root manifest's `authentication.tokenUrl` and returns the token response verbatim (tenant id, the once-shown API key, a ready MCP config block). `authorization_pending` / `slow_down` come back as a non-error status to poll on. On success the new credential (and tenant) is applied to this session's connections of the same app at once — the next tool call already works; the returned config is what to persist |
+| `exchange_device_code` | Last step of a device-authorization onboarding (RFC 8628): POSTs the device code to the root manifest's `authentication.tokenUrl`. `authorization_pending` / `slow_down` come back as a non-error status to poll on. On success the issued credential (and tenant) is applied to this session's connections of the same app at once AND stored in the [credential store](#credential-store) for later starts; the key is **never returned to the model** — every copy in the response is redacted. On the HTTP transport a per-request caller (override headers present) gets neither the key nor a shared-state change |
 | `get_workflows` | List the service's published workflow recipes (`GET /workflows` — always answered as a shallow index), or fetch one full recipe with its steps via `workflow_id` (`GET /workflows/{id}`). Handles both the 0.9.4 `io.best.agents.workflows` capability and pre-0.9.4 vendor-extension servers; returns a note if the service publishes none |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
@@ -80,9 +80,11 @@ Before hand-assembling a multi-step process, call `get_workflows` — catalogue 
 
 High-impact commands (spec 0.9.6): when a command's schema document or catalogue entry carries an `impact` annotation (financial, destructive, irreversible, compliance), `get_command_schema` appends a deterministic HIGH-IMPACT note — including the server's `warning` text — telling the model to surface the warning and obtain the user's explicit confirmation before `send_command`. The annotation is descriptive; the server's own controls still apply.
 
-When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
+Every operation tool takes an optional `connection` parameter; with a single configured connection it defaults to that one. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
 
 **Root-manifest services as connections.** A platform's root manifest (`/.well-known/best`) lists its services, each with an HTTP endpoint, and only the tenant surface gets a configured connection. Every other listed service is reachable anyway as `<app>/<serviceId>` (e.g. `dotquant/io.dotquant.onboarding`): the client fetches the app's root manifest once, builds an ad-hoc connection at that service's endpoint with the app's credential, and caches it. `list_connections` lists them after the configured ones. Services whose endpoint is merely the parent of a configured surface (a tenants collection root) are not listed.
+
+**Credential store.** A key issued through `exchange_device_code` is written to `~/.best-mcp/credentials.json` (user-only; override with `BEST_MCP_CREDENTIALS_FILE`), keyed by the app's base URL, and never handed to the model — a chat transcript is not a secret store. At startup the stored credential fills in for an ABSENT `BEST_<APP>_API_KEY` or for the exact key it superseded (one-key-per-account services replaced that key when the new one was issued); a DIFFERENT configured key means you reconfigured deliberately, so the configuration wins and the stale entry is dropped. This also makes onboarding from zero possible: configure only `BEST_<APP>_BASE_URL`, let the model run the service's onboarding workflow, and the tenant connection appears with its key stored.
 
 **Dead key recovery.** Many BEST services hold ONE key per account, so a key replaced since it was stored is dead — the tenant surface answers 401 and the error now carries the service's `code` and `details` (where a good service names its onboarding surface), not just the message. The server instructions tell the model what to do next: never fall back to a browser or the website's sign-up form; target the onboarding service by its `<app>/<serviceId>` connection name, run its workflow (the person approves a short code), then call `exchange_device_code` — the new key is live in the session immediately and the returned configuration is what the client must store.
 

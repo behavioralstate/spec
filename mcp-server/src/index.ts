@@ -84,8 +84,11 @@
  */
 
 import { createServer as createHttpServer, type IncomingHttpHeaders } from 'http';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { createRequire } from 'module';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
 
 // The real published version, surfaced to hosts in the initialize result — a hardcoded constant
 // here once drifted to '1.0.0' and made "which best-mcp am I running?" unanswerable. Hosts don't
@@ -149,6 +152,91 @@ interface BestConnection {
 const TRANSPORT = process.env.MCP_TRANSPORT ?? 'stdio';
 const HTTP_PORT = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
 
+// ── Credential store ──────────────────────────────────────────────────────────
+//
+// A credential a service issues to this client through exchange_device_code is stored HERE, never
+// returned to the model: a chat transcript is not a secret store, and a model that is handed a key
+// will paste it into the conversation (the 2026-09-14 proof run did exactly that). The store is a
+// user-only JSON file keyed by the service's base URL; at startup it fills in for an ABSENT env
+// credential or for the exact env credential it superseded (a service that holds one key per
+// account replaced that one when the new key was issued). A DIFFERENT env credential means the
+// operator reconfigured deliberately — the operator wins and the stale entry is dropped.
+//
+//   BEST_MCP_CREDENTIALS_FILE — override the location (default ~/.best-mcp/credentials.json).
+
+interface StoredCredential {
+  tenantId?: string;
+  apiKey: string;
+  authType: 'apikey' | 'bearer';
+  authHeader?: string;
+  issuedAt: string;
+  supersededKeyHash?: string;   // sha256 of the env credential in force when this one was issued
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+class CredentialStore {
+  private readonly file: string;
+  private entries: Record<string, StoredCredential> = {};
+
+  constructor() {
+    this.file = process.env.BEST_MCP_CREDENTIALS_FILE ?? join(homedir(), '.best-mcp', 'credentials.json');
+    try {
+      if (existsSync(this.file)) {
+        const parsed = JSON.parse(readFileSync(this.file, 'utf8'));
+        if (parsed && typeof parsed === 'object') this.entries = parsed;
+      }
+    } catch (e) {
+      process.stderr.write(`[best-mcp] WARNING: could not read ${this.file}: ${e}\n`);
+    }
+  }
+
+  get path(): string { return this.file; }
+  has(baseUrl: string): boolean { return baseUrl in this.entries; }
+  get(baseUrl: string): StoredCredential | undefined { return this.entries[baseUrl]; }
+
+  set(baseUrl: string, cred: StoredCredential): void {
+    this.entries[baseUrl] = cred;
+    this.flush();
+  }
+
+  drop(baseUrl: string): void {
+    if (!(baseUrl in this.entries)) return;
+    delete this.entries[baseUrl];
+    this.flush();
+  }
+
+  private flush(): void {
+    const dir = join(this.file, '..');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+    writeFileSync(this.file, JSON.stringify(this.entries, null, 2) + '\n', { mode: 0o600 });
+    try { chmodSync(this.file, 0o600); } catch { /* Windows: ACLs, not modes */ }
+  }
+}
+
+const credentialStore = new CredentialStore();
+
+/**
+ * Startup reconciliation for one app: the stored credential applies when the env credential is absent
+ * or is exactly the one it superseded; a different env credential wins and evicts the entry.
+ * Returns the (possibly replaced) key + tenant id to build connections from.
+ */
+function reconcileStoredCredential(app: string, baseUrl: string, envKey: string, envTenantId: string | undefined):
+  { apiKey: string; tenantId: string | undefined; authType?: string; authHeader?: string } {
+  const stored = credentialStore.get(baseUrl);
+  if (!stored) return { apiKey: envKey, tenantId: envTenantId };
+  const envMatchesSuperseded = !envKey || (stored.supersededKeyHash !== undefined && sha256(envKey) === stored.supersededKeyHash);
+  if (!envMatchesSuperseded) {
+    process.stderr.write(`[best-mcp] INFO: ${app}: the configured credential changed since the stored one was issued — using the configuration, dropping the stored credential.\n`);
+    credentialStore.drop(baseUrl);
+    return { apiKey: envKey, tenantId: envTenantId };
+  }
+  process.stderr.write(`[best-mcp] INFO: ${app}: using the credential stored ${stored.issuedAt} (${credentialStore.path})${stored.tenantId ? ` for tenant ${stored.tenantId}` : ''}.\n`);
+  return { apiKey: stored.apiKey, tenantId: stored.tenantId ?? envTenantId, authType: stored.authType, authHeader: stored.authHeader };
+}
+
 function parseConnections(): BestConnection[] {
 
   // ── Mode 1: per-app env vars ─────────────────────────────────────────────
@@ -179,18 +267,24 @@ function parseConnections(): BestConnection[] {
     for (const appName of appNames) {
       const p        = `BEST_${appName}`;
       const baseUrl  = (process.env[`${p}_BASE_URL`] ?? '').replace(/\/$/, '');
-      const apiKey   = process.env[`${p}_API_KEY`]    ?? '';
-      const tenantId = process.env[`${p}_TENANT_ID`];
-      const authType  = process.env[`${p}_AUTH_TYPE`]   ?? 'apikey';  // Mode 1 default: apikey (X-Api-Key header)
-      const authHeader = process.env[`${p}_AUTH_HEADER`] ?? 'X-Api-Key';
+      const app       = appName.toLowerCase();
+      const reconciled = reconcileStoredCredential(app, baseUrl, process.env[`${p}_API_KEY`] ?? '', process.env[`${p}_TENANT_ID`]);
+      const apiKey   = reconciled.apiKey;
+      const tenantId = reconciled.tenantId;
+      const authType  = reconciled.authType ?? process.env[`${p}_AUTH_TYPE`]   ?? 'apikey';  // Mode 1 default: apikey (X-Api-Key header)
+      const authHeader = reconciled.authHeader ?? process.env[`${p}_AUTH_HEADER`] ?? 'X-Api-Key';
       const authIn    = process.env[`${p}_AUTH_IN`]     ?? 'header';
       const authParam = process.env[`${p}_AUTH_PARAM`]  ?? 'apikey';
       const allowBearerPassthrough = (process.env[`${p}_ALLOW_BEARER_PASSTHROUGH`] ?? '').toLowerCase() === 'true';
-      const app       = appName.toLowerCase();
 
-      if (!apiKey && authType !== 'none') {
-        process.stderr.write(`[best-mcp] ERROR: BEST_${appName}_API_KEY is required (or set BEST_${appName}_AUTH_TYPE=none)\n`);
-        process.exit(1);
+      // A missing key is not fatal any more: an app can start credential-less and obtain its key through
+      // the service's onboarding surface (exchange_device_code stores it; see the credential store below),
+      // and a stored credential fills in for an absent or superseded env key at startup.
+      if (!apiKey && authType !== 'none' && !credentialStore.has(baseUrl)) {
+        process.stderr.write(
+          `[best-mcp] INFO: BEST_${appName}_API_KEY is not set — only anonymous surfaces of ${app} will answer ` +
+          `until an onboarding stores a credential (exchange_device_code).\n`
+        );
       }
 
       const shared = { apiKey, authType, authHeader, authIn, authParam, allowBearerPassthrough };
@@ -376,7 +470,7 @@ async function listServiceConnections(): Promise<{ name: string; endpoint: strin
 }
 
 async function resolveConnection(name?: string): Promise<BestConnection> {
-  if (!MULTI && !name) return CONNECTIONS[0];
+  if (!name && CONNECTIONS.length === 1) return CONNECTIONS[0];
   if (!name) throw new Error(
     `Multiple BEST connections are configured — you must specify a 'connection' parameter. ` +
     `Available connections: ${CONNECTIONS.map(c => c.name).join(', ')}. ` +
@@ -406,6 +500,22 @@ function applyIssuedCredential(
 ): string[] {
   const app = conn.name.split('/')[0];
   const bearer = (tokenType ?? '').toLowerCase() === 'bearer';
+  // An app configured without a tenant id has no tenant connection yet — an onboarding from zero
+  // creates it, so the next call can target `<app>/tenant` like any configured setup.
+  const root = rootConnectionOf(app);
+  if (tenantId && root && !root.tenantTemplateBaseUrl && !CONNECTIONS.some(c => c.name === `${app}/tenant`) && SAFE_TENANT_ID.test(tenantId)) {
+    CONNECTIONS.push({
+      ...root,
+      name: `${app}/tenant`,
+      endpoint: `${root.endpoint}/tenants/${tenantId}`,
+      tenantTemplateBaseUrl: root.endpoint,
+      description: `${app} — tenant-scoped commands and queries`,
+    });
+    if (root.name === app) {
+      root.description = `${app} — platform root. Call get_manifest here to see the platform's services; each one is ` +
+        `reachable as connection '${app}/<serviceId>'. Exposes no commands or queries of its own.`;
+    }
+  }
   const targets = [
     ...CONNECTIONS.filter(c => c.name === app || c.name.startsWith(`${app}/`)),
     ...[...serviceConnectionCache.values()].filter(c => c.name.startsWith(`${app}/`)),
@@ -584,10 +694,9 @@ async function bestPost<T>(path: string, body: unknown, conn: BestConnection): P
 // override it only for services whose schema descriptions document a specific required value.
 const CLIENT_SOURCE = 'urn:best-mcp';
 
-// When multiple connections are configured, every operation tool gains an optional
-// 'connection' parameter. The LLM must specify it; if context makes the choice
-// ambiguous, it should call list_connections first and confirm with the user.
-const CONNECTION_PROP: Record<string, object> = MULTI ? {
+// Every operation tool takes an optional 'connection' parameter. With one configured connection it
+// defaults to that one; otherwise the LLM must specify it (list_connections first when unsure).
+const CONNECTION_PROP: Record<string, object> = {
   connection: {
     type: 'string',
     description:
@@ -598,7 +707,7 @@ const CONNECTION_PROP: Record<string, object> = MULTI ? {
       'and ask the user to confirm before proceeding — a wrong connection may silently ' +
       'reach the wrong service.'
   }
-} : {};
+};
 
 // Shared by both catalogue tools. Summary is the default because a catalogue's job is to let a caller
 // CHOOSE an operation, and a thoroughly documented service makes the full listing too large for that —
@@ -616,8 +725,10 @@ const CATALOGUE_DETAIL_PROP: Record<string, object> = {
 };
 
 const TOOLS: Tool[] = [
-  // list_connections is only meaningful (and only shown) when MULTI is true
-  ...(MULTI ? [{
+  // list_connections and the `connection` argument are always available: connections can appear at
+  // runtime (an onboarding from zero creates the tenant connection; root-manifest services resolve
+  // by name), so a single configured connection is only a default, not a fixed shape.
+  {
     name: 'list_connections',
     description:
       'List all configured BEST connections with their names, endpoints, and descriptions, plus every ' +
@@ -625,18 +736,19 @@ const TOOLS: Tool[] = [
       'Call this when you are unsure which connection to use for a given request, ' +
       'then confirm the correct connection with the user before calling any operation tool.',
     inputSchema: { type: 'object', properties: {}, required: [] }
-  } as Tool] : []),
+  } as Tool,
   {
     name: 'exchange_device_code',
     description:
       'Last step of a device-authorization onboarding (RFC 8628) on a BEST service: POSTs ' +
       'grant_type=urn:ietf:params:oauth:grant-type:device_code with your device code to the token URL the ' +
       'root manifest declares (best.authentication.tokenUrl), once the person has approved the code you ' +
-      'showed them. Returns the token response verbatim — typically the tenant id, the API key (shown ONCE) ' +
-      'and a ready-made MCP configuration block. authorization_pending / slow_down are NOT errors: wait the ' +
-      'interval and call again with the same device_code. On success the new credential (and tenant) is ' +
-      'applied to this session\'s connections of the same app immediately, so your next tool call already ' +
-      'works; the returned configuration is what the client must persist so the next start has it too.',
+      'showed them. authorization_pending / slow_down are NOT errors: wait the interval and call again with the ' +
+      'same device_code. On success the issued credential (and tenant) is applied to this session\'s connections ' +
+      'of the same app at once AND stored by best-mcp for every later start, so nothing needs editing and your ' +
+      'next tool call already works. The key itself is NEVER returned to you (every copy in the response is ' +
+      'redacted) and must never be typed into the conversation: a chat transcript is not a secret store. Tell ' +
+      'the person the connection is configured and what it can do next.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1082,8 +1194,26 @@ async function handleListConnections(): Promise<string> {
 }
 
 const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
+const REDACTED = '<stored by best-mcp — never shown to the model>';
 
-async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+/** Every string equal to (or containing) the secret becomes the placeholder — the service's own echoes included. */
+function redactSecret(value: unknown, secret: string): unknown {
+  if (typeof value === 'string') return value.includes(secret) ? value.split(secret).join(REDACTED) : value;
+  if (Array.isArray(value)) return value.map(v => redactSecret(v, secret));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactSecret(v, secret)]));
+  }
+  return value;
+}
+
+/** True when the caller identifies itself per request (HTTP multi-user backend): shared state must not change. */
+function isPerRequestCaller(headers?: IncomingHttpHeaders): boolean {
+  if (!headers) return false;
+  return !!(firstHeaderValue(headers['x-api-key']) || firstHeaderValue(headers['x-tenant-id']) ||
+    firstHeaderValue(headers['authorization'])?.match(BEARER_TOKEN));
+}
+
+async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: BestConnection, perRequestCaller: boolean): Promise<string> {
   const deviceCode = String(args.device_code);
   const manifest = await fetchRootManifest(conn);
   const tokenUrl = manifest?.best?.authentication?.tokenUrl;
@@ -1120,14 +1250,43 @@ async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: Bes
   const apiKey = typeof json?.access_token === 'string' ? json.access_token : undefined;
   if (!apiKey) return JSON.stringify(json ?? text, null, 2);
   const tenantId = typeof json?.tenant_id === 'string' ? json.tenant_id : undefined;
+  const redacted = redactSecret(json, apiKey) as Record<string, unknown>;
+
+  // A per-request caller (HTTP multi-user backend) owns its own credentials: this process must not
+  // adopt them, and this model must not be handed them either — the backend mints its own key.
+  if (perRequestCaller) {
+    return JSON.stringify({
+      ...redacted,
+      session: {
+        applied_to: [],
+        note: 'The exchange succeeded, but this best-mcp instance serves several callers (per-request credential ' +
+              'headers were present), so the issued key was neither applied nor stored here, and it is not shown: ' +
+              'the backend that owns this caller\'s credentials must mint and configure its own key on the ' +
+              'service\'s own page. The person you work for can do that there.',
+      },
+    }, null, 2);
+  }
+
+  const supersededKey = rootConnectionOf(conn.name.split('/')[0])?.apiKey ?? conn.apiKey;
   const applied = applyIssuedCredential(conn, apiKey, tenantId, json?.token_type, json?.auth_header);
+  const baseUrl = rootConnectionOf(conn.name.split('/')[0])?.endpoint ?? new URL(conn.endpoint).origin;
+  credentialStore.set(baseUrl, {
+    tenantId,
+    apiKey,
+    authType: (json?.token_type ?? '').toLowerCase() === 'bearer' ? 'bearer' : 'apikey',
+    authHeader: typeof json?.auth_header === 'string' ? json.auth_header : undefined,
+    issuedAt: new Date().toISOString(),
+    supersededKeyHash: supersededKey ? sha256(supersededKey) : undefined,
+  });
   return JSON.stringify({
-    ...json,
+    ...redacted,
     session: {
       applied_to: applied,
-      note: 'These connections use the new credential for the rest of this session; a tenant connection now ' +
-            'points at the issued tenant. Nothing is persisted: store the configuration above (or update the ' +
-            'BEST_<APP>_API_KEY / BEST_<APP>_TENANT_ID variables) so the next start has it too.',
+      stored_at: credentialStore.path,
+      note: 'The issued key is active on these connections now and STORED by best-mcp for every later start of ' +
+            'this configuration — the next call already works and nothing needs editing. The key itself was not ' +
+            'returned and must never be typed into the conversation; if the person needs it elsewhere they mint ' +
+            'one on the service\'s own page. Tell them the connection is configured and what it can do next.',
     },
   }, null, 2);
 }
@@ -1674,9 +1833,14 @@ platform connection; if the root manifest lists an onboarding / anonymous servic
 connection '<app>/<serviceId>' (list_connections shows the names), run its onboarding workflow
 (get_workflows, then the commands and queries it names), show the user the code and link it
 answers, and once they approve call exchange_device_code with your device code. The new key is
-applied to this session's connections at once; the response's configuration block is what to store
-so the next start has it too. Tell the user beforehand if the service says approval replaces the
-account's existing key.
+applied to this session's connections at once and stored by best-mcp for later starts; nothing needs
+editing. Tell the user beforehand if the service says approval replaces the account's existing key.
+
+## Secrets never reach the conversation
+
+A credential is a secret. best-mcp keeps issued credentials in its own store and redacts them from
+every tool result; never ask for one, never repeat one, never paste one into a configuration in the
+chat. If a person needs a key elsewhere, they mint it themselves on the service's own page.
 `).trim();
 
 function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
@@ -1729,7 +1893,7 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
         case 'get_event_schema':      text = await handleGetEventSchema(safeArgs, conn);       break;
         case 'sample_event_stream':   text = await handleSampleEventStream(safeArgs, conn);    break;
         case 'get_workflows':         text = await handleGetWorkflows(safeArgs, conn);         break;
-        case 'exchange_device_code':  text = await handleExchangeDeviceCode(safeArgs, conn);   break;
+        case 'exchange_device_code':  text = await handleExchangeDeviceCode(safeArgs, conn, isPerRequestCaller(requestHeaders)); break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }
