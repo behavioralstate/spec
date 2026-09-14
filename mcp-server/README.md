@@ -187,7 +187,7 @@ Generates one connection: `myapp`.
   "mcpServers": {
     "best": {
       "command": "npx",
-      "args": ["best-mcp"],
+      "args": ["-y", "@behavioralstate/best-mcp"],
       "env": {
         "BEST_TRADING_BASE_URL": "https://api.example.com/best",
         "BEST_TRADING_API_KEY": "your-api-key",
