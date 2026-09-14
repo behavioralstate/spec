@@ -83,6 +83,16 @@ Example — stdio config for VS Code Copilot / Cursor / Claude Desktop:
 
 For ChatGPT Desktop, run with `MCP_TRANSPORT=http`, expose the port via a tunnel, and register the `/mcp` URL as a connector.
 
+### What a conforming MCP client owes the model
+
+A model can only follow what the client lets it reach. Three obligations follow from the manifest itself, and `best-mcp` (2.3.5+) implements each:
+
+- **Every service the root manifest lists is reachable.** A configuration names one tenant surface, but `/.well-known/best` may list further services — typically an anonymous onboarding surface. The client resolves `<app>/<serviceId>` to that service's `http.endpoint` on demand (root manifest fetched once, then cached) and lists such services next to the configured connections; the model never needs a configuration change to reach a service the manifest already names.
+- **Error bodies arrive whole.** A service's `error.code` and `error.details` are where recovery lives (a rejected key's 401 names the onboarding surface there); a client that forwards only the sentence turns a recoverable state into a dead end.
+- **The token URL is usable.** `authentication.tokenUrl` exists because the credential hand-off cannot be a command (asynchronous, no result) or a query (a secret in a URL). The client exposes it as a tool — `exchange_device_code` for the RFC 8628 device-authorization grant that agent self-onboarding uses — treats `authorization_pending` / `slow_down` as a status to poll on, and applies an issued credential (and tenant) to the session's connections at once, so the model's next call already works; persisting the returned configuration remains the host's job.
+
+The server-side counterpart is in [`agents/workflows`](../agents/workflows.md): a service that offers self-onboarding publishes it as a workflow on an anonymous surface listed in the root manifest.
+
 ## Manifest Declaration
 
 The `mcp` block in a service's transports declares how to reach the MCP server. MCP is **optional** — HTTP is the baseline.

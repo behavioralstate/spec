@@ -208,7 +208,9 @@ function parseConnections(): BestConnection[] {
           ...shared,
           name:        `${app}/platform`,
           endpoint:    baseUrl,
-          description: `${app} — platform root (manifest discovery and cross-tenant operations). Does not expose commands or queries directly.`,
+          description: `${app} — platform root. Call get_manifest here to see the platform's services; each one is ` +
+                       `reachable as connection '${app}/<serviceId>' (for example an anonymous onboarding surface ` +
+                       `when the tenant key is rejected). Exposes no commands or queries of its own.`,
         });
       } else {
         connections.push({
@@ -286,18 +288,142 @@ function parseConnections(): BestConnection[] {
 const CONNECTIONS = parseConnections();
 const MULTI       = CONNECTIONS.length > 1;
 
-function resolveConnection(name?: string): BestConnection {
-  if (!MULTI) return CONNECTIONS[0];
+// ── Root-manifest services as connections ─────────────────────────────────────
+//
+// A platform's root manifest (`/.well-known/best`) lists its services, each with an HTTP endpoint.
+// Only the tenant surface gets a configured connection, so a service the manifest names but no env
+// var describes — typically an anonymous onboarding surface — used to be unreachable through this
+// client, and the model fell back to a browser. Now `<app>/<serviceId>` resolves lazily: the root
+// manifest of `<app>/platform` (or the single `<app>` connection) is fetched once, the service's
+// endpoint becomes an ad-hoc connection carrying the app's credential (harmless on an anonymous
+// surface, required on a credentialed one), and the result is cached for the process lifetime.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RootManifest = any;
+const rootManifestCache = new Map<string, RootManifest>();
+
+async function fetchRootManifest(conn: BestConnection): Promise<RootManifest> {
+  const url = `${new URL(conn.endpoint).origin}/.well-known/best`;
+  const cached = rootManifestCache.get(url);
+  if (cached) return cached;
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const message = await parseErrorMessage(response);
+    throw new Error(`GET ${url} → ${response.status}: ${message}`);
+  }
+  const manifest = await response.json();
+  rootManifestCache.set(url, manifest);
+  return manifest;
+}
+
+/** The connection that owns an app's root manifest: `<app>/platform`, else the bare `<app>`. */
+function rootConnectionOf(app: string): BestConnection | undefined {
+  return CONNECTIONS.find(c => c.name === `${app}/platform`) ?? CONNECTIONS.find(c => c.name === app);
+}
+
+const serviceConnectionCache = new Map<string, BestConnection>();
+
+async function resolveServiceConnection(name: string): Promise<BestConnection | undefined> {
+  const cached = serviceConnectionCache.get(name);
+  if (cached) return cached;
+  const slash = name.indexOf('/');
+  if (slash <= 0) return undefined;
+  const app = name.slice(0, slash);
+  const serviceId = name.slice(slash + 1);
+  const root = rootConnectionOf(app);
+  if (!root) return undefined;
+  const manifest = await fetchRootManifest(root);
+  const service = manifest?.best?.services?.[serviceId];
+  const endpoint = service?.http?.endpoint;
+  if (typeof endpoint !== 'string' || !endpoint) return undefined;
+  const conn: BestConnection = {
+    ...root,
+    name,
+    endpoint: endpoint.replace(/\/$/, ''),
+    tenantTemplateBaseUrl: undefined,
+    description: `${app} — ${serviceId} (from the root manifest): ${service.description ?? '(no description)'}`,
+  };
+  serviceConnectionCache.set(name, conn);
+  return conn;
+}
+
+/** Root-manifest services of every configured app that are not already a configured connection. */
+async function listServiceConnections(): Promise<{ name: string; endpoint: string; description: string }[]> {
+  const out: { name: string; endpoint: string; description: string }[] = [];
+  const apps = new Set(CONNECTIONS.map(c => c.name.split('/')[0]));
+  for (const app of apps) {
+    const root = rootConnectionOf(app);
+    if (!root) continue;
+    let manifest: RootManifest;
+    try { manifest = await fetchRootManifest(root); } catch { continue; }
+    const services = manifest?.best?.services;
+    if (!services || typeof services !== 'object') continue;
+    const known = CONNECTIONS.map(c => c.endpoint);
+    for (const [serviceId, service] of Object.entries(services as Record<string, RootManifest>)) {
+      const endpoint = (service?.http?.endpoint as string | undefined)?.replace(/\/$/, '');
+      if (!endpoint) continue;
+      // Already configured, or merely the parent of a configured surface (a tenant service whose
+      // endpoint is the bare `/tenants` collection) — listing it would invite calls to a non-surface.
+      if (known.some(k => k === endpoint || k.startsWith(`${endpoint}/`))) continue;
+      out.push({
+        name: `${app}/${serviceId}`,
+        endpoint,
+        description: `(root manifest) ${service?.description ?? '(no description)'}`,
+      });
+    }
+  }
+  return out;
+}
+
+async function resolveConnection(name?: string): Promise<BestConnection> {
+  if (!MULTI && !name) return CONNECTIONS[0];
   if (!name) throw new Error(
     `Multiple BEST connections are configured — you must specify a 'connection' parameter. ` +
     `Available connections: ${CONNECTIONS.map(c => c.name).join(', ')}. ` +
     `Call list_connections to see full details, then confirm the correct connection with the user before proceeding.`
   );
-  const conn = CONNECTIONS.find(c => c.name === name);
+  const conn = CONNECTIONS.find(c => c.name === name) ?? await resolveServiceConnection(name);
   if (!conn) throw new Error(
-    `Unknown connection '${name}'. Available: ${CONNECTIONS.map(c => c.name).join(', ')}.`
+    `Unknown connection '${name}'. Available: ${CONNECTIONS.map(c => c.name).join(', ')}` +
+    ` — plus '<app>/<serviceId>' for any service the app's root manifest lists ` +
+    `(list_connections shows them; get_manifest on the platform connection shows the manifest).`
   );
   return conn;
+}
+
+/**
+ * Applies a freshly issued credential to every connection of the same app for the rest of this
+ * process: the model that just completed an onboarding can use the tenant surface on its very next
+ * call, instead of being told to edit a config file and restart first. Nothing is persisted — the
+ * returned config block is what the client has to store.
+ */
+function applyIssuedCredential(
+  conn: BestConnection,
+  apiKey: string,
+  tenantId: string | undefined,
+  tokenType: string | undefined,
+  authHeader: string | undefined,
+): string[] {
+  const app = conn.name.split('/')[0];
+  const bearer = (tokenType ?? '').toLowerCase() === 'bearer';
+  const targets = [
+    ...CONNECTIONS.filter(c => c.name === app || c.name.startsWith(`${app}/`)),
+    ...[...serviceConnectionCache.values()].filter(c => c.name.startsWith(`${app}/`)),
+  ];
+  const applied: string[] = [];
+  for (const c of targets) {
+    c.apiKey = apiKey;
+    c.authType = bearer ? 'bearer' : 'apikey';
+    if (!bearer) {
+      c.authIn = 'header';
+      if (authHeader) c.authHeader = authHeader;
+    }
+    if (tenantId && c.tenantTemplateBaseUrl && SAFE_TENANT_ID.test(tenantId)) {
+      c.endpoint = `${c.tenantTemplateBaseUrl}/tenants/${tenantId}`;
+    }
+    applied.push(c.name);
+  }
+  return applied;
 }
 
 // Tenant IDs are spliced directly into a URL path segment — restrict to a safe
@@ -407,7 +533,15 @@ async function parseErrorMessage(response: Response): Promise<string> {
     const json = JSON.parse(text);
     const err = json.error;
     if (typeof err === 'string') return err;
-    if (err && typeof err === 'object') return err.message ?? JSON.stringify(err);
+    if (err && typeof err === 'object') {
+      // Keep the whole envelope, not just the sentence: a service's error `details` is where the
+      // recovery lives (a dead key's 401 names the onboarding surface there), and a model that only
+      // sees "that key is not a key of this tenant" gives up or wanders off to a browser.
+      const head = err.message ?? JSON.stringify(err);
+      const parts = [err.code ? `${err.code}: ${head}` : head];
+      if (err.details !== undefined) parts.push(`Details: ${JSON.stringify(err.details)}`);
+      return parts.join('\n');
+    }
     return json.title ?? json.detail ?? text;
   } catch {
     return text;
@@ -457,7 +591,8 @@ const CONNECTION_PROP: Record<string, object> = MULTI ? {
   connection: {
     type: 'string',
     description:
-      `Name of the BEST connection to target. Available: ${CONNECTIONS.map(c => c.name).join(', ')}. ` +
+      `Name of the BEST connection to target. Available: ${CONNECTIONS.map(c => c.name).join(', ')}; ` +
+      `also '<app>/<serviceId>' for any service the app's root manifest lists (e.g. an onboarding surface). ` +
       'Call list_connections to see full details (endpoint, description) for each. ' +
       'If you are not certain which connection the user intends, call list_connections ' +
       'and ask the user to confirm before proceeding — a wrong connection may silently ' +
@@ -485,11 +620,35 @@ const TOOLS: Tool[] = [
   ...(MULTI ? [{
     name: 'list_connections',
     description:
-      'List all configured BEST connections with their names, endpoints, and descriptions. ' +
+      'List all configured BEST connections with their names, endpoints, and descriptions, plus every ' +
+      'further service the apps\' root manifests list (reachable by the same connection names). ' +
       'Call this when you are unsure which connection to use for a given request, ' +
       'then confirm the correct connection with the user before calling any operation tool.',
     inputSchema: { type: 'object', properties: {}, required: [] }
   } as Tool] : []),
+  {
+    name: 'exchange_device_code',
+    description:
+      'Last step of a device-authorization onboarding (RFC 8628) on a BEST service: POSTs ' +
+      'grant_type=urn:ietf:params:oauth:grant-type:device_code with your device code to the token URL the ' +
+      'root manifest declares (best.authentication.tokenUrl), once the person has approved the code you ' +
+      'showed them. Returns the token response verbatim — typically the tenant id, the API key (shown ONCE) ' +
+      'and a ready-made MCP configuration block. authorization_pending / slow_down are NOT errors: wait the ' +
+      'interval and call again with the same device_code. On success the new credential (and tenant) is ' +
+      'applied to this session\'s connections of the same app immediately, so your next tool call already ' +
+      'works; the returned configuration is what the client must persist so the next start has it too.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        device_code: {
+          type: 'string',
+          description: 'The device code of the registration you started (on BEST onboarding surfaces, the CorrelationId you minted for request-registration).'
+        }
+      },
+      required: ['device_code']
+    }
+  },
   {
     name: 'get_command_catalogue',
     description:
@@ -912,15 +1071,65 @@ function validateToolArgs(name: string, args: Record<string, unknown>): string |
 
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 
-function handleListConnections(): string {
-  return JSON.stringify(
-    CONNECTIONS.map(c => ({
-      name:        c.name,
-      endpoint:    c.endpoint,
-      description: c.description ?? '(no description)',
-    })),
-    null, 2
-  );
+async function handleListConnections(): Promise<string> {
+  const configured = CONNECTIONS.map(c => ({
+    name:        c.name,
+    endpoint:    c.endpoint,
+    description: c.description ?? '(no description)',
+  }));
+  const fromManifests = await listServiceConnections();
+  return JSON.stringify([...configured, ...fromManifests], null, 2);
+}
+
+const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
+
+async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  const deviceCode = String(args.device_code);
+  const manifest = await fetchRootManifest(conn);
+  const tokenUrl = manifest?.best?.authentication?.tokenUrl;
+  if (typeof tokenUrl !== 'string' || !tokenUrl) {
+    throw new Error(
+      `The root manifest at ${new URL(conn.endpoint).origin}/.well-known/best declares no authentication.tokenUrl — ` +
+      `this service offers no token exchange.`
+    );
+  }
+  const body = new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: deviceCode }).toString();
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body,
+  });
+  const text = await response.text();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let json: any;
+  try { json = JSON.parse(text); } catch { json = undefined; }
+
+  if (!response.ok) {
+    const code = json?.error;
+    if (code === 'authorization_pending' || code === 'slow_down') {
+      return JSON.stringify({
+        status: code,
+        interval: json?.interval,
+        note: 'Not an error. The person has not approved the code yet (or you polled too soon). ' +
+              'Wait the interval in seconds, then call exchange_device_code again with the same device_code.',
+      }, null, 2);
+    }
+    throw new Error(`POST ${tokenUrl} → ${response.status}: ${json?.error_description ?? json?.error ?? text}`);
+  }
+
+  const apiKey = typeof json?.access_token === 'string' ? json.access_token : undefined;
+  if (!apiKey) return JSON.stringify(json ?? text, null, 2);
+  const tenantId = typeof json?.tenant_id === 'string' ? json.tenant_id : undefined;
+  const applied = applyIssuedCredential(conn, apiKey, tenantId, json?.token_type, json?.auth_header);
+  return JSON.stringify({
+    ...json,
+    session: {
+      applied_to: applied,
+      note: 'These connections use the new credential for the rest of this session; a tenant connection now ' +
+            'points at the issued tenant. Nothing is persisted: store the configuration above (or update the ' +
+            'BEST_<APP>_API_KEY / BEST_<APP>_TENANT_ID variables) so the next start has it too.',
+    },
+  }, null, 2);
 }
 
 /** Longest description kept per entry in a summary catalogue listing. */
@@ -1455,6 +1664,19 @@ back to discovering commands/queries directly.
 ## Error handling
 
 If a command fails, relay the error message verbatim to the user — it is actionable.
+
+## When the credential is rejected (401, e.g. INVALID_API_KEY)
+
+Many BEST services hold ONE key per account: a key replaced since it was stored is dead, and the
+error's Details name the way back. Do NOT fall back to a browser and do NOT ask the user to sign up
+on the service's website — that is the human path, not yours. Instead: call get_manifest on the
+platform connection; if the root manifest lists an onboarding / anonymous service, target it as
+connection '<app>/<serviceId>' (list_connections shows the names), run its onboarding workflow
+(get_workflows, then the commands and queries it names), show the user the code and link it
+answers, and once they approve call exchange_device_code with your device code. The new key is
+applied to this session's connections at once; the response's configuration block is what to store
+so the next start has it too. Tell the user beforehand if the service says approval replaces the
+account's existing key.
 `).trim();
 
 function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
@@ -1485,12 +1707,12 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
 
       // list_connections needs no connection resolution
       if (name === 'list_connections') {
-        return { content: [{ type: 'text', text: handleListConnections() }] };
+        return { content: [{ type: 'text', text: await handleListConnections() }] };
       }
 
       // All other tools resolve their target connection from the optional 'connection' arg,
       // then apply any per-request X-Api-Key / X-Tenant-Id header overrides (HTTP only).
-      const baseConn = resolveConnection(safeArgs.connection as string | undefined);
+      const baseConn = await resolveConnection(safeArgs.connection as string | undefined);
       const conn = requestHeaders ? applyRequestOverrides(baseConn, requestHeaders) : baseConn;
 
       let text: string;
@@ -1507,6 +1729,7 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
         case 'get_event_schema':      text = await handleGetEventSchema(safeArgs, conn);       break;
         case 'sample_event_stream':   text = await handleSampleEventStream(safeArgs, conn);    break;
         case 'get_workflows':         text = await handleGetWorkflows(safeArgs, conn);         break;
+        case 'exchange_device_code':  text = await handleExchangeDeviceCode(safeArgs, conn);   break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }

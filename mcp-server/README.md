@@ -66,6 +66,7 @@ Spec reference: https://behavioralstate.io/docs
 | `get_events` | Query the historical event log (`GET /events`) — filter by correlationId/type/source/time, paginate with the response cursor |
 | `get_event_schema` | Fetch the JSON Schema for a typed event (`GET /events/{schema}/{version}`) |
 | `sample_event_stream` | Open the live SSE stream (`GET /events/stream`), collect events until `max_events`/`max_seconds`, then return them — bounded client-side, so it works against any conformant endpoint |
+| `exchange_device_code` | Last step of a device-authorization onboarding (RFC 8628): POSTs the device code to the root manifest's `authentication.tokenUrl` and returns the token response verbatim (tenant id, the once-shown API key, a ready MCP config block). `authorization_pending` / `slow_down` come back as a non-error status to poll on. On success the new credential (and tenant) is applied to this session's connections of the same app at once — the next tool call already works; the returned config is what to persist |
 | `get_workflows` | List the service's published workflow recipes (`GET /workflows` — always answered as a shallow index), or fetch one full recipe with its steps via `workflow_id` (`GET /workflows/{id}`). Handles both the 0.9.4 `io.best.agents.workflows` capability and pre-0.9.4 vendor-extension servers; returns a note if the service publishes none |
 
 Intended LLM flow: `get_command_catalogue` → pick a command → `get_command_schema` → gather fields → `send_command`.
@@ -80,6 +81,10 @@ Before hand-assembling a multi-step process, call `get_workflows` — catalogue 
 High-impact commands (spec 0.9.6): when a command's schema document or catalogue entry carries an `impact` annotation (financial, destructive, irreversible, compliance), `get_command_schema` appends a deterministic HIGH-IMPACT note — including the server's `warning` text — telling the model to surface the warning and obtain the user's explicit confirmation before `send_command`. The annotation is descriptive; the server's own controls still apply.
 
 When multiple connections are configured all operation tools gain an optional `connection` parameter. If the LLM is not certain which connection the user intends, it calls `list_connections` and asks the user to confirm before proceeding.
+
+**Root-manifest services as connections.** A platform's root manifest (`/.well-known/best`) lists its services, each with an HTTP endpoint, and only the tenant surface gets a configured connection. Every other listed service is reachable anyway as `<app>/<serviceId>` (e.g. `dotquant/io.dotquant.onboarding`): the client fetches the app's root manifest once, builds an ad-hoc connection at that service's endpoint with the app's credential, and caches it. `list_connections` lists them after the configured ones. Services whose endpoint is merely the parent of a configured surface (a tenants collection root) are not listed.
+
+**Dead key recovery.** Many BEST services hold ONE key per account, so a key replaced since it was stored is dead — the tenant surface answers 401 and the error now carries the service's `code` and `details` (where a good service names its onboarding surface), not just the message. The server instructions tell the model what to do next: never fall back to a browser or the website's sign-up form; target the onboarding service by its `<app>/<serviceId>` connection name, run its workflow (the person approves a short code), then call `exchange_device_code` — the new key is live in the session immediately and the returned configuration is what the client must store.
 
 ---
 
@@ -116,7 +121,7 @@ One set of `BEST_<APP>_*` variables per application. The app name is a single up
 
 | Variable | Default | Description |
 |---|---|---|
-| `BEST_<APP>_TENANT_ID` | — | When set, **auto-generates two connections**: `<app>/tenant` (tenant-scoped) and `<app>/platform` (platform-level). When omitted, generates one connection: `<app>`. |
+| `BEST_<APP>_TENANT_ID` | — | When set, **auto-generates two connections**: `<app>/tenant` (tenant-scoped) and `<app>/platform` (platform-level). When omitted, generates one connection: `<app>`. Either way every further service the app's root manifest lists is reachable as `<app>/<serviceId>` without configuration (see [Tools](#tools)). |
 | `BEST_<APP>_AUTH_TYPE` | `apikey` | How the credential is sent — see [Auth types](#auth-types) below. **Defaults to `apikey` in Mode 1** (unlike Modes 2 and 3 which default to `bearer`). |
 | `BEST_<APP>_AUTH_HEADER` | `X-Api-Key` | Header name — only used when `AUTH_TYPE=apikey` and `AUTH_IN=header` |
 | `BEST_<APP>_AUTH_IN` | `header` | Where the key is sent when `AUTH_TYPE=apikey`: `header` or `query` |
