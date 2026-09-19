@@ -303,8 +303,7 @@ function parseConnections(): BestConnection[] {
           name:        `${app}/platform`,
           endpoint:    baseUrl,
           description: `${app} — platform root. Call get_manifest here to see the platform's services; each one is ` +
-                       `reachable as connection '${app}/<serviceId>' (for example an anonymous surface carrying ` +
-                       `the sign-in and create-account recipes: the way in when a person asks to sign in or sign up, or ` +
+                       `reachable as connection '${app}/<serviceId>' (for example an anonymous onboarding surface ` +
                        `when the tenant key is rejected). Exposes no commands or queries of its own.`,
         });
       } else {
@@ -741,7 +740,7 @@ const TOOLS: Tool[] = [
   {
     name: 'exchange_device_code',
     description:
-      'Last step of a device-authorization sign-in or onboarding (RFC 8628) on a BEST service: POSTs ' +
+      'Last step of a device-authorization onboarding (RFC 8628) on a BEST service: POSTs ' +
       'grant_type=urn:ietf:params:oauth:grant-type:device_code with your device code to the token URL the ' +
       'root manifest declares (best.authentication.tokenUrl), once the person has approved the code you ' +
       'showed them. authorization_pending / slow_down are NOT errors: wait the interval and call again with the ' +
@@ -1825,28 +1824,13 @@ back to discovering commands/queries directly.
 
 If a command fails, relay the error message verbatim to the user — it is actionable.
 
-## When the person asks to sign in, sign up or sign out
-
-A person may open a fresh conversation and say "sign me in to <service>" when you hold no credential
-and have never heard of the service. Services name their recipes after what the person asks for, so:
-call list_connections; the app's anonymous service (often called onboarding) is either the configured
-connection, when no key is set, or reachable as '<app>/<serviceId>'. Call get_workflows there and
-follow the recipe whose name matches the request - a sign-in recipe for someone who ALREADY has an
-account, a create-account recipe for someone who has none. Take the person's word about which they
-are: never ask them to prove an account exists and never propose a second one. You never ask for a
-password and never drive the buttons on the service's website; the person approves you once with a
-short code on a page they open themselves, then exchange_device_code finishes it and best-mcp keeps
-the key. To sign out, look for a sign-out recipe in get_workflows on the tenant connection and
-follow it (where an account holds one key, it revokes that key); say what it does before doing it.
-
 ## When the credential is rejected (401, e.g. INVALID_API_KEY)
 
 Many BEST services hold ONE key per account: a key replaced since it was stored is dead, and the
 error's Details name the way back. Do NOT fall back to a browser and do NOT ask the user to sign up
 on the service's website — that is the human path, not yours. Instead: call get_manifest on the
 platform connection; if the root manifest lists an onboarding / anonymous service, target it as
-connection '<app>/<serviceId>' (list_connections shows the names), run its sign-in workflow if it
-publishes one - the person HAS an account, a dead key proves it - otherwise its onboarding workflow
+connection '<app>/<serviceId>' (list_connections shows the names), run its onboarding workflow
 (get_workflows, then the commands and queries it names), show the user the code and link it
 answers, and once they approve call exchange_device_code with your device code. The new key is
 applied to this session's connections at once and stored by best-mcp for later starts; nothing needs
