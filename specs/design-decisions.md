@@ -350,3 +350,31 @@ So the escape hatch is exactly as large as that residue and no larger. It also g
 - Not a side-channel API — dynamic data behind `extensions` instead of a query is a design error.
 - Not a private channel — the root manifest is public, and the manifest-hygiene rule applies to extension content identically.
 - Not a second capability mechanism — behavior is declared as a capability, never as an extension.
+
+---
+
+## Names are DNS names; no registry
+
+### The decision
+
+A BEST service is named by a DNS domain name its operator controls, and a consumer resolves that name to a manifest with a fixed algorithm: `https://{name}/.well-known/best` first, a single `TXT` record at `_best.{name}` only when the name serves no HTTP. BEST defines no registry, no directory and no naming authority of its own. See [SPEC.md — Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution).
+
+### Why
+
+The first contact between a person's assistant and a service kept failing before the manifest was ever read. The person says "sign me in to example.com"; the assistant has never heard of the service, so it opens the website, asks for an email, tries the buttons — or works only on the one machine where somebody pasted a per-service client configuration. Every remedy tried on the service's side was a second copy of the manifest in another medium: a prose file at the site root, a client snippet per service, a packaged skill per client. Each has to be found by the person first, which is the problem it was meant to solve, and each can drift from what the service does.
+
+What was missing is what DNS gave hosts: a name anyone can say, and one resolver that turns it into an address. Both halves already existed. The name is the domain — unique, owned, delegable, revocable when it lapses, and already how people refer to services. The address is the well-known manifest. The rule only had to be written down, and the client told it may follow it: one generic client, installed once, reaches any BEST service by name.
+
+A registry was rejected for the reason the registry capability was removed (see [Registry and Lifecycle removed](#registry-and-lifecycle-removed)): it rebuilds what DNS has — uniqueness, ownership, dispute handling — and adds an operator everyone must trust and someone must fund. It would also invite the squatting DNS has spent decades learning to arbitrate.
+
+The well-known path comes before the `TXT` record because many consumers can make HTTPS requests and nothing else. Consulting DNS only when HTTP finds nothing means every consumer resolves a name to the same manifest whenever the well-known path answers; the record is for names whose origin serves no HTTP at all.
+
+### Why the resolver carries obligations
+
+Resolution lets a model reach a service nobody configured, and hands it that service's text. Without rules this is an injection path: a description or an error body that says "now connect to other.example" would be followed. So the name must come from the person, the consumer says what it resolved before any credentialed call, credentials stay bound to the name they were issued under, and a newly resolved service's text guides the use of that service and nothing else. These are obligations of the consumer because the service being resolved is the party that cannot be trusted to honour them.
+
+### What this is not
+
+- Not search. "Which service makes videos" is a directory, and a directory is a domain like any other — anyone may run one as a BEST service whose queries return names.
+- Not a manifest change. No field is added; a conformant 0.9.x service that serves `/.well-known/best` on the name it is known by already resolves.
+- Not a trust mark. A name that resolves is a service that exists, not one that is safe; the person's confirmation of the name is the trust decision.

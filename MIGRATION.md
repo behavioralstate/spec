@@ -1,5 +1,6 @@
 # Migration Guide
 
+- [0.9.9 → 0.9.10](#migrating-from-099-to-0910) — name resolution: a DNS name is the whole namespace, resolved through `/.well-known/best` (a `_best` TXT record only where the name serves no HTTP); obligations on the resolving consumer. No wire change
 - [0.9.7 → 0.9.8](#migrating-from-097-to-098) — token exchange for header-constrained clients: `tokenUrl` defined as an RFC 6749 token endpoint; query-string credential rules. No wire change
 - [0.9.6 → 0.9.7](#migrating-from-096-to-097) — the optional `extensions` object gives vendor data a lawful home in the manifest (root and capability entries); domain-first rule governs what belongs there
 - [0.9.5 → 0.9.6](#migrating-from-095-to-096) — the optional `impact` annotation makes high-impact commands discoverable; human-facing consumers warn and confirm before submitting
@@ -8,6 +9,24 @@
 - [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.9 to 0.9.10
+
+Spec 0.9.10 is **normative guidance only — no wire change, no manifest field added**. It names what a service is called (a DNS domain name its operator controls) and fixes how a consumer turns that name into a manifest, so that one generic client reaches any BEST service from what a person says. (0.9.9 was editorial and needed no migration.)
+
+## Added — Name Resolution
+
+- A name resolves through `https://{name}/.well-known/best`, following redirects; only when that finds nothing, and only for a consumer that can query DNS, through a single `TXT` record at `_best.{name}` (`v=BEST1; manifest=<absolute https URL>`). The well-known path always wins.
+- `services` keys **SHOULD** sit under the reversed name (`com.example.*` for `example.com`).
+- A consumer acting for a person **MUST** resolve only a name the person gave or confirmed, say what it resolved before the first credentialed interaction, use validated `https` and refuse private targets, bind each credential to the name it was issued under, and give a newly resolved service's text no authority beyond the use of that service.
+
+## Migrating
+
+- **Servers**: check that `/.well-known/best` answers (or redirects) on **every name the service is publicly known by** — a manifest served only on an API host resolves from that host's name and no other. A service whose public name serves no HTTP at all publishes the `_best` TXT record. Nothing else is required.
+- **Clients**: nothing required for configured connections. A client that adds resolve-by-name takes on the consumer obligations above; the person's confirmation belongs in the client's flow, not in its instructions to the model.
+- **Validators**: no change — schema shape is identical.
 
 ---
 

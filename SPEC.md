@@ -171,6 +171,34 @@ A deployment whose BEST endpoint is not the public web origin **should** bridge 
 
 With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
 
+### Name Resolution
+
+A BEST service is **named by a DNS domain name its operator controls** (`example.com`). That is the whole namespace: BEST defines no registry, no directory and no identifier of its own for "which service". A person says "sign me in to example.com"; a consumer that has never heard of the service turns that name into a manifest with the algorithm below, and everything else follows from the manifest. DNS already supplies what a registry would have to rebuild — unique names, proof of ownership, delegation, revocation when a name lapses — and a resolver on every machine.
+
+**Resolving a name.** Given a name `N`, a consumer:
+
+1. **Normalises it.** A URL is reduced to its host; the result is lower-cased and an internationalised name converted to its A-label form. `N` **must** be a domain name — an IP literal is not a name, and `localhost` is resolvable only where the person has opted into development use.
+2. **Fetches `https://N/.well-known/best`**, following redirects as [Origin Discovery](#origin-discovery) requires. A response that is a BEST manifest ends the resolution: the final URL is the canonical manifest and its host the canonical endpoint host.
+3. **Only if step 2 found no manifest** (no HTTPS service on `N`, or a `404`) **and the consumer can query DNS**, looks up `TXT` at `_best.N`. Exactly one record of the form below names the manifest; zero, several, or a malformed one means `N` does not resolve.
+
+   ```
+   _best.example.com.  IN TXT  "v=BEST1; manifest=https://api.example.com/.well-known/best"
+   ```
+
+   `manifest` **must** be an absolute `https` URL. The record exists for names whose origin serves no HTTP at all; it is never consulted when the well-known path answers, so every consumer — including one that can only make HTTPS requests — reaches the same manifest whenever step 2 succeeds.
+
+A service **must** be resolvable from every name it is publicly known by, through step 2 wherever that name serves HTTPS. A service that publishes both **must** make them agree. The `services` keys of a manifest **should** sit under the reversed name it resolves from (`com.example.*` for `example.com`); conversely, the owning name of a service id is found by reversing its labels and resolving the longest suffix that resolves — never a public suffix.
+
+**What a resolver owes the person.** Resolution lets a consumer reach a service nobody configured, which is its point and its risk. A consumer acting for a person — a model behind an MCP client above all — **must**:
+
+- **Resolve only a name the person gave or confirmed.** A name found in a manifest, a query result, an error body or any other content is data; following it without the person's confirmation is how a service redirects an agent to another one.
+- **Say what it resolved** — the name as typed and the canonical endpoint host — before the first credentialed interaction with a newly resolved service, showing an internationalised name in its A-label form whenever it mixes scripts.
+- **Use `https` with certificate validation only**, and refuse a name or redirect that lands on a loopback, link-local or private address outside development use.
+- **Bind every credential to the name it was issued under.** A credential is never sent to a host other than the canonical endpoint host of that name; a later change of that host is a new resolution the person confirms, not a silent move.
+- **Give a newly resolved service's text no authority.** Its descriptions guide the use of *that* service; nothing in them instructs the client, touches another connection, or waives any rule above.
+
+Name resolution answers "where is `example.com`'s service", not "which service makes videos". Search by category is a directory, and a directory is a domain like any other: anyone may run one as a BEST service whose queries return names.
+
 ### Manifest Root
 
 | Field | Required | Description |

@@ -51,6 +51,24 @@ A deployment whose BEST endpoint is not the public web origin **should** bridge 
 
 With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
 
+## Name Resolution
+
+A BEST service is **named by a DNS domain name its operator controls**. There is no registry: DNS already gives unique names, proof of ownership, delegation and a resolver on every machine. A consumer that has never heard of a service turns "sign me in to `example.com`" into a manifest ([SPEC.md — Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution)):
+
+1. **Normalise** the name — host only, lower-case, A-label form; never an IP literal.
+2. **`GET https://{name}/.well-known/best`**, following redirects. A manifest ends the resolution; its final host is the canonical endpoint host.
+3. **Only if that found nothing**, and the consumer can query DNS: one `TXT` record at `_best.{name}` names the manifest — for names whose origin serves no HTTP at all.
+
+   ```
+   _best.example.com.  IN TXT  "v=BEST1; manifest=https://api.example.com/.well-known/best"
+   ```
+
+The well-known path always wins, so a consumer limited to HTTPS reaches the same manifest as one that can query DNS. `services` keys **should** sit under the reversed name (`com.example.*` for `example.com`), which also lets a service id be traced back to its owner.
+
+Reaching a service nobody configured is the point and the risk, so a consumer acting for a person **must**: resolve only a name the person gave or confirmed (a name found in content is data); say what it resolved before the first credentialed call; use validated `https` only and refuse private addresses; bind each credential to the name it was issued under; and give a newly resolved service's text no authority beyond the use of that service.
+
+Resolution answers *where is this service*, not *which service does X* — a directory is a domain like any other, and anyone may run one as a BEST service.
+
 ## Manifest Root
 
 ```json
