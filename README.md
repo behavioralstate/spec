@@ -49,7 +49,7 @@ Upgrading an implementation from 0.8.x? See [MIGRATION.md](MIGRATION.md) — 0.9
 
 For what's done, in flight, and planned — including the IANA/RFC standards track — see [ROADMAP.md](ROADMAP.md).
 
-> The most recent stable release is [v0.9.9](https://github.com/behavioralstate/spec/releases/tag/spec/v0.9.9). To read the spec exactly as released, browse the repo at tag [v0.9.9](https://github.com/behavioralstate/spec/blob/spec/v0.9.9/README.md); the `main` branch is the work in progress.
+> The most recent stable release is [v0.9.10](https://github.com/behavioralstate/spec/releases/tag/spec/v0.9.10). To read the spec exactly as released, browse the repo at tag [v0.9.10](https://github.com/behavioralstate/spec/blob/spec/v0.9.10/README.md); the `main` branch is the work in progress.
 
 ## Protocol Artifacts
 
