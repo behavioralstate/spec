@@ -2094,9 +2094,19 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
+// The MCP endpoint is the server's origin itself: a deployment hands out `https://mcp.example.com`
+// and nothing more. `/mcp` stays as an alias for the connectors and configs that were given it
+// before 2.4.2. Query strings and a trailing slash do not change which route is meant.
+const MCP_HTTP_PATHS = new Set(['/', '/mcp']);
+function httpPathname(url: string | undefined): string {
+  const pathname = new URL(url ?? '/', 'http://localhost').pathname;
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+}
+
 if (TRANSPORT === 'http') {
   const httpServer = createHttpServer(async (req, res) => {
-    if (req.url === '/mcp' && req.method === 'POST') {
+    const pathname = httpPathname(req.url);
+    if (MCP_HTTP_PATHS.has(pathname) && req.method === 'POST') {
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(chunk as Buffer);
       let body: unknown;
@@ -2108,7 +2118,7 @@ if (TRANSPORT === 'http') {
       res.on('close', () => { server.close(); transport.close(); });
       await server.connect(transport);
       await transport.handleRequest(req, res, body);
-    } else if (req.url === '/health' && req.method === 'GET') {
+    } else if (pathname === '/health' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', transport: 'http' }));
     } else {
@@ -2119,7 +2129,7 @@ if (TRANSPORT === 'http') {
 
   httpServer.listen(HTTP_PORT, () => {
     process.stderr.write(`[best-mcp] HTTP server listening on port ${HTTP_PORT}\n`);
-    process.stderr.write(`[best-mcp] MCP endpoint: http://localhost:${HTTP_PORT}/mcp\n`);
+    process.stderr.write(`[best-mcp] MCP endpoint: http://localhost:${HTTP_PORT}/ (also served at /mcp)\n`);
     for (const c of CONNECTIONS) {
       process.stderr.write(`[best-mcp] Connection '${c.name}': ${c.endpoint}\n`);
     }

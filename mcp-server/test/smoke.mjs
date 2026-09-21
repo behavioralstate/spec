@@ -13,6 +13,7 @@
  * Run: npm test   (builds first)
  */
 import { createServer } from 'http';
+import { spawn } from 'child_process';
 import { mkdtempSync, readFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -159,5 +160,28 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   await client.close(); server.close();
 }
 
+// ── http — the endpoint is the origin itself; /mcp stays as an alias ────────
+{
+  const { server, origin } = await mock('modern');
+  const port = await new Promise(resolve => { const probe = createServer(); probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); }); });
+  const child = spawn(process.execPath, [SERVER], {
+    env: { ...process.env, BEST_EXAMPLE_BASE_URL: `${origin}/api`, MCP_TRANSPORT: 'http', MCP_HTTP_PORT: String(port) },
+    stdio: 'ignore'
+  });
+  const base = `http://127.0.0.1:${port}`;
+  const up = async () => { for (let i = 0; i < 50; i++) { try { if ((await fetch(`${base}/health`)).ok) return true; } catch {} await new Promise(r => setTimeout(r, 100)); } return false; };
+  expect(await up(), 'http: the server did not come up');
+  const initialize = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'smoke', version: '0.0.0' } } };
+  const post = path => fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' }, body: JSON.stringify(initialize) });
+  for (const path of ['/', '/mcp', '/mcp/', '/?session=abc']) {
+    const r = await post(path);
+    expect(r.status === 200, `http: POST ${path} answered ${r.status} — the MCP endpoint must be the origin itself, with /mcp as the alias`);
+    await r.body?.cancel();
+  }
+  expect((await post('/elsewhere')).status === 404, 'http: an unknown path must be 404, not the MCP endpoint');
+  expect((await fetch(`${base}/health`)).status === 200, 'http: /health must keep answering');
+  child.kill(); server.close();
+}
+
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
-console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled');
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself');

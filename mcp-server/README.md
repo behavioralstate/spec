@@ -258,7 +258,9 @@ MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
 ngrok http 3001
 ```
 
-Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app/mcp`
+Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app`
+
+The MCP endpoint is the server's origin itself — a deployment hands out `https://mcp.example.com` and nothing more. `/mcp` is kept as an alias for connectors and configs that were given it before 2.4.2; `/health` answers `GET` with `{ "status": "ok" }`.
 
 ### HTTP — per-request credential overrides (multi-user backends)
 
