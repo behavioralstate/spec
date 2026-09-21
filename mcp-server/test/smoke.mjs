@@ -1,0 +1,155 @@
+/**
+ * Smoke test for best-mcp: the real server over stdio, driven by the MCP SDK's client, against an
+ * in-process mock BEST service.
+ *
+ *   modern — a service that states spec 0.9.11: agent registration through deviceAuthorizationUrl,
+ *            commandType in the catalogue, application/cloudevents+json on POST /commands.
+ *   legacy — a service that states 0.9.8 and declares none of it: the PascalCase fallback,
+ *            application/json, and register_agent saying what to do instead.
+ *
+ * What must hold: the device code and the issued key never appear in a tool result; the key is stored;
+ * the next call already uses it.
+ *
+ * Run: npm test   (builds first)
+ */
+import { createServer } from 'http';
+import { mkdtempSync, readFileSync, existsSync } from 'fs';
+import { tmpdir } from 'os';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.js');
+const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
+const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
+
+function mock(mode) {
+  const modern = mode === 'modern';
+  const seen = { posts: [], tokenPolls: 0, deviceRequests: [] };
+  let origin = '';
+  const server = createServer((req, res) => {
+    const path = new URL(req.url, origin).pathname;
+    const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
+    let raw = '';
+    req.on('data', c => { raw += c; });
+    req.on('end', () => {
+      if (path === '/.well-known/best') {
+        return json(200, { best: {
+          version: modern ? '0.9.11' : '0.9.8',
+          authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
+            ...(modern ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}) },
+          services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api` } } },
+          capabilities: []
+        } });
+      }
+      if (path === '/auth/device' && req.method === 'POST') {
+        seen.deviceRequests.push(Object.fromEntries(new URLSearchParams(raw)));
+        return json(200, { device_code: DEVICE_CODE, user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 1 });
+      }
+      if (path === '/auth/token' && req.method === 'POST') {
+        const form = new URLSearchParams(raw);
+        if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
+        seen.tokenPolls++;
+        if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
+        return json(200, { access_token: ISSUED_KEY, token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${ISSUED_KEY}` });
+      }
+      if (path === '/api/commands' && req.method === 'GET') {
+        return json(200, { commands: [{ schema: 'place-order', version: '1.0', ...(modern ? { commandType: 'PlaceAnOrderV1' } : {}), dataschema: `${origin}/api/commands/place-order/1.0`, description: 'Place an order.' }] });
+      }
+      if (path.endsWith('/commands') && req.method === 'POST') {
+        const body = JSON.parse(raw);
+        seen.posts.push({ path, contentType: req.headers['content-type'], type: body.type, key: req.headers['x-api-key'] });
+        return json(201, { id: body.id, correlationId: body.id });
+      }
+      if (path.endsWith('/commands') && req.method === 'GET') return json(200, { commands: [] });
+      return json(404, { error: { code: 'NOT_FOUND', message: `Unknown route ${path}` } });
+    });
+  });
+  return new Promise(resolve => server.listen(0, '127.0.0.1', () => {
+    origin = `http://127.0.0.1:${server.address().port}`;
+    resolve({ server, origin, seen });
+  }));
+}
+
+async function connect(origin, credentialsFile) {
+  const transport = new StdioClientTransport({
+    command: process.execPath, args: [SERVER],
+    env: { ...process.env, BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio' },
+    stderr: 'ignore'
+  });
+  const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+  await client.connect(transport);
+  return client;
+}
+
+const call = async (client, name, args = {}) => {
+  const r = await client.callTool({ name, arguments: args });
+  return { text: r.content.map(c => c.text).join('\n'), isError: !!r.isError };
+};
+
+const problems = [];
+const expect = (ok, message) => { if (!ok) problems.push(message); };
+
+// ── modern ───────────────────────────────────────────────────────────────────
+{
+  const { server, origin, seen } = await mock('modern');
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  const client = await connect(origin, credentialsFile);
+  const connections = (await call(client, 'list_connections')).text;
+  const platform = /"name":\s*"(example[^"]*)"/.exec(connections)?.[1] ?? 'example';
+
+  const reg = await call(client, 'register_agent', { connection: platform, agent_label: 'Smoke test on a laptop' });
+  expect(!reg.isError, `modern: register_agent failed: ${reg.text}`);
+  expect(reg.text.includes('WDJB-MJHT') && reg.text.includes('https://example.com/activate?code=WDJB-MJHT'), 'modern: register_agent did not return the code and the link');
+  expect(!reg.text.includes(DEVICE_CODE), 'modern: register_agent LEAKED the device code to the model');
+  expect(seen.deviceRequests[0]?.client_id === 'best-mcp' && seen.deviceRequests[0]?.agent_label === 'Smoke test on a laptop', `modern: device request carried ${JSON.stringify(seen.deviceRequests[0])}`);
+
+  const pending = await call(client, 'exchange_device_code', { connection: platform });
+  expect(pending.text.includes('authorization_pending') && !pending.isError, `modern: first exchange should be pending, got: ${pending.text}`);
+  const done = await call(client, 'exchange_device_code', { connection: platform });
+  expect(!done.isError && done.text.includes('acme'), `modern: second exchange should succeed, got: ${done.text}`);
+  expect(!done.text.includes(ISSUED_KEY), 'modern: exchange_device_code LEAKED the issued key to the model');
+  expect(existsSync(credentialsFile) && readFileSync(credentialsFile, 'utf-8').includes(ISSUED_KEY), 'modern: the issued key was not stored');
+  const again = await call(client, 'exchange_device_code', { connection: platform });
+  expect(again.isError && again.text.includes('register_agent'), `modern: a redeemed registration should be gone, got: ${again.text}`);
+
+  const after = (await call(client, 'list_connections')).text;
+  const tenant = /"name":\s*"(example\/tenant)"/.exec(after)?.[1];
+  expect(!!tenant, `modern: no tenant connection after registration: ${after}`);
+  const sent = await call(client, 'send_command', { connection: tenant ?? platform, schema: 'place-order', version: '1.0', data: { sku: 'A1' } });
+  expect(!sent.isError, `modern: send_command failed: ${sent.text}`);
+  const post = seen.posts.at(-1);
+  expect(post?.contentType === 'application/cloudevents+json', `modern: POST content type was ${post?.contentType}`);
+  expect(post?.key === ISSUED_KEY, 'modern: the command did not carry the issued key');
+  expect(post?.path === '/api/tenants/acme/commands', `modern: the command went to ${post?.path}`);
+  await client.close(); server.close();
+}
+
+// ── modern, the catalogue states commandType ─────────────────────────────────
+{
+  const { server, origin, seen } = await mock('modern');
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  const client = await connect(origin, credentialsFile);
+  const sent = await call(client, 'send_command', { schema: 'place-order', version: '1.0', data: {} });
+  expect(!sent.isError && seen.posts.at(-1)?.type === 'PlaceAnOrderV1', `commandType: envelope type was ${seen.posts.at(-1)?.type} (${sent.text})`);
+  await client.close(); server.close();
+}
+
+// ── legacy ───────────────────────────────────────────────────────────────────
+{
+  const { server, origin, seen } = await mock('legacy');
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  const client = await connect(origin, credentialsFile);
+  const reg = await call(client, 'register_agent', {});
+  expect(!reg.isError && reg.text.includes('no_device_authorization_endpoint'), `legacy: register_agent should explain, got: ${reg.text}`);
+  expect(seen.deviceRequests.length === 0, 'legacy: a device request was sent to a service that declares no endpoint');
+  const sent = await call(client, 'send_command', { schema: 'place-order', version: '1.0', data: {} });
+  const post = seen.posts.at(-1);
+  expect(!sent.isError && post?.type === 'PlaceOrder', `legacy: envelope type was ${post?.type} (${sent.text})`);
+  expect(post?.contentType === 'application/json', `legacy: POST content type was ${post?.contentType}`);
+  await client.close(); server.close();
+}
+
+if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled');

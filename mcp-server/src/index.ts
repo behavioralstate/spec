@@ -669,16 +669,43 @@ async function bestGet<T>(path: string, conn: BestConnection): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+// Spec 0.9.11: POST /commands is the CloudEvents structured content mode, application/cloudevents+json.
+// It is sent only to a server whose manifest states 0.9.11 or later — an older server was never asked to
+// accept it — and a 415 falls back to application/json for the rest of the process.
+const CLOUDEVENTS_JSON = 'application/cloudevents+json';
+const jsonOnlyEndpoints = new Set<string>();
+
+function atLeast(version: unknown, major: number, minor: number, patch: number): boolean {
+  const m = typeof version === 'string' ? /^(\d+)\.(\d+)\.(\d+)$/.exec(version) : null;
+  if (!m) return false;
+  const [a, b, c] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  return a !== major ? a > major : b !== minor ? b > minor : c >= patch;
+}
+
+async function commandContentType(conn: BestConnection): Promise<string> {
+  if (jsonOnlyEndpoints.has(conn.endpoint)) return 'application/json';
+  try {
+    const manifest = await fetchRootManifest(conn);
+    return atLeast(manifest?.best?.version, 0, 9, 11) ? CLOUDEVENTS_JSON : 'application/json';
+  } catch { return 'application/json'; }
+}
+
 async function bestPost<T>(path: string, body: unknown, conn: BestConnection): Promise<T> {
-  const response = await fetch(`${conn.endpoint}${withAuthQuery(path, conn)}`, {
+  const send = (contentType: string) => fetch(`${conn.endpoint}${withAuthQuery(path, conn)}`, {
     method: 'POST',
     headers: {
       ...authHeaders(conn),
-      'Content-Type': 'application/json',
+      'Content-Type': contentType,
       Accept: 'application/json'
     },
     body: JSON.stringify(body)
   });
+  const contentType = path === '/commands' ? await commandContentType(conn) : 'application/json';
+  let response = await send(contentType);
+  if (response.status === 415 && contentType === CLOUDEVENTS_JSON) {
+    jsonOnlyEndpoints.add(conn.endpoint);
+    response = await send('application/json');
+  }
   if (!response.ok) {
     const message = await parseErrorMessage(response);
     throw new Error(message);
@@ -738,6 +765,30 @@ const TOOLS: Tool[] = [
     inputSchema: { type: 'object', properties: {}, required: [] }
   } as Tool,
   {
+    name: 'register_agent',
+    description:
+      'Obtain a credential for a BEST service by yourself — the first step of agent registration (spec 0.9.11, ' +
+      'RFC 8628). Use it when a service needs a credential and you hold none, or the one you hold is rejected ' +
+      '(401). It POSTs to the device authorization endpoint the root manifest declares ' +
+      '(best.authentication.deviceAuthorizationUrl) and returns a LINK and a SHORT CODE. Show the person both, ' +
+      'at once and exactly as returned, and ask them to open the link: on that page they sign in — or sign up, ' +
+      'where the service offers it — and approve you. Signing in and signing up are the person' + "'" + 's, on that page; you ' +
+      'never sign anyone in, never ask for a password and never ask for an API key. Then call ' +
+      'exchange_device_code (no device_code needed). The secret device code never reaches you: best-mcp keeps ' +
+      'it and redeems it itself. If the service declares no such endpoint, the result says what to do instead.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...CONNECTION_PROP,
+        agent_label: {
+          type: 'string',
+          description: 'What the person reads when asked to approve you — make it recognisable to them, e.g. "Claude Desktop on Ada' + "'" + 's laptop".'
+        }
+      },
+      required: []
+    }
+  } as Tool,
+  {
     name: 'exchange_device_code',
     description:
       'Last step of a device-authorization onboarding (RFC 8628) on a BEST service: POSTs ' +
@@ -755,10 +806,10 @@ const TOOLS: Tool[] = [
         ...CONNECTION_PROP,
         device_code: {
           type: 'string',
-          description: 'The device code of the registration you started (on BEST onboarding surfaces, the CorrelationId you minted for request-registration).'
+          description: 'OMIT after register_agent — best-mcp holds the device code of the registration it started. Pass it only for a registration you started yourself on a service that has no device authorization endpoint (there it is the id the service' + "'" + 's own recipe told you to use).'
         }
       },
-      required: ['device_code']
+      required: []
     }
   },
   {
@@ -1213,17 +1264,124 @@ function isPerRequestCaller(headers?: IncomingHttpHeaders): boolean {
     firstHeaderValue(headers['authorization'])?.match(BEARER_TOKEN));
 }
 
-async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: BestConnection, perRequestCaller: boolean): Promise<string> {
-  const deviceCode = String(args.device_code);
+// ── Agent registration (spec 0.9.11 — RFC 8628, whole) ─────────────────────────
+//
+// The device code is a secret the SERVICE generates; it is held here and never handed to the model,
+// for the same reason an issued credential is not: a chat transcript is not a secret store.
+
+interface PendingRegistration { deviceCode: string; tokenUrl: string; intervalMs: number; expiresAt: number; lastPollAt: number; }
+const pendingRegistrations = new Map<string, PendingRegistration>();
+const REGISTRATION_CLIENT_ID = 'best-mcp';
+
+/** The key registrations and stored credentials share: the app's root endpoint, else the origin. */
+function registrationKey(conn: BestConnection): string {
+  return rootConnectionOf(conn.name.split('/')[0])?.endpoint ?? new URL(conn.endpoint).origin;
+}
+
+/** The authentication block that declares agent registration: the root's, else the first service's that does. */
+function registrationBlock(manifest: RootManifest): { deviceAuthorizationUrl: string; tokenUrl: string } | undefined {
+  const blocks = [manifest?.best?.authentication, ...Object.values(manifest?.best?.services ?? {}).map((sv: RootManifest) => sv?.authentication)];
+  for (const b of blocks) {
+    if (typeof b?.deviceAuthorizationUrl === 'string' && typeof b?.tokenUrl === 'string') {
+      return { deviceAuthorizationUrl: b.deviceAuthorizationUrl, tokenUrl: b.tokenUrl };
+    }
+  }
+  return undefined;
+}
+
+async function handleRegisterAgent(args: Record<string, unknown>, conn: BestConnection, perRequestCaller: boolean): Promise<string> {
+  if (perRequestCaller) {
+    return JSON.stringify({
+      status: 'not_available_here',
+      note: 'This best-mcp instance serves several callers (per-request credential headers were present), so it holds no ' +
+            'registration and no credential for any of them. The backend that owns this caller' + "'" + 's credentials registers ' +
+            'and configures its own key; the person you work for can do that on the service' + "'" + 's own page.',
+    }, null, 2);
+  }
   const manifest = await fetchRootManifest(conn);
-  const tokenUrl = manifest?.best?.authentication?.tokenUrl;
+  const block = registrationBlock(manifest);
+  if (!block) {
+    const app = conn.name.split('/')[0];
+    const listed = (await listServiceConnections()).filter(sv => sv.name.startsWith(`${app}/`)).map(sv => sv.name);
+    // Structure first: the surfaces the manifest gives a workflows capability are where a recipe can be.
+    const withRecipes = new Set<string>(
+      (Array.isArray(manifest?.best?.capabilities) ? manifest.best.capabilities : [])
+        .filter((c: RootManifest) => typeof c?.name === 'string' && c.name.endsWith('.workflows') && typeof c?.service === 'string')
+        .map((c: RootManifest) => `${app}/${c.service}`));
+    const others = listed.some(n => withRecipes.has(n)) ? listed.filter(n => withRecipes.has(n)) : listed;
+    return JSON.stringify({
+      status: 'no_device_authorization_endpoint',
+      note: 'The root manifest declares no authentication.deviceAuthorizationUrl, so this service does not offer agent ' +
+            'registration the spec 0.9.11 way. ' + (others.length
+              ? `Its root manifest publishes recipes on: ${others.join(', ')}. Call get_workflows there (pass that name as ` +
+                'the connection) — a service that registers agents through its own recipe publishes it there; follow it, show the ' +
+                'person the link and code it answers, and finish with exchange_device_code, passing the device_code that ' +
+                'recipe names.'
+              : 'It lists no other surface either: credentials are issued out of band. Ask the person for one they obtained ' +
+                'from the service, and never ask them to paste it into this conversation — it belongs in the client configuration.'),
+    }, null, 2);
+  }
+
+  const form = new URLSearchParams({ client_id: REGISTRATION_CLIENT_ID });
+  if (typeof args.agent_label === 'string' && args.agent_label.trim()) form.set('agent_label', args.agent_label.trim());
+  const response = await fetch(block.deviceAuthorizationUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: form.toString(),
+  });
+  const text = await response.text();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let json: any;
+  try { json = JSON.parse(text); } catch { json = undefined; }
+  if (!response.ok || typeof json?.device_code !== 'string' || typeof json?.user_code !== 'string') {
+    throw new Error(`POST ${block.deviceAuthorizationUrl} → ${response.status}: ${json?.error_description ?? json?.error ?? text.slice(0, 300)}`);
+  }
+  const interval = typeof json.interval === 'number' && json.interval > 0 ? json.interval : 5;
+  const expiresIn = typeof json.expires_in === 'number' && json.expires_in > 0 ? json.expires_in : 900;
+  pendingRegistrations.set(registrationKey(conn), {
+    deviceCode: json.device_code, tokenUrl: block.tokenUrl,
+    intervalMs: interval * 1000, expiresAt: Date.now() + expiresIn * 1000, lastPollAt: 0,
+  });
+  return JSON.stringify({
+    user_code: json.user_code,
+    verification_uri: json.verification_uri,
+    ...(json.verification_uri_complete ? { verification_uri_complete: json.verification_uri_complete } : {}),
+    expires_in: expiresIn,
+    interval,
+    next: 'SHOW THE PERSON THE LINK AND THE CODE NOW, exactly as returned' +
+          (json.verification_uri_complete ? ' (verification_uri_complete already carries the code)' : '') +
+          ', and ask them to open it: there they sign in — or sign up, where the service offers it — and approve you. ' +
+          'Then call exchange_device_code with no device_code; while they have not acted it answers authorization_pending, ' +
+          'which is not an error. The device code itself is held by best-mcp and is not shown.',
+  }, null, 2);
+}
+
+async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: BestConnection, perRequestCaller: boolean): Promise<string> {
+  const pending = pendingRegistrations.get(registrationKey(conn));
+  const explicit = typeof args.device_code === 'string' && args.device_code ? args.device_code : undefined;
+  if (!explicit && !pending) {
+    throw new Error('No registration is pending on this connection. Call register_agent first (or pass the device_code of a registration you started yourself).');
+  }
+  if (!explicit && pending && Date.now() > pending.expiresAt) {
+    pendingRegistrations.delete(registrationKey(conn));
+    throw new Error('The pending registration has expired. Call register_agent again and show the person the new link and code.');
+  }
+  // Never poll faster than the service asked: wait out the rest of the interval here rather than earn a slow_down.
+  if (!explicit && pending) {
+    const wait = pending.lastPollAt + pending.intervalMs - Date.now();
+    if (wait > 0) await new Promise(resolve => setTimeout(resolve, Math.min(wait, 15_000)));
+    pending.lastPollAt = Date.now();
+  }
+  const deviceCode = explicit ?? pending!.deviceCode;
+  const manifest = await fetchRootManifest(conn);
+  const tokenUrl = (!explicit && pending ? pending.tokenUrl : undefined) ?? registrationBlock(manifest)?.tokenUrl ?? manifest?.best?.authentication?.tokenUrl;
   if (typeof tokenUrl !== 'string' || !tokenUrl) {
     throw new Error(
       `The root manifest at ${new URL(conn.endpoint).origin}/.well-known/best declares no authentication.tokenUrl — ` +
       `this service offers no token exchange.`
     );
   }
-  const body = new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: deviceCode }).toString();
+  const body = new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: deviceCode, client_id: REGISTRATION_CLIENT_ID }).toString();
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
@@ -1237,18 +1395,21 @@ async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: Bes
   if (!response.ok) {
     const code = json?.error;
     if (code === 'authorization_pending' || code === 'slow_down') {
+      if (code === 'slow_down' && !explicit && pending) pending.intervalMs += 5000; // RFC 8628 §3.5
       return JSON.stringify({
         status: code,
-        interval: json?.interval,
-        note: 'Not an error. The person has not approved the code yet (or you polled too soon). ' +
-              'Wait the interval in seconds, then call exchange_device_code again with the same device_code.',
+        interval: json?.interval ?? (pending ? pending.intervalMs / 1000 : undefined),
+        note: 'Not an error. The person has not approved yet (or you polled too soon). ' +
+              'Wait the interval in seconds, then call exchange_device_code again' + (explicit ? ' with the same device_code.' : '.'),
       }, null, 2);
     }
+    if (!explicit && (code === 'access_denied' || code === 'expired_token')) pendingRegistrations.delete(registrationKey(conn));
     throw new Error(`POST ${tokenUrl} → ${response.status}: ${json?.error_description ?? json?.error ?? text}`);
   }
 
   const apiKey = typeof json?.access_token === 'string' ? json.access_token : undefined;
   if (!apiKey) return JSON.stringify(json ?? text, null, 2);
+  if (!explicit) pendingRegistrations.delete(registrationKey(conn)); // a device code is redeemed once
   const tenantId = typeof json?.tenant_id === 'string' ? json.tenant_id : undefined;
   const redacted = redactSecret(json, apiKey) as Record<string, unknown>;
 
@@ -1414,7 +1575,7 @@ async function impactNote(doc: unknown, schemaName: string, conn: BestConnection
  * catalogue entries. Cached per connection so the fallback costs one extra request per catalogue
  * per TTL, not per schema fetch; a failed catalogue read yields no note, never an error.
  */
-interface CatalogueEntryMeta { workflows: string[]; impact: Record<string, unknown> | null }
+interface CatalogueEntryMeta { workflows: string[]; impact: Record<string, unknown> | null; commandType?: string }
 const catalogueMetaCache = new Map<string, { at: number; byName: Map<string, CatalogueEntryMeta> }>();
 const CATALOGUE_META_TTL_MS = 5 * 60_000;
 
@@ -1438,7 +1599,8 @@ async function catalogueEntryMeta(kind: 'commands' | 'queries', conn: BestConnec
           const impact = e.impact !== null && typeof e.impact === 'object'
             ? (e.impact as Record<string, unknown>)
             : null;
-          if (workflows.length || impact) byName.set(e.schema, { workflows, impact });
+          const commandType = typeof e.commandType === 'string' && e.commandType ? e.commandType : undefined;
+          if (workflows.length || impact || commandType) byName.set(e.schema, { workflows, impact, commandType });
         }
       }
     }
@@ -1456,8 +1618,10 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
   const correlationId = args.correlation_id as string | undefined;
   const data    = args.data as Record<string, unknown>;
 
-  // CloudEvent type is PascalCase: configure-broker → ConfigureBroker
-  const type = schema
+  // The envelope type is what the catalogue entry states (commandType, spec 0.9.11). Where it states
+  // none, the PascalCase form of the schema name is the fallback — a guess: configure-broker → ConfigureBroker.
+  const stated = (await catalogueEntryMeta('commands', conn)).get(schema)?.commandType;
+  const type = stated ?? schema
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join('');
@@ -1783,7 +1947,7 @@ Use the query tools to read domain state before issuing commands that require ex
 4. Call send_command with schema, version, and data payload.
 
 CloudEvent envelope rules (enforced by send_command):
-- 'type': PascalCase of the schema name (configure-broker → ConfigureBroker). Converted automatically.
+- 'type': the commandType the catalogue entry states; where it states none, the PascalCase of the schema name (configure-broker → ConfigureBroker). Set automatically.
 - 'source': identifies the command's ORIGIN and defaults to this client's identity ('${CLIENT_SOURCE}') — BEST servers route by 'type', never by 'source' alone. Pass an explicit source ONLY when the schema description documents a specific required value; never invent one.
 - 'dataschema': the absolute catalogue URI '{endpoint}/commands/{schema}/{version}'. Built automatically from the connection endpoint.
 - 'correlationid' (spec 0.9.2+): omitted by default — the server then correlates by the command's own ID. Pass correlation_id only to join an existing chain.
@@ -1824,17 +1988,18 @@ back to discovering commands/queries directly.
 
 If a command fails, relay the error message verbatim to the user — it is actionable.
 
-## When the credential is rejected (401, e.g. INVALID_API_KEY)
+## When you hold no credential, or the one you hold is rejected (401)
 
-Many BEST services hold ONE key per account: a key replaced since it was stored is dead, and the
-error's Details name the way back. Do NOT fall back to a browser and do NOT ask the user to sign up
-on the service's website — that is the human path, not yours. Instead: call get_manifest on the
-platform connection; if the root manifest lists an onboarding / anonymous service, target it as
-connection '<app>/<serviceId>' (list_connections shows the names), run its onboarding workflow
-(get_workflows, then the commands and queries it names), show the user the code and link it
-answers, and once they approve call exchange_device_code with your device code. The new key is
+Call register_agent. Do NOT fall back to a browser, do NOT ask the user for an API key and do NOT
+ask them to sign up somewhere first. register_agent answers a link and a short code: show the user
+both at once, exactly as returned, and ask them to open the link — on that page THEY sign in (or
+sign up, where the service offers it) and approve you. Signing in and signing up are the user's
+acts, on that page; registering is yours. Then call exchange_device_code: while the user has not
+acted it answers authorization_pending, which is not an error. Once approved, the credential is
 applied to this session's connections at once and stored by best-mcp for later starts; nothing needs
-editing. Tell the user beforehand if the service says approval replaces the account's existing key.
+editing and nothing needs restarting. If a service offers no such registration, register_agent's
+result says what to do instead. Tell the user beforehand if the service says approval replaces the
+account's existing key.
 
 ## Secrets never reach the conversation
 
@@ -1893,6 +2058,7 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
         case 'get_event_schema':      text = await handleGetEventSchema(safeArgs, conn);       break;
         case 'sample_event_stream':   text = await handleSampleEventStream(safeArgs, conn);    break;
         case 'get_workflows':         text = await handleGetWorkflows(safeArgs, conn);         break;
+        case 'register_agent':        text = await handleRegisterAgent(safeArgs, conn, isPerRequestCaller(requestHeaders)); break;
         case 'exchange_device_code':  text = await handleExchangeDeviceCode(safeArgs, conn, isPerRequestCaller(requestHeaders)); break;
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
