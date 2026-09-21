@@ -99,6 +99,14 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const connections = (await call(client, 'list_connections')).text;
   const platform = /"name":\s*"(example[^"]*)"/.exec(connections)?.[1] ?? 'example';
 
+  // A connection's name says nothing about where it points, so the host is stated where a model chooses the tool.
+  const tools = (await client.listTools()).tools;
+  for (const name of ['register_agent', 'get_manifest']) {
+    expect(tools.find(t => t.name === name)?.description.includes(origin), `modern: ${name} does not state the host it serves`);
+  }
+  expect(tools.find(t => t.name === 'send_command')?.inputSchema.properties.connection.description.includes(origin), 'modern: the connection parameter does not state the host it serves');
+  expect((client.getInstructions() ?? '').includes(`serve ${origin}`), 'modern: the server instructions do not state the host');
+
   const reg = await call(client, 'register_agent', { connection: platform, agent_label: 'Smoke test on a laptop' });
   expect(!reg.isError, `modern: register_agent failed: ${reg.text}`);
   expect(reg.text.includes('WDJB-MJHT') && reg.text.includes('https://example.com/activate?code=WDJB-MJHT'), 'modern: register_agent did not return the code and the link');

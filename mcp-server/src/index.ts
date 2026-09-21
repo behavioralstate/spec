@@ -283,7 +283,7 @@ function parseConnections(): BestConnection[] {
       if (!apiKey && authType !== 'none' && !credentialStore.has(baseUrl)) {
         process.stderr.write(
           `[best-mcp] INFO: BEST_${appName}_API_KEY is not set — only anonymous surfaces of ${app} will answer ` +
-          `until an onboarding stores a credential (exchange_device_code).\n`
+          `until a registration stores a credential (register_agent, then exchange_device_code).\n`
         );
       }
 
@@ -381,6 +381,26 @@ function parseConnections(): BestConnection[] {
 
 const CONNECTIONS = parseConnections();
 const MULTI       = CONNECTIONS.length > 1;
+
+// A connection's NAME says nothing about where it points: 'example' may be a laptop. A model that is
+// told "sign me in on example.com" and holds a connection called 'example' uses it unless the host is
+// in front of it at the moment it chooses the tool - so the hosts ride every connection parameter, the
+// two tools a sign-in starts with, and the server instructions.
+function servedOrigins(): string[] {
+  const origins = new Set<string>();
+  for (const c of CONNECTIONS) {
+    try { origins.add(new URL(c.endpoint).origin); } catch { /* an unparsable endpoint fails later, loudly */ }
+  }
+  return [...origins];
+}
+const SERVED = servedOrigins().join(', ') || 'the configured endpoint';
+const SERVED_ONLY =
+  `These connections serve ${SERVED} and nothing else. A name on the same domain is the same site ` +
+  '(example.com for api.example.com). Anything else the person names - another domain, a public name where this ' +
+  'is localhost (or the reverse), another environment of the same service (dev., staging.) - is NOT these ' +
+  'connections, whatever they are called: do not use them for that request, say so, and start from the address ' +
+  'the person gave.';
+const SERVED_SHORT = `It acts ONLY at ${SERVED}, never at another address the person names.`;
 
 // ── Root-manifest services as connections ─────────────────────────────────────
 //
@@ -732,7 +752,7 @@ const CONNECTION_PROP: Record<string, object> = {
       'Call list_connections to see full details (endpoint, description) for each. ' +
       'If you are not certain which connection the user intends, call list_connections ' +
       'and ask the user to confirm before proceeding — a wrong connection may silently ' +
-      'reach the wrong service.'
+      'reach the wrong service. ' + SERVED_ONLY
   }
 };
 
@@ -768,7 +788,7 @@ const TOOLS: Tool[] = [
     name: 'register_agent',
     description:
       'Obtain a credential for a BEST service by yourself — the first step of agent registration (spec 0.9.11, ' +
-      'RFC 8628). Use it when a service needs a credential and you hold none, or the one you hold is rejected ' +
+      'RFC 8628). ' + SERVED_SHORT + ' Use it when a service needs a credential and you hold none, or the one you hold is rejected ' +
       '(401). It POSTs to the device authorization endpoint the root manifest declares ' +
       '(best.authentication.deviceAuthorizationUrl) and returns a LINK and a SHORT CODE. Show the person both, ' +
       'at once and exactly as returned, and ask them to open the link: on that page they sign in — or sign up, ' +
@@ -1032,7 +1052,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_manifest',
     description:
-      "Fetch the BEST discovery manifest (/.well-known/best) for a connection's host — the public " +
+      "Fetch the BEST discovery manifest (/.well-known/best) for a connection's host. " + SERVED_SHORT + ' The manifest is the public ' +
       'front door describing the service: spec version, authentication requirements, declared ' +
       'capabilities (commands, queries, events) with their endpoints and push channels (sse/mcp). ' +
       "For a tenant-scoped connection the tenant's own manifest is returned when the host publishes one. " +
@@ -1917,8 +1937,8 @@ const connectionSummary = MULTI
     ).join('\n') +
     `\n\nAlways specify the \`connection\` parameter on every tool call. ` +
     `If the user's request does not make it obvious which connection to use, ` +
-    `call \`list_connections\` first and ask the user to confirm before proceeding.`
-  : `\n\nConnected to: ${CONNECTIONS[0].endpoint}`;
+    `call \`list_connections\` first and ask the user to confirm before proceeding.\n\n${SERVED_ONLY}`
+  : `\n\nConnected to: ${CONNECTIONS[0].endpoint}\n\n${SERVED_ONLY}`;
 
 const SERVER_INSTRUCTIONS = (`
 You are connected to one or more BEST-compliant service endpoints, through the
