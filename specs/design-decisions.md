@@ -378,3 +378,28 @@ Resolution lets a model reach a service nobody configured, and hands it that ser
 - Not search. "Which service makes videos" is a directory, and a directory is a domain like any other — anyone may run one as a BEST service whose queries return names.
 - Not a manifest change. No field is added; a conformant 0.9.x service that serves `/.well-known/best` on the name it is known by already resolves.
 - Not a trust mark. A name that resolves is a service that exists, not one that is safe; the person's confirmation of the name is the trust decision.
+
+---
+
+## The well-known name stays `best`
+
+### The decision
+
+The discovery path is `/.well-known/best` and the DNS label is `_best`. BEST does not adopt a longer or spelled-out name for either — not alongside, and not instead — even though `best` could not be registered in the IANA well-known URI registry when first requested. The path is served unregistered, which [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615) permits, and registration is asked for again once the specification is published in the IETF stream.
+
+### Why
+
+**It has to be typed right by everyone, every time, and nothing reports a mistake.** The well-known path is the one string in the protocol that no manifest can supply — it is how the manifest is found. An implementer types it into a router, a consumer builds it from a name, a model produces it from memory. A wrong path is a `404`, which is exactly what a name with no BEST service returns: the failure is silent and looks like absence. So the name must leave no room for a variant.
+
+**The spelled-out name has two correct spellings.** "Behavioral" is American English and "behavioural" is British; both are right, and a writer uses whichever they learned. A path built on that word would be served under one spelling and requested under the other, by competent people and by models trained on both, indefinitely. The same holds for every derivative: hyphenated or not, with or without `-protocol`, abbreviated or whole. `best` is four letters with one spelling in every variety of English, and is already the protocol's name.
+
+**A protocol name that is an ordinary word misleads nobody.** REST is not about resting, SOAP is not about washing, and neither was held back by it. A reader meets the name in a context — a path under `/.well-known/`, a specification title — that says what it is. `best` claims nothing about quality any more than those names claim anything about their ordinary meaning; it is the contraction of **Be**havioral **St**ate, chosen in 0.9.0 because the earlier initials collided with three established computing terms.
+
+**It is already the address.** Name resolution is built on it: a consumer turns `example.com` into `https://example.com/.well-known/best`, and falls back to `_best.example.com`. Production services answer there. A second, registered path would have to be served beside the first and kept in agreement with it for as long as any consumer knew the old one — a second copy of the entry point, which is the kind of duplication the rest of the protocol exists to remove.
+
+**The registry's objection is about who is asking, not about the name.** The well-known registry reserves single common words for recognised standards bodies. No argument about the merits of `best` answers that, and none is needed: the objection falls away when the specification is published as an RFC, which is the path BEST is on. Until then RFC 8615 allows an unregistered path, and the practical risk — another party registering `best` first — is small for the same reason the request was refused: the policy admits only a standards body.
+
+### What this is not
+
+- Not a refusal to register. Registration is wanted and will be requested again with the RFC; what is declined is changing the name to obtain it sooner.
+- Not a claim on the word. `io.best.*` and `/.well-known/best` are identifiers inside a protocol, distinguishable by where they appear.
