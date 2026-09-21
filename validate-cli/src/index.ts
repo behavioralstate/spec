@@ -518,7 +518,9 @@ function noteOperations(ctx: ProbeContext, names: string[]): void {
   ctx.operations.set(ctx.serviceKey, set);
 }
 
-const PERSON_WORDS = /(^|[^a-z])(sign-?in|sign-?up|sign-?out|log-?in|log-?out)([^a-z]|$)/i;
+// The act IS the name ("sign-in", "com.example.workflows.sign-out") — not a name that merely contains the words
+// ("sign-in-for-a-recording" is about a site being recorded, not about the person and this platform).
+const PERSON_WORDS = /(^|[.\/])(sign-?in|sign-?up|sign-?out|log-?in|log-?out)$/i;
 
 /** Signing in, up and out are the person's, on the platform's pages: no BEST operation is named after them. */
 function checkVocabulary(section: string, kind: string, names: string[]): void {
@@ -783,9 +785,11 @@ async function probeCapabilities(root: Dict, label: string, opts: Options, ajv: 
     if (!ep || !serviceKey) { record('capabilities', 'fail', `${cap.name}: cannot resolve an http endpoint (missing service/http.endpoint)`); continue; }
     const governing = governingAuth(serviceKey, root);
     const authDeclared = (governing?.type ?? 'none') !== 'none';
+    // --api-key is the credential of the manifest's own authentication block. A service that declares a different
+    // scheme for itself (a share token, say) is opened by a credential this run does not hold: probe it without one.
     const ctx: ProbeContext = {
       serviceKey, authDeclared, operations,
-      auth: buildAuthPlan(opts, governing),
+      auth: hasOwnAuth(serviceKey, root) ? null : buildAuthPlan(opts, governing),
       isPublic: hasOwnAuth(serviceKey, root) && !authDeclared,
       anonymous: false
     };
