@@ -15,6 +15,7 @@
     "sync-schemas": "node scripts/sync-schemas.mjs",
     "build": "npm run sync-schemas && tsc",
     "prepublishOnly": "npm run build",
+    "test": "npm run build && node test/smoke.mjs",
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
