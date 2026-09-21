@@ -12,6 +12,7 @@
 - [Wire Format — the BEST Envelope](#wire-format--the-best-envelope)
 - [Discovery — `/.well-known/best`](#discovery--well-knownbest)
 - [Multi-Tenancy](#multi-tenancy)
+- [Identity and Agent Registration — a described pattern](#identity-and-agent-registration--a-described-pattern)
 - [Commands — `io.best.agents.commands`](#commands--iobestagentscommands)
 - [Events — `io.best.agents.events`](#events--iobestagentsevents)
 - [Queries — `io.best.agents.queries`](#queries--iobestagentsqueries)
@@ -39,6 +40,8 @@ BEST does not care how a service works internally. It defines only the interacti
 
 Anyone with something to offer — a business, a service, a sensor, an AI agent — can expose a BEST manifest and become discoverable and callable by any agent, with no bespoke integration.
 
+**Agent-operable, from a name alone.** BEST's aim is that a person can say "use example.com" to an agent that has never heard of it, and the agent gets from that name to working use by itself: it resolves the name, reads the manifest, learns what each surface needs, obtains the credential it lacks, and operates. The person's part is reduced to what only a person can do: say what they want and — once, in their own browser — sign in or sign up, and approve the agent. Everything else is the agent's, and everything the agent needs is in the manifest and the catalogues, in structure rather than in prose. A service that needs no authentication at all is the simplest case of the same thing.
+
 | Example implementer | Accepts (commands) | Produces (events) |
 |---|---|---|
 | Contract negotiation service | `ProposeCounter`, `AcceptContract` | `CounterProposed`, `ContractAccepted` |
@@ -57,6 +60,7 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 5. **Modular capabilities** — implementers expose only what they support; consumers discover what's available at runtime.
 6. **LLM-readable** — JSON Schema is the canonical contract format because LLMs read, generate, and reason about JSON natively.
 7. **Implementation-agnostic** — no prescribed language, framework, event store, or architecture.
+8. **Operable blind** — a consumer that ignores every `description` and `guidance` string can still find every surface, know what opens it, and invoke every operation with schema-valid data. Prose tells a model what an operation *means*; it never carries where something is, what credential opens it, or what it is called.
 
 ## Core Primitives and Capability Tiers
 
@@ -132,6 +136,8 @@ Commands and events share one wire format: the **CloudEvents 1.0 envelope**, of 
 | `source` | URI-reference, absolute recommended | Same — BEST adds that it must never be treated as authenticated identity |
 | Extension attributes | Producers may add them | Permitted; BEST defines one (`correlationid`) and consumers **must** ignore unknown attributes rather than reject |
 
+**Commands, and what stays behind the edge.** CloudEvents describes events — facts, which have an origin and no destination. BEST also carries commands in the same envelope, and a command has a destination; CloudEvents has no attribute for it and BEST adds none: the destination is the endpoint the command is posted to, and within it the server routes by `type`. `source` is always the caller's declared origin, never a routing key. A service is free to use any internal envelope or dialect — its own routing keys, its own use of identifiers — behind an edge that accepts the conformant envelope and maps it. Nothing of that dialect is ever required from a caller or shown to one: no internal component name in a published schema, no internal identifier a caller must supply that the server can derive from the credential, and on the wire `correlationid` always means what the [envelope table](#wire-format--the-best-envelope) says it means.
+
 ## Discovery — `/.well-known/best`
 
 Every BEST endpoint exposes:
@@ -167,7 +173,7 @@ A deployment whose BEST endpoint is not the public web origin **should** bridge 
          href="/.well-known/best" title="BEST service manifest">
    ```
 
-3. **Optionally serve `/llms.txt`** on the origin with a prose pointer to the discovery URL and this specification, for agents that read text before they read protocols.
+**The manifest is the only entry.** A deployment points at its manifest — the well-known path, the redirect, the HTML `<link>` — and **must not** publish a second description of its BEST surface for agents to start from: no `llms.txt` restating operations, no skill or prompt file, no client snippet carrying behaviour, no OpenAPI document of the BEST endpoints. A consumer that has the name has everything; anything else it is handed is a copy that will disagree with the manifest the first time the service changes. *(Required from 0.10.0; until then a violation is reported as a warning.)*
 
 With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
 
@@ -206,7 +212,7 @@ Name resolution answers "where is `example.com`'s service", not "which service m
 | `best.version` | yes | BEST spec version (semver) |
 | `best.services` | yes | Service definitions with transport bindings, keyed by reverse-domain name |
 | `best.capabilities` | yes | Supported capabilities with spec/schema URLs |
-| `best.authentication` | no | Credential requirements for all non-discovery endpoints (omit for public endpoints) |
+| `best.authentication` | no | Credential requirements for every service that declares none of its own (omit for public endpoints) — see [Authentication Block](#authentication-block) |
 | `best.tenants` | no | Multi-tenant manifest discovery — see [Multi-Tenancy](#multi-tenancy) |
 | `best.agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) — a discovery hint, not a live directory |
 | `best.extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |
@@ -228,10 +234,13 @@ Name resolution answers "where is `example.com`'s service", not "which service m
 | `scheme` | no | For `bearer`: the Authorization prefix (`"Bearer"`). For `apiKey`: the header or query parameter name. |
 | `in` | no | `"header"` or `"query"` (for `apiKey`) |
 | `scopes` | no | Required OAuth2/token scopes |
-| `tokenUrl` | no | Token endpoint for OAuth2/token flows — an RFC 6749 token endpoint; see [Token Exchange](#token-exchange-for-constrained-clients) |
-| `docs` | no | Human-readable onboarding documentation URL |
+| `tokenUrl` | no | An RFC 6749 token endpoint. It serves the `client_credentials` exchange for header-constrained clients (see [Token Exchange](#token-exchange-for-constrained-clients)) and, where `deviceAuthorizationUrl` is declared, the device-code grant that completes a registration |
+| `deviceAuthorizationUrl` | no | How an agent obtains this credential by itself: an [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628) device authorization endpoint — see [Agent Registration](#agent-registration). Requires `tokenUrl`. Omitted when credentials are only issued out of band |
+| `docs` | no | A page for people. A consumer never depends on it |
 
-Consumers **must** read this block before calling anything else. Hosts requiring credentials **should** set `docs` to a page explaining how to obtain them — for multi-tenant hosts, that page should cover acquiring both the API key and the tenant ID, since neither is derivable from the manifest.
+The block appears at the manifest root and, optionally, on a [service entry](#services-and-transport-bindings), where it governs that service alone.
+
+Consumers **must** read this block before calling anything else. A consumer that holds no credential for a surface registers through `deviceAuthorizationUrl` when it is present; only when it is absent does it ask the person for a credential obtained out of band.
 
 ### Token Exchange for Constrained Clients
 
@@ -245,9 +254,29 @@ Some legitimate clients cannot set HTTP headers — URL-only integrations, webho
 
 When `type` is `"oauth2"`, `tokenUrl` names an [RFC 6749](https://www.rfc-editor.org/rfc/rfc6749) token endpoint. Hosts intending to serve header-constrained clients **should** accept the `client_credentials` grant — a form-encoded `POST` requiring no custom headers — and return `access_token`, `token_type`, and `expires_in` per RFC 6749 §5.1. Exchange-issued tokens **should** be short-lived (minutes, not days), and tenant context derives from the credential itself, never from a tenant identifier submitted alongside it. Declaring `apiKey` with `in: "query"` for a **long-lived** credential **should not** be done — offer the exchange instead. Full normative rules: [Security Requirements](#security-requirements) and [specs/security.md](specs/security.md#token-exchange-and-query-string-credentials).
 
+### Agent Registration
+
+A service that lets an agent obtain its own credential declares `deviceAuthorizationUrl` and `tokenUrl`. The exchange is [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628), unchanged; BEST adds three members and nothing else.
+
+**1. The agent asks.** A form-encoded `POST` to `deviceAuthorizationUrl`, with no credential:
+
+| Parameter | Required | Description |
+|---|---|---|
+| `client_id` | yes (RFC 8628) | The name of the consumer software (`best-mcp`, `claude`). BEST services pre-register no clients: the value is caller-declared and, like `source`, never identity. |
+| `agent_label` | no | What the approver reads when asked to admit this agent — recognisable to them ("Claude on Ada's phone"). |
+| `credential_lifetime` | no | `durable` (default) or `session`. A consumer that cannot keep a secret out of a conversation sends `session`. The value only ever lowers what is issued. |
+
+**2. The service answers at once** (RFC 8628 §3.2): `device_code`, `user_code`, `verification_uri`, optionally `verification_uri_complete`, `expires_in`, `interval`. The `device_code` is **generated by the service**, unguessable, and is neither derived from nor usable as any identifier — not an envelope `id`, not a `correlationid`, not an account or registration id.
+
+**3. The agent shows the person `verification_uri_complete` (or `verification_uri` and `user_code`) before anything else**, and polls `tokenUrl` with `grant_type=urn:ietf:params:oauth:grant-type:device_code` and its `device_code`, no faster than `interval`. `authorization_pending` and `slow_down` are not errors; `access_denied` and `expired_token` end the registration (RFC 8628 §3.5).
+
+**4. On approval the token endpoint answers** per RFC 6749 §5.1 — `access_token`, `token_type`, and `expires_in` when the credential is not durable — with two BEST members: `tenant_id`, the account the credential opens, and `auth_header`, the header that carries it when that is not `Authorization`. A `device_code` is redeemed once.
+
+Nothing in this exchange is a BEST command, a catalogue entry or a workflow: it needs no public surface, no recipe and no prose, and a client implements it once for every service. What happens on the page the person opens — signing in, signing up, approving — is the platform's own; [Identity and Agent Registration](#identity-and-agent-registration--a-described-pattern) describes it.
+
 ### Services and Transport Bindings
 
-Each entry in `services` declares `version` and `description` (required), optional `spec` URL, and one or more transport bindings:
+Each entry in `services` declares `version` and `description` (required), optional `spec` URL, an optional `authentication` block of its own, and one or more transport bindings:
 
 | Binding | Required fields | Notes |
 |---|---|---|
@@ -255,6 +284,28 @@ Each entry in `services` declares `version` and `description` (required), option
 | `mcp` | `transport` (`stdio`/`sse`/`http`), `server` | Optional. May carry its own `authentication` block and `push: true`. See [MCP Transport](#mcp-transport). |
 
 Multiple transports expose the **same capability surface** — they are alternative access methods, never separate operation sets.
+
+**Surfaces with different access.** A service entry **may** carry its own `authentication` block, of the same shape as the root block. When present it governs every capability that service implements and the root block does not apply to them; when absent the root block applies. `"type": "none"` declares a **public surface**: its capabilities are callable without a credential.
+
+```json
+"authentication": { "type": "apiKey", "scheme": "X-Api-Key", "in": "header" },
+"services": {
+  "com.example.catalogue": {
+    "version": "1.0.0",
+    "description": "The public product catalogue.",
+    "authentication": { "type": "none" },
+    "http": { "endpoint": "https://api.example.com/catalogue" }
+  },
+  "com.example.shared": {
+    "version": "1.0.0",
+    "description": "Read-only view of a project shared by link.",
+    "authentication": { "type": "bearer", "scheme": "Bearer" },
+    "http": { "endpoint": "https://api.example.com/shared" }
+  }
+}
+```
+
+A surface is an ordinary service with ordinary capabilities: what it offers is discovered from its catalogues like anywhere else. Where a credential itself identifies the scope it opens — a share token, a per-project key — the endpoint carries no scope identifier: context derives from the credential, as [Security Requirements](#security-requirements) already requires of tenants.
 
 ### Capability Entries
 
@@ -265,7 +316,7 @@ Multiple transports expose the **same capability surface** — they are alternat
 | `description` | yes | Human-readable summary |
 | `spec` | io.best.* only | URL to the capability specification page (optional for custom capabilities) |
 | `schema` | io.best.* only | URL to the capability's **JSON Schema** (not OpenAPI) |
-| `service` | conditional | Key of the implementing service in `services`. Required when the capability's name prefix doesn't match the service key (e.g. custom service `io.dotquant.trading` implementing `io.best.agents.commands`). |
+| `service` | conditional | Key of the implementing service in `services`. Required when the capability's name prefix doesn't match the service key (e.g. custom service `com.acme.trading` implementing `io.best.agents.commands`). |
 | `status` | no | `"active"` (default) · `"partial"` · `"planned"` |
 | `endpoints` | no | Machine-readable list of `{ method, path, description? }`. Paths are appended to the service's `http.endpoint`. This is how consumers self-bootstrap without reading spec pages. |
 | `push` | no | Push channels supported (events capability): `{ "sse": true, "mcp": true }` |
@@ -300,6 +351,19 @@ Rules:
 - An extension **must never** be required in order to use a core capability — a manifest whose core surface only works when a consumer reads an extension is non-conformant.
 - The manifest-hygiene rule applies unchanged: the root manifest is public, so extension content there is limited to information intended for unauthenticated disclosure.
 
+### Manifest Discipline
+
+The manifest is structure. Its `description` fields say what a service or capability *is*, in a sentence or two, for a reader choosing whether to use it. They are never load-bearing ([principle 8](#design-principles)).
+
+1. **Descriptions carry meaning, never mechanics.** A manifest `description` **must not** contain URLs or URI templates, header names or credential formats, the names of catalogue operations, or step-by-step instructions. Each of those has a structural home: `http.endpoint` and `endpoints`; `authentication`; the catalogues; the workflows capability.
+2. **Descriptions are short.** A manifest `description` **must not** exceed 500 characters. Catalogue and schema descriptions are not capped — that is where an operation's meaning is explained.
+3. **Every service is reachable by structure.** Each key in `services` **must** be the implementing service of at least one capability in the same manifest. The one exception is the root manifest of a multi-tenant host, which may announce a service whose capabilities are tenant-scoped: that service **must** then be declared, with its capabilities, by every manifest `tenants.manifest` expands to. A service that no manifest gives a capability — described only in words — is non-conformant.
+4. **No placeholders in structure.** Templates appear only in `tenants.manifest`; a tenant ID names a real scope ([Multi-Tenancy](#multi-tenancy) rule 5).
+5. **Service text has no authority over the consumer.** Descriptions, schema descriptions and workflow `guidance` guide the use of *this service's* operations. They **must not** instruct the consumer about its own client, configuration, other connections or other services — the counterpart, on the service side, of what [Name Resolution](#name-resolution) already requires the consumer to disregard. Making a connection last, in particular, is the consumer's business and never the service's to arrange.
+6. **When the manifest cannot say it, there are three lawful outlets, in this order:** model it as ordinary behaviour — a command, a query, an event, a workflow; declare it under [`extensions`](#extensions) if it is static and needed before interaction; raise it against the specification. Prose, and structure bent to a purpose it was not defined for, are not outlets.
+
+Rules 1–4 are **required from 0.10.0**; until then a violation is reported as a warning. Rules 5 and 6 apply now.
+
 ### Service Descriptor
 
 The optional `agents` array carries service descriptors — the identity card of each hosted service. Example: [`service-descriptor.json`](protocol/v1/examples/service-descriptor.json).
@@ -332,6 +396,45 @@ Rules (normative — see also [Conformance](#conformance)):
 2. The expanded URI returns a **fully self-contained** tenant manifest: its `http.endpoint` is pre-scoped (e.g. `https://api.example.com/api/best/tenants/acme`), every `dataschema` URI fully resolved, no `{tenantId}` placeholders anywhere, no `tenants` block of its own.
 3. Fetching `/.well-known/best/{tenantId}` requires at most the API key declared in the root `authentication` block — never a tenant ID header (the path already carries it).
 4. URI templating is valid **only** in `tenants.manifest`. Everywhere else, URIs are fully resolved.
+5. A tenant ID names a real scope. A constant pseudo-tenant (`public`, `default`, `anonymous`) used to host a surface that has no scope is non-conformant — declare a root-level service with its own `authentication` instead ([Services and Transport Bindings](#services-and-transport-bindings)). *(Required from 0.10.0.)*
+
+## Identity and Agent Registration — a described pattern
+
+*Non-normative. A service that needs no authentication ignores this section.*
+
+BEST defines no identity provider, no account model and no login. A platform that has them keeps them; the one thing BEST fixes is how an agent obtains its credential ([Agent Registration](#agent-registration)). This section names the parts so that implementers use the same words for the same things. Worked example: [specs/identity-and-registration.md](specs/identity-and-registration.md).
+
+**Who is involved.** The **person** the agent works for. The **agent** — the BEST consumer. The **account** — the scope a credential opens (a tenant, in a multi-tenant host). The **approver** — whoever may admit an agent to an account: the person themselves on a self-serve platform, an administrator on a provisioned one.
+
+**The flow is one, whatever the person said and whether or not they have an account.** The person says "sign me in to example.com" — or "sign me up", or "connect me". The agent registers itself and gives the person a link and a code. The link opens a page of the platform where the person signs in, or signs up if the platform offers that, and approves the agent. The agent collects its credential. The agent never needs to know whether an account existed.
+
+**The behaviours, told apart by whose they are:**
+
+| Behaviour | Whose | Where it happens |
+|---|---|---|
+| **Register agent** | the agent's | the device authorization request ([Agent Registration](#agent-registration)) — not a BEST command |
+| **Sign in** | the person's | the platform's own page, reached from the link the agent shows |
+| **Sign up** *(where the platform offers it)* | the person's | the same page; it is also where the account is opened |
+| **Approve agent** | the approver's | the same page, once signed in |
+| **Revoke agent** | the agent's, or the approver's | a command under that credential; or the platform's UI |
+| **Sign out** | the person's | the platform's own UI; it ends the person's browser session and touches no agent credential |
+
+**Keep them apart.** Signing in, up and out belong to the person and happen on the platform's pages, with its identity provider: the agent never sees a password, never performs or simulates them, and no BEST operation or workflow is named after them. Registering and revoking belong to the agent and are named as such: an operation that revokes a key is a revocation, not a sign-out. Ending the person's session leaves every agent credential alive; revoking a credential leaves the person's session alive.
+
+**The flow**, seen from both sides:
+
+1. The agent posts to `deviceAuthorizationUrl` and at once holds a secret the service generated, and a link and a short code for the person.
+2. **The agent shows the link and the code before anything else.** Until the person acts, nothing else can happen.
+3. The person opens the link. The page lets them sign in — or sign up, where the platform offers it — and then approve the agent. Nothing the agent sent has any effect without that, and unapproved, the registration expires.
+4. Meanwhile the agent polls `tokenUrl`. On approval the answer is the **credential and the account's identifier** — and from that, the account's manifest: everything the next request needs.
+
+Whether a person without an account can get one is the page's business, not the agent's: a self-serve platform offers sign-up there, a platform with provisioned accounts offers sign-in only and its approver may be an administrator. The agent's flow is the same in both. A platform may equally offer none of this and issue credentials out of band — it then omits `deviceAuthorizationUrl`.
+
+**Where the credential lives is the consumer's business, and only the consumer knows.** A client with its own store — the reference MCP server is one — makes the token request itself, keeps the credential where the model never sees it, and has it again at every later start: the person registers once. An agent with no such client — a model in a chat making HTTP requests — has nowhere to put a secret but the conversation. It registers with `credential_lifetime=session`; the approval page tells the person what is being granted ("until you revoke it", or "for eight hours"); and what it receives is short-lived, so the next conversation starts with a new link and code rather than with a key left in an old one. Making a connection last is never the service's to arrange ([Manifest Discipline](#manifest-discipline) rule 5).
+
+**Revoke agent** is an ordinary command on the account's surface, sent under the credential being revoked. After it, that credential receives `401`, and the way back is the one the manifest declares.
+
+**Optional, and outside this flow:** a platform may let an agent open an account itself. That is an ordinary command carrying [`impact: commitment`](#impact-annotations), confirmed with the person before it is sent; nothing above depends on it.
 
 ## Commands — `io.best.agents.commands`
 
@@ -353,6 +456,7 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
     {
       "schema": "propose-counter",
       "version": "1.0",
+      "commandType": "ProposeCounter",
       "dataschema": "https://api.example.com/commands/propose-counter/1.0",
       "description": "Propose a counter-offer in a contract negotiation"
     }
@@ -362,8 +466,9 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 
 | Field | Required | Description |
 |---|---|---|
-| `schema` | yes | Command schema name in **kebab-case** — the `{schema}` path segment. Distinct from the envelope `type` (typically its PascalCase form). |
+| `schema` | yes | Command schema name in **kebab-case** — the `{schema}` path segment. Distinct from the envelope `type`, which `commandType` states. |
 | `version` | yes | Schema version (`1.0`, `2.1`) — first-class, no URI parsing needed |
+| `commandType` | no | The exact envelope `type` to send for this command (`ProposeCounter`). When absent, consumers derive it as the PascalCase form of `schema`; servers **should** state it, because a derivation is a guess. Like `workflows` and `impact` it is carried on **both** surfaces — the catalogue entry and the schema document, as a top-level member with the same value. (It cannot be called `type` there: JSON Schema owns that keyword.) |
 | `dataschema` | yes | Resolvable URI to the JSON Schema for `data` — the canonical value for a command's `dataschema` field. Resolves to `GET /commands/{schema}/{version}` on this same surface. |
 | `description` | no | What the command does |
 | `workflows` | no | Ids of [published workflows](#workflows--iobestagentsworkflows) this command participates in — servers **should** populate it for every operation that appears in a recipe |
@@ -371,7 +476,7 @@ Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 
 ### Impact Annotations
 
-Some commands do not share a blast radius with the rest of the catalogue: they move money, destroy data, or cannot be undone. The [Security Requirements](#security-requirements) already oblige servers to place extra controls on such commands — but until a client can *discover* which commands those are, only the server side of the obligation is implementable. The optional **`impact`** annotation closes that gap:
+Some commands do not share a blast radius with the rest of the catalogue: the person the consumer acts for would want to be asked first. They move money, destroy data, cannot be undone — or commit the person to something, or let someone new into what is theirs. The [Security Requirements](#security-requirements) already oblige servers to place extra controls on such commands — but until a client can *discover* which commands those are, only the server side of the obligation is implementable. The optional **`impact`** annotation closes that gap:
 
 ```json
 {
@@ -387,9 +492,25 @@ Some commands do not share a blast radius with the rest of the catalogue: they m
 }
 ```
 
+The annotation is not about money. A command that commits the person carries it just the same:
+
+```json
+{
+  "schema": "open-account",
+  "version": "1.0",
+  "dataschema": "https://api.example.com/commands/open-account/1.0",
+  "description": "Open an account for the person the caller acts for",
+  "impact": {
+    "categories": ["commitment"],
+    "confirmation": "required",
+    "warning": "Opens an account in your name under the terms at example.com/terms. The free plan applies until you choose another."
+  }
+}
+```
+
 | Field | Required | Description |
 |---|---|---|
-| `categories` | yes | What kind of impact — named values: `financial` (moves money or puts capital at risk), `destructive` (removes data or state), `irreversible` (no compensating command), `compliance` (bypasses or alters a compliance control). The vocabulary is open; consumers treat unknown values as high-impact. |
+| `categories` | yes | What kind of impact — named values: `financial` (moves money or puts capital at risk), `destructive` (removes data or state), `irreversible` (no compensating command), `compliance` (bypasses or alters a compliance control), `commitment` (binds the person: opens an account, accepts terms, starts a subscription, creates personal data in their name), `access` (grants a principal access to what belongs to the person: issues a credential, shares a resource, invites a member). The vocabulary is open; consumers treat unknown values as high-impact. |
 | `confirmation` | yes | `required`: a consumer acting on behalf of a human **must not** submit the command without explicit, per-submission confirmation from that human. `recommended`: the consumer **should** confirm but **may** proceed where the human has durably authorized this class of operation. |
 | `warning` | no | Human-readable warning the consumer **should** surface to the human, substantially intact, before asking for confirmation. |
 
@@ -517,6 +638,8 @@ The index is deliberately shallow so a consumer can hold the entire list in one 
 | `optional` | no | `true` when the step applies only in some runs; absent means required |
 | `guidance` | no | How this step combines with the others — what to carry forward, what to wait for, when to skip. Anything about the single operation in isolation belongs in that operation's schema description instead. |
 
+`guidance` is bound by [Manifest Discipline](#manifest-discipline) rule 5: it speaks about this service's steps only, and never tells the consumer what to do with its own client or configuration.
+
 ```json
 GET /workflows/io.example.workflows.onboard-a-worker
 {
@@ -558,6 +681,8 @@ The moment a service executes, retries, persists, or branches steps on the calle
 
 HTTP is the **baseline transport** — every conformant service exposes it. All requests and responses are `application/json` (schemas are `application/schema+json`; SSE is `text/event-stream`).
 
+`POST /commands` carries one BEST envelope in the CloudEvents *structured* content mode. Servers **must** accept `Content-Type: application/cloudevents+json` and, for compatibility, `application/json`; consumers **should** send the former. With it, a CloudEvents SDK's HTTP sender produces a valid BEST request unchanged. *(Accepting `application/cloudevents+json` is required from 0.10.0.)*
+
 **Path resolution:** every capability path is appended to the service's `http.endpoint`. The leading slash is a separator, not a root-relative indicator:
 
 | `http.endpoint` | Path | Resolved |
@@ -567,7 +692,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 
 `http.endpoint` **must** be the consumer-facing public address — never an internal backend or service-mesh URL.
 
-**Authentication:** per the manifest's `authentication` block — `bearer` → `Authorization: Bearer <token>`; `apiKey` → header or query parameter named in `scheme`; everything except `GET /.well-known/best` requires credentials when declared.
+**Authentication:** per the `authentication` block governing the service (its own, else the root's) — `bearer` → `Authorization: Bearer <token>`; `apiKey` → header or query parameter named in `scheme`. `GET /.well-known/best`, the capabilities of a service that declares `"type": "none"`, and the `deviceAuthorizationUrl` and `tokenUrl` endpoints need no credential; everything else does when one is declared.
 
 **Errors:** all endpoints use a consistent body ([`error.json`](protocol/v1/schemas/error.json)):
 
@@ -583,7 +708,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 | 201 | Created — command accepted and durably queued |
 | 202 | Accepted without durability guarantee (see [Ingestion Semantics](#ingestion-semantics)) |
 | 400 | Invalid request body or parameters (schema validation failure) |
-| 401 | Missing/invalid credentials (only when `authentication.type` is not `none`) |
+| 401 | Missing/invalid credentials (only when the governing `authentication.type` is not `none`) |
 | 404 | Unknown route, schema name, or version |
 | 409 | Conflict — duplicate command `id` with different payload |
 | 413 | Request body exceeds server limits |
@@ -641,14 +766,14 @@ Configuration of the reference server (per-app `BEST_<APP>_*` env vars, `BEST_CO
 
 The canonical first-contact algorithm for an AI agent or automated client:
 
-**1. Fetch the root manifest** — `GET /.well-known/best` (always public). Extract `authentication` and `tenants.manifest` before anything else.
+**1. Fetch the root manifest** — `GET /.well-known/best` (always public). Extract `authentication` — the root block and any a service declares for itself — and `tenants.manifest` before anything else.
 
 **2. Identify the manifest type and collect prerequisites — before making any authenticated request:**
 
 | Root manifest shows | Meaning | Collect from the user |
 |---|---|---|
-| `capabilities` contains `io.best.agents.commands` | Direct service | Credentials only (if auth declared) |
-| `tenants.manifest` present, no commands capability | Multi-tenant router | **Credentials and tenant ID, in one prompt** |
+| `capabilities` contains `io.best.agents.commands` | Direct service | Nothing, if you hold a credential or the surface is public. Otherwise register through `authentication.deviceAuthorizationUrl`; ask the person for a credential only when it is absent |
+| `tenants.manifest` present, no commands capability | Multi-tenant router | Same. A completed registration yields the credential **and** the tenant ID together — never ask the person for a tenant ID the registration can give you. Only where no `deviceAuthorizationUrl` is declared: credentials and tenant ID, in one prompt |
 | Commands capability with `status: "planned"` | Not implemented yet | — (report to user) |
 | Empty `capabilities`, no `tenants.manifest` | No discoverable surface | — (report to user) |
 
@@ -671,6 +796,11 @@ A BEST-compliant endpoint **must**:
 5. Return valid JSON conforming to the referenced schemas
 6. Use standard HTTP status codes and the BEST error format
 7. Declare authentication in the manifest (or omit for public) — never an undocumented `401`
+8. Reference every declared service from at least one capability — in the same manifest or, for a multi-tenant root, in its tenant manifests
+9. Keep every manifest `description` within the length limit and free of mechanics ([Manifest Discipline](#manifest-discipline))
+10. Publish no second machine-readable or agent-directed description of the service ([Origin Discovery](#origin-discovery))
+
+Items 8–10 are **required from 0.10.0**; 0.9.11 states them and validators report violations as warnings, so that every implementer has one version of grace.
 
 Per-capability required endpoints (for `active` capabilities; `partial` is exempt but must document available routes in `endpoints`):
 
@@ -702,11 +832,13 @@ Consumers **must ignore unknown fields** (forward compatibility). All BEST ident
 Condensed from the normative set — every conformant implementation observes these:
 
 - **TLS** — HTTPS everywhere in production; MCP transports must provide TLS-equivalent confidentiality; validate certificates; never send credentials over insecure transports.
-- **Auth** — only `GET /.well-known/best` is unauthenticated. `GET /events` requires auth and tenant-scoped authorisation unless explicitly public. Distinct Read/Write scopes are recommended.
+- **Auth** — `GET /.well-known/best` is always unauthenticated; beyond it, only the capabilities of a service that declares `"authentication": { "type": "none" }` are, along with the `deviceAuthorizationUrl` and `tokenUrl` endpoints, which are rate-limited per client and per `device_code`. A public surface **must not** return data belonging to any account and **must** be rate-limited per client. A command accepted on a public surface **must** have no effect on any account until a person signed in to the platform has approved it. `GET /events` requires auth and tenant-scoped authorisation unless explicitly public. Distinct Read/Write scopes are recommended.
 - **`dataschema` SSRF** — servers select validation schemas from their own catalogue keyed by `type`; they **must not** fetch caller-supplied `dataschema` URIs, and **should** reject commands whose `dataschema` doesn't match a catalogue entry.
 - **Replay protection** — envelope `id` is an idempotency key; duplicates rejected within a retention window, scoped to the authenticated tenant/sender; same `id` + different payload → `409`.
 - **`source` is untrusted** — caller-declared; never grant permissions or make security decisions from it; overwrite with (or record alongside) the verified principal for audit.
-- **High-impact commands** — commands that are destructive, irreversible, or bypass a compliance control **should** require a control beyond the submitting credential (human approval, a second principal, out-of-band confirmation); that control **must not** be self-serviceable. Servers **should** declare the [`impact` annotation](#impact-annotations) on such commands so consumers can discover the obligation; the annotation never substitutes for the server-side control.
+- **High-impact commands** — commands that are destructive, irreversible, bypass a compliance control, commit a person or grant access to what is theirs **should** require a control beyond the submitting credential (human approval, a second principal, out-of-band confirmation); that control **must not** be self-serviceable. On a public surface there is no submitting credential at all, so the control is the whole of the authorisation: the person signing in to the platform and approving, in their own browser, is the out-of-band confirmation, and the agent cannot perform it. Servers **should** declare the [`impact` annotation](#impact-annotations) on such commands so consumers can discover the obligation; the annotation never substitutes for the server-side control.
+- **Identifiers are not secrets** — a value that names something (an envelope `id`, a `correlationid`, a tenant, account or registration identifier) **must never** be accepted as proof of anything. Identifiers are logged, projected and indexed by design. Every secret a service relies on is generated by the service, never minted by the caller: a caller may be a model, and a model cannot produce randomness.
+- **Credentials stay out of transcripts** — a conversation with a model is not a secret store: it is kept, synced, summarised and shared. A consumer that has a store of its own **must** run the token request outside the model's view, keep the credential there, and redact it from everything it returns to the model. A consumer that has none — a model making the requests itself — **should** register with `credential_lifetime=session`, and a service **should** then issue a short-lived credential (hours, with `expires_in`), so that what the transcript holds is soon worthless.
 - **Tenant isolation** — tenant context derives from authenticated identity, never from caller-supplied paths/params/fields; caches, dedup stores, and streams isolated per tenant; guessing a tenant ID grants nothing.
 - **Credential passthrough** (intermediaries such as MCP servers or gateways) — opt-in per connection, off by default; forward only to the configured endpoint; explicit per-request keys take precedence over ambient bearer tokens; never log credentials; multi-user intermediaries should fail closed.
 - **Query-string credentials** — long-lived keys should not ride in URLs (logs, referrers, history). URL-only clients bootstrap via the RFC 6749 exchange at `tokenUrl` (`client_credentials`, short-lived output) and send the result per RFC 6750 §2.3; servers never log query-borne tokens, mark those responses `no-store`, and should deny them high-impact commands. Tenant context binds to the exchanged credential, never to a caller-supplied tenant field.

@@ -47,7 +47,7 @@ A deployment whose BEST endpoint is not the public web origin **should** bridge 
 
 1. **Serve `/.well-known/best` on the public origin** — the manifest itself, or a `301`/`308` redirect to the canonical manifest on the API host. Consumers **must** follow redirects on this path.
 2. **Advertise the bridge in the origin's HTML**: `<link rel="alternate" type="application/json" href="/.well-known/best" title="BEST service manifest">`.
-3. **Optionally serve `/llms.txt`** on the origin with a prose pointer to the discovery URL and this specification, for agents that read text before they read protocols.
+**The manifest is the only entry.** A deployment points at its manifest and **must not** publish a second description of its BEST surface for agents to start from — no `llms.txt` restating operations, no skill or prompt file, no client snippet carrying behaviour, no OpenAPI document of the BEST endpoints. Every copy drifts. *(Required from 0.10.0.)*
 
 With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
 
@@ -89,7 +89,7 @@ Resolution answers *where is this service*, not *which service does X* — a dir
 | `version` | yes | BEST spec version (semver) |
 | `services` | yes | Service definitions with transport bindings |
 | `capabilities` | yes | Supported capabilities with spec/schema URLs |
-| `authentication` | no | Credential requirements — `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus `scheme`, `in`, `scopes`, `tokenUrl`, `docs`. Consumers **must** read it before calling anything else. `tokenUrl` names an RFC 6749 token endpoint — the bootstrap path for clients that cannot set headers (see [Security — Token Exchange](security.md#token-exchange-and-query-string-credentials)). Hosts requiring credentials **should** set `docs` to an onboarding page — for multi-tenant hosts it should cover acquiring both the API key and the tenant ID, since neither is derivable from the manifest. |
+| `authentication` | no | Credential requirements — `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus `scheme`, `in`, `scopes`, `tokenUrl`, `docs`. Consumers **must** read it before calling anything else. `tokenUrl` names an RFC 6749 token endpoint — the bootstrap path for clients that cannot set headers (see [Security — Token Exchange](security.md#token-exchange-and-query-string-credentials)) and, with `deviceAuthorizationUrl`, the two ends of [agent registration](identity-and-registration.md) (RFC 8628): a consumer with no credential registers there, and asks the person for a credential only when it is absent. `docs` is a page for people; a consumer never depends on it. A service entry may carry its own `authentication` block, which then governs that service alone — `"type": "none"` declares a public surface. |
 | `tenants` | no | Multi-tenant discovery — see below |
 | `agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) |
 | `extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |

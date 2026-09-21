@@ -42,7 +42,8 @@
 		{
 			label: 'Guides',
 			items: [
-				{ label: 'Composing Processes', href: '/specs/composing-processes' }
+				{ label: 'Composing Processes', href: '/specs/composing-processes' },
+				{ label: 'Identity and Registration', href: '/specs/identity-and-registration' }
 			]
 		},
 		{

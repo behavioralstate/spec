@@ -21,7 +21,7 @@
         "source": {
           "type": "string",
           "format": "uri-reference",
-          "description": "URI-reference (RFC 3986) identifying the origin of the message. An absolute URI is recommended for interoperability; a relative reference (e.g. a service name or routing key such as 'dotquant') is valid. For commands: set by the sender. For events: set by the publishing service. Never treated as authenticated identity."
+          "description": "URI-reference (RFC 3986) identifying the origin of the message. An absolute URI is recommended for interoperability; a relative reference (e.g. a service name) is valid. Always the caller's declared origin, never a routing key. For commands: set by the sender. For events: set by the publishing service. Never treated as authenticated identity."
         },
         "type": {
           "type": "string",

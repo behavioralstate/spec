@@ -1,5 +1,6 @@
 # Migration Guide
 
+- [0.9.10 → 0.9.11](#migrating-from-0910-to-0911) — agent registration as RFC 8628 (`deviceAuthorizationUrl`), per-service `authentication`, `commandType`, two `impact` categories; Manifest Discipline and a single entry, stated now and required from 0.10.0
 - [0.9.9 → 0.9.10](#migrating-from-099-to-0910) — name resolution: a DNS name is the whole namespace, resolved through `/.well-known/best` (a `_best` TXT record only where the name serves no HTTP); obligations on the resolving consumer. No wire change
 - [0.9.7 → 0.9.8](#migrating-from-097-to-098) — token exchange for header-constrained clients: `tokenUrl` defined as an RFC 6749 token endpoint; query-string credential rules. No wire change
 - [0.9.6 → 0.9.7](#migrating-from-096-to-097) — the optional `extensions` object gives vendor data a lawful home in the manifest (root and capability entries); domain-first rule governs what belongs there
@@ -9,6 +10,40 @@
 - [0.9.1 → 0.9.2](#migrating-from-091-to-092) — first-class `correlationid`; webhook subscriptions and the gRPC transport declaration removed; removed-capability residue deleted
 - [0.9.0 → 0.9.1](#migrating-from-090-to-091) — command authorisation requirements; schema selection relaxed
 - [0.8.x → 0.9.0](#migrating-from-08x-to-090) — BSP → BEST rename; conformant CloudEvents 1.0 profile
+
+---
+
+# Migrating from 0.9.10 to 0.9.11
+
+Spec 0.9.11 adds **two optional manifest fields, one optional catalogue field and two `impact` categories**, and states a set of requirements that become mandatory in **0.10.0**. Every 0.9.10 manifest remains valid against the 0.9.11 schema. Nothing on the wire changes for an existing command or event.
+
+## Added — usable now
+
+- **`authentication.deviceAuthorizationUrl`** — an RFC 8628 device authorization endpoint, completed at `tokenUrl` by the device-code grant. Request parameters: `client_id` (caller-declared, never identity), and the BEST parameters `agent_label` and `credential_lifetime` (`durable` | `session`). The token response carries `tenant_id` and `auth_header`. See SPEC.md *Agent Registration*.
+- **`authentication` on a service entry** — governs that service alone; `"type": "none"` declares a public surface.
+- **`commandType`** on the command catalogue entry and the schema document — the exact envelope `type` to send.
+- **`impact` categories** `commitment` and `access`.
+- Security requirements: **identifiers are not secrets**; **credentials stay out of transcripts**.
+- A non-normative section and page: *Identity and Agent Registration*.
+
+## Stated now, required from 0.10.0
+
+- Every `services` key is the implementing service of at least one capability — in the same manifest, or for a multi-tenant root in its tenant manifests.
+- A manifest `description` carries no mechanics (URLs, templates, header names, credential formats, operation names, step-by-step instructions) and stays within **500 characters**. Catalogue and schema descriptions are not capped.
+- No URI template outside `tenants.manifest`; no constant pseudo-tenant (`public`, `default`, `anonymous`) hosting an unscoped surface.
+- No second agent-directed description of the BEST surface — Origin Discovery no longer suggests `/llms.txt`.
+- `POST /commands` accepts `Content-Type: application/cloudevents+json` (and `application/json`).
+
+Applying now, because they restate what Name Resolution already asks consumers to disregard: service text never instructs the consumer about its own client, configuration, other connections or other services; and what the manifest cannot say goes into ordinary behaviour, `extensions`, or an issue against the specification — not into prose.
+
+## Migrating
+
+- **Servers that register agents through a command** (a public `request-registration`-style command whose caller-minted id is later accepted at `tokenUrl` as the device code): add the device authorization endpoint, have it generate the `device_code`, declare `deviceAuthorizationUrl`, and stop accepting any identifier as a secret. Keep the old path answering until your consumers have moved; then remove it, and with it any recipe whose steps describe the registration.
+- **Servers with a public surface under a pseudo-tenant**: declare it as a root-level service with `"authentication": { "type": "none" }` at a path of its own. Keep the old path answering for a while — consumers hold its URLs.
+- **Servers with a surface opened by a different credential** (a share token, a per-project key): declare it as a service with its own `authentication` and ordinary capabilities; drop any scope identifier from its URL — context derives from the credential.
+- **Every server**: shorten manifest descriptions to what the service *is*; move anything procedural into a workflow and anything about one operation into that operation's schema description. Remove any recipe step or description that tells an agent to edit its client's configuration. State `commandType` in the catalogue. Stop publishing internal component names in served schema documents. Accept `application/cloudevents+json`.
+- **Clients**: start registration at `deviceAuthorizationUrl` when the manifest declares it, rather than looking for an onboarding service; run the token request outside the model's view and redact the credential; send `credential_lifetime=session` when you cannot keep a secret. Prefer `commandType` over the PascalCase derivation. Send `application/cloudevents+json`.
+- **Validators**: the discovery schema gains `service.authentication`, `authentication.deviceAuthorizationUrl` (which requires `tokenUrl`); the commands schema gains `commandType`. The new rules are reported as warnings in 0.9.11 and as failures from 0.10.0.
 
 ---
 

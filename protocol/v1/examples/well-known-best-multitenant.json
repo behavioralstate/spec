@@ -4,6 +4,8 @@
     "authentication": {
       "type": "bearer",
       "scheme": "Bearer",
+      "tokenUrl": "https://api.example.com/auth/token",
+      "deviceAuthorizationUrl": "https://api.example.com/auth/device",
       "docs": "https://docs.example.com/authentication"
     },
     "tenants": {

@@ -11,6 +11,11 @@ A BEST-compliant endpoint **must**:
 5. Return valid JSON conforming to the referenced schemas
 6. Use standard HTTP status codes and the BEST error response format
 7. Declare authentication requirements in the manifest `authentication` block (or omit it for public endpoints); never silently reject requests with an undocumented 401
+8. Reference every declared service from at least one capability — in the same manifest or, for a multi-tenant root, in its tenant manifests
+9. Keep every manifest `description` within 500 characters and free of mechanics — no URLs or templates, header names or credential formats, operation names, or step-by-step instructions
+10. Publish no second machine-readable or agent-directed description of the service (`llms.txt` restating operations, skill or prompt files, client snippets carrying behaviour, an OpenAPI document of the BEST endpoints)
+
+Items 8–10, the pseudo-tenant rule and accepting `application/cloudevents+json` on `POST /commands` are **required from 0.10.0**. 0.9.11 states them and validators report violations as warnings, so every implementer has one version of grace. Normative text: [SPEC.md — Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline).
 
 ## Capability-Level Compliance
 

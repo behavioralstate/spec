@@ -44,7 +44,7 @@ Commands ride the [CloudEvents 1.0 envelope](/specs/design-decisions#cloudevents
 
 ### The catalogue (`GET /commands`)
 
-Each entry: `schema` (kebab-case name, the `{schema}` path segment — distinct from the PascalCase envelope `type`), `version`, `dataschema` (resolvable URI, the exact value to put on the command envelope), optional `description`, optional `workflows` (recipe cross-links), optional `impact` (high-impact annotation — see below).
+Each entry: `schema` (kebab-case name, the `{schema}` path segment — distinct from the PascalCase envelope `type`), optional `commandType` (the exact envelope `type` to send — servers **should** state it, since deriving it from `schema` is a guess; carried identically as a top-level member of the schema document), `version`, `dataschema` (resolvable URI, the exact value to put on the command envelope), optional `description`, optional `workflows` (recipe cross-links), optional `impact` (high-impact annotation — see below).
 
 ```json
 {
@@ -63,12 +63,14 @@ Individual command types are **domain data, not capabilities** — they never ap
 
 ### Ingestion (`POST /commands`)
 
+The body is one BEST envelope in the CloudEvents *structured* content mode. Servers accept `Content-Type: application/cloudevents+json` (required from 0.10.0) and, for compatibility, `application/json`; consumers **should** send the former.
+
 1. Validate required envelope attributes.
 2. Look up the schema **in the server's own catalogue** — the inbound `dataschema` is a *selector, not a location*; servers **MUST NOT** fetch a caller-supplied URI (SSRF — see [Security](/specs/security#command-ingestion-schema-selection)).
 3. Validate `data` against that schema. Schema selection, authorisation, and dispatch **MUST** key on the same identifier.
 4. Valid → durably queue, return `201` with `{ "id": ..., "correlationId": ... }`. Invalid → `400`.
 
-The envelope `id` is the **idempotency key**: duplicates are rejected within a retention window; same `id` with a different payload → `409`. `type` is the routing key; `source` must never be the sole routing key. `201` (durably recorded, processing will happen) is the target; use `202` only when the implementation cannot durably enqueue before responding.
+The envelope `id` is the **idempotency key**: duplicates are rejected within a retention window; same `id` with a different payload → `409`. `type` is the routing key; `source` is always the caller's declared origin and never a routing key — a service that routes internally by something else maps it behind its edge and requires nothing of that dialect from the caller. `201` (durably recorded, processing will happen) is the target; use `202` only when the implementation cannot durably enqueue before responding.
 
 ### Correlation
 
@@ -84,7 +86,7 @@ When the service publishes [workflows](workflows.md), the document **should** al
 
 ### High-impact annotations (`impact`)
 
-A command that moves money, destroys data, or cannot be undone **may** carry an `impact` annotation — on its catalogue entry and, identically, as a top-level member of its schema document:
+A command the person would want to be asked about first — it moves money, destroys data, cannot be undone, commits the person to something, or lets someone new into what is theirs — **may** carry an `impact` annotation — on its catalogue entry and, identically, as a top-level member of its schema document:
 
 ```json
 "impact": {
@@ -94,6 +96,6 @@ A command that moves money, destroys data, or cannot be undone **may** carry an 
 }
 ```
 
-`categories` names the kind of impact (`financial`, `destructive`, `irreversible`, `compliance` — open vocabulary; unknown values are treated as high-impact). `confirmation: "required"` means a consumer acting on behalf of a human **must not** submit the command without explicit, per-submission confirmation from that human; `"recommended"` allows proceeding under a durable prior authorization. `warning` is text the consumer **should** surface, substantially intact, before asking.
+`categories` names the kind of impact (`financial`, `destructive`, `irreversible`, `compliance`, `commitment` — binds the person: opens an account, accepts terms — and `access` — grants a principal access to what is theirs: issues a credential, shares a resource; open vocabulary; unknown values are treated as high-impact). `confirmation: "required"` means a consumer acting on behalf of a human **must not** submit the command without explicit, per-submission confirmation from that human; `"recommended"` allows proceeding under a durable prior authorization. `warning` is text the consumer **should** surface, substantially intact, before asking.
 
 The annotation is the *discovery half* of the [high-impact controls in Security](/specs/security#high-impact-commands): it tells well-behaved consumers what to do, and never replaces the server-side control — a server cannot rely on clients honoring it. Normative reference: [SPEC.md — Impact Annotations](https://github.com/behavioralstate/spec/blob/main/SPEC.md#impact-annotations).

@@ -132,6 +132,10 @@
           "format": "uri",
           "description": "URL to the service specification."
         },
+        "authentication": {
+          "$ref": "#/$defs/authentication",
+          "description": "Authentication for this service alone. When present it governs every capability the service implements and the root block does not apply to them; when absent the root block applies. type 'none' declares a public surface: its capabilities are callable without a credential."
+        },
         "http": { "$ref": "#/$defs/httpTransport"
         },
         "mcp": {
@@ -156,7 +160,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Fully qualified capability name using reverse-domain notation. BEST built-in capabilities use the io.best.* prefix (e.g. io.best.agents.commands). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. io.dotquant.trading, com.acme.inventory).",
+          "description": "Fully qualified capability name using reverse-domain notation. BEST built-in capabilities use the io.best.* prefix (e.g. io.best.agents.commands). Custom or domain-specific capabilities must use a unique reverse-domain prefix owned by the implementer (e.g. com.acme.trading, com.acme.inventory).",
           "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_-]*)*$"
         },
         "version": {
@@ -184,7 +188,7 @@
         },
         "service": {
           "type": "string",
-          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (io.dotquant.trading) implements a standard BEST capability (io.best.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.best.agents.* capabilities under the io.best.agents service)."
+          "description": "Key of the service (in the manifest's services object) that implements this capability. Required when the capability name prefix does not match the service name — for example, when a custom service (com.acme.trading) implements a standard BEST capability (io.best.agents.commands). Consumers use this field to resolve which http.endpoint to call for the capability's endpoints. Omit only when the capability name shares its prefix with exactly one service key (e.g. io.best.agents.* capabilities under the io.best.agents service)."
         },
         "status": {
           "type": "string",
@@ -290,7 +294,7 @@
     },
     "authentication": {
       "type": "object",
-      "description": "Authentication requirements for accessing this BEST endpoint. Consumers must present credentials according to the declared scheme before calling any protected endpoint.",
+      "description": "Authentication requirements. At the manifest root it governs every service that declares none of its own; on a service entry it governs that service alone. Consumers must read it before calling anything else: a consumer that holds no credential registers through deviceAuthorizationUrl when it is present, and only when it is absent asks the person for a credential obtained out of band.",
       "required": ["type"],
       "properties": {
         "type": {
@@ -315,14 +319,20 @@
         "tokenUrl": {
           "type": "string",
           "format": "uri",
-          "description": "Token endpoint URL for OAuth2 or token-based flows. Names an RFC 6749 token endpoint; hosts serving header-constrained clients should accept the client_credentials grant and return a short-lived access token."
+          "description": "An RFC 6749 token endpoint. Hosts serving header-constrained clients should accept the client_credentials grant and return a short-lived access token. Where deviceAuthorizationUrl is declared it also serves the RFC 8628 device-code grant that completes an agent registration, answering with access_token, token_type, expires_in when the credential is not durable, and the BEST members tenant_id and auth_header."
+        },
+        "deviceAuthorizationUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "How an agent obtains this credential by itself: an RFC 8628 device authorization endpoint. A form-encoded POST with client_id (caller-declared, never identity) and the optional BEST parameters agent_label and credential_lifetime (durable | session) is answered at once with a service-generated device_code, a user_code, verification_uri, expires_in and interval. Requires tokenUrl. Omitted when credentials are only issued out of band."
         },
         "docs": {
           "type": "string",
           "format": "uri",
-          "description": "URL to human-readable authentication documentation."
+          "description": "A page for people. A consumer never depends on it."
         }
       },
+      "dependentRequired": { "deviceAuthorizationUrl": ["tokenUrl"] },
       "additionalProperties": false
     },
     "mcpAuthentication": {

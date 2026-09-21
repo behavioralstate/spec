@@ -82,6 +82,11 @@
         "requestBody": {
           "required": true,
           "content": {
+            "application/cloudevents+json": {
+              "schema": {
+                "$ref": "../../schemas/agents/commands.json#/$defs/command"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "../../schemas/agents/commands.json#/$defs/command"

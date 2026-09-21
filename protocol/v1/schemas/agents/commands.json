@@ -18,11 +18,16 @@
       "properties": {
         "schema": {
           "type": "string",
-          "description": "Command schema name in kebab-case (e.g. propose-counter, submit-order). Used as the {schema} path segment in GET /commands/{schema}/{version}. Distinct from the CloudEvent 'type' field."
+          "description": "Command schema name in kebab-case (e.g. propose-counter, submit-order). Used as the {schema} path segment in GET /commands/{schema}/{version}. Distinct from the CloudEvent 'type' field, which commandType states."
         },
         "version": {
           "type": "string",
           "description": "Schema version string (e.g. 1.0, 2.1). Used as the {version} path segment in GET /commands/{schema}/{version}. First-class field — callers do not need to parse the dataschema URI to determine the version."
+        },
+        "commandType": {
+          "type": "string",
+          "pattern": "^[A-Z][a-zA-Z0-9]*$",
+          "description": "The exact CloudEvent 'type' to send for this command, in PascalCase (e.g. ProposeCounter). When absent, consumers derive it as the PascalCase form of 'schema'; servers SHOULD state it, because a derivation is a guess. Stamped both here and as a top-level member of the command's schema document, with the same value."
         },
         "dataschema": {
           "type": "string",
@@ -44,14 +49,14 @@
     },
     "impact": {
       "type": "object",
-      "description": "High-impact annotation — declares that this command is high-impact in the sense of the Security Requirements (destructive, irreversible, financial, or compliance-relevant) and that a consumer acting on behalf of a human must warn that human and obtain explicit confirmation before submitting it. Stamped both on the catalogue entry and as a top-level member of the command's schema document; both surfaces MUST carry the same value. Descriptive only: it never replaces the server-side controls the Security Requirements demand for high-impact commands.",
+      "description": "High-impact annotation — declares that this command is high-impact in the sense of the Security Requirements (destructive, irreversible, financial, compliance-relevant, committing the person, or granting access to what is theirs) and that a consumer acting on behalf of a human must warn that human and obtain explicit confirmation before submitting it. Stamped both on the catalogue entry and as a top-level member of the command's schema document; both surfaces MUST carry the same value. Descriptive only: it never replaces the server-side controls the Security Requirements demand for high-impact commands.",
       "required": ["categories", "confirmation"],
       "properties": {
         "categories": {
           "type": "array",
           "minItems": 1,
           "items": { "type": "string" },
-          "description": "What kind of impact the command has. Named values: 'financial' (moves money or puts capital at risk), 'destructive' (removes data or state), 'irreversible' (cannot be undone by a compensating command), 'compliance' (bypasses or alters a compliance control). The vocabulary is open — implementers MAY add their own values; consumers treat unknown values as high-impact."
+          "description": "What kind of impact the command has. Named values: 'financial' (moves money or puts capital at risk), 'destructive' (removes data or state), 'irreversible' (cannot be undone by a compensating command), 'compliance' (bypasses or alters a compliance control), 'commitment' (binds the person: opens an account, accepts terms, starts a subscription, creates personal data in their name), 'access' (grants a principal access to what belongs to the person: issues a credential, shares a resource, invites a member). The vocabulary is open — implementers MAY add their own values; consumers treat unknown values as high-impact."
         },
         "confirmation": {
           "type": "string",
