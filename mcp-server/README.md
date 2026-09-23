@@ -62,7 +62,7 @@ Spec reference: https://behavioralstate.io/docs
 | `get_query_catalogue` | List all read queries this endpoint exposes (descriptions truncated; `detail: "full"` for verbatim) |
 | `get_query_schema` | Fetch the JSON Schema for a query — learn parameters and response shape |
 | `execute_query` | Execute a query and return current state synchronously |
-| `get_manifest` | Fetch the `/.well-known/best` discovery manifest (tenant-scoped when the host publishes one) — declared capabilities, push channels, authentication |
+| `get_manifest` | Fetch the `/.well-known/best` discovery manifest (tenant-scoped when the host publishes one) — declared capabilities, push channels, authentication. The sign-in guidance (an authentication block's `note`, spec 0.9.14) is dropped: it is written for a consumer that makes the device-flow requests by hand, and best-mcp makes them itself (`register_agent`, `exchange_device_code`) |
 | `get_events` | Query the historical event log (`GET /events`) — filter by correlationId/type/source/time, paginate with the response cursor |
 | `get_event_schema` | Fetch the JSON Schema for a typed event (`GET /events/{schema}/{version}`) |
 | `sample_event_stream` | Open the live SSE stream (`GET /events/stream`), collect events until `max_events`/`max_seconds`, then return them — bounded client-side, so it works against any conformant endpoint |

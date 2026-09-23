@@ -46,6 +46,27 @@ async function main() {
 		}
 	}
 
+	// The sign-in guidance is stated twice — in SPEC.md for people, in discovery.json for programs — and every
+	// example that declares deviceAuthorizationUrl carries it. All of them must say the same words.
+	const discovery = JSON.parse(await readFile(join(SCHEMAS_DIR, 'discovery.json'), 'utf-8'));
+	const guidance = discovery.$defs?.signInGuidance?.properties ?? {};
+	const spec = await readFile(join(import.meta.dirname, '..', 'SPEC.md'), 'utf-8');
+	for (const part of ['manifest', 'device', 'token']) {
+		const text = guidance[part]?.const;
+		if (typeof text !== 'string' || !spec.includes(`> ${text}`)) {
+			console.error(`  FAIL  sign-in guidance — the ${part} text in discovery.json is not quoted verbatim in SPEC.md`);
+			errors++;
+		}
+	}
+	const examplesDir = join(import.meta.dirname, '..', 'protocol', 'v1', 'examples');
+	for (const name of (await readdir(examplesDir)).filter((f) => f.endsWith('.json'))) {
+		const auth = JSON.parse(await readFile(join(examplesDir, name), 'utf-8'))?.best?.authentication;
+		if (auth?.deviceAuthorizationUrl && auth.note !== guidance.manifest?.const) {
+			console.error(`  FAIL  protocol/v1/examples/${name} — declares deviceAuthorizationUrl without the sign-in guidance as authentication.note`);
+			errors++;
+		}
+	}
+
 	console.log(`\n${files.length} files checked, ${errors} errors.`);
 	process.exit(errors > 0 ? 1 : 0);
 }

@@ -103,7 +103,7 @@ function parseArgs(argv: string[]): Options {
 const WELL_KNOWN = '/.well-known/best';
 const ROOT_KEY = 'best';
 const NS = 'io.best.';
-const MODE_LABEL = 'BEST 0.9.11';
+const MODE_LABEL = 'BEST 0.9.14';
 
 // Rules the spec states in 0.9.11 and requires from 0.10.0. Until then a violation is a warning.
 const STAGED: Level = 'warn';
@@ -183,6 +183,12 @@ function loadAjv(): Ajv2020 {
     ajv.addSchema(schema);
   }
   return ajv;
+}
+
+/** The sign-in guidance (SPEC.md, Sign-in Guidance): the words a service that declares deviceAuthorizationUrl carries verbatim. */
+function signInGuidance(): { manifest: string; device: string; token: string } {
+  const props = JSON.parse(readFileSync(join(SCHEMA_DIR, 'discovery.json'), 'utf-8')).$defs.signInGuidance.properties;
+  return { manifest: props.manifest.const, device: props.device.const, token: props.token.const };
 }
 
 function ajvErrors(validate: ValidateFunction): string {
@@ -712,6 +718,12 @@ async function checkRegistration(root: Dict, opts: Options): Promise<void> {
     if (!tokenUrl) { record(S, 'fail', `${where}: deviceAuthorizationUrl is declared without tokenUrl`); continue; }
     record(S, 'pass', `${where}: deviceAuthorizationUrl and tokenUrl declared`);
 
+    // The consumer is often a model with nothing else to go on: the words are the spec's, carried verbatim.
+    const guidance = signInGuidance();
+    if (block.note === undefined) record(S, 'fail', `${where}: deviceAuthorizationUrl is declared without the sign-in guidance — authentication.note must carry the spec's manifest text verbatim (SPEC.md, Sign-in Guidance)`);
+    else if (block.note !== guidance.manifest) record(S, 'fail', `${where}: authentication.note is not the sign-in guidance's manifest text — it must be carried verbatim (SPEC.md, Sign-in Guidance)`);
+    else record(S, 'pass', `${where}: authentication.note carries the sign-in guidance verbatim`);
+
     // Read-only: an unknown device code must be refused as a bad grant, which proves the grant type is served.
     const bogus = await http('POST', tokenUrl, opts, null, undefined, {
       form: { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', device_code: `best-validate-unknown-${Date.now()}`, client_id: 'best-validate' }
@@ -736,6 +748,9 @@ async function checkRegistration(root: Dict, opts: Options): Promise<void> {
     const missing = ['device_code', 'user_code', 'verification_uri', 'expires_in'].filter(m => a[m] === undefined);
     if (missing.length) { record(S, 'fail', `${where}: device authorization response lacks ${missing.join(', ')} (RFC 8628 §3.2)`); continue; }
     record(S, 'pass', `${where}: device authorization response carries the RFC 8628 members`);
+    if (a.note === undefined) record(S, 'fail', `${where}: the device authorization answer carries no note — it must carry the sign-in guidance's device text verbatim (SPEC.md, Sign-in Guidance)`);
+    else if (a.note !== guidance.device) record(S, 'fail', `${where}: the device authorization answer's note is not the sign-in guidance's device text — it must be carried verbatim (SPEC.md, Sign-in Guidance)`);
+    else record(S, 'pass', `${where}: the device authorization answer carries the sign-in guidance verbatim`);
     const code = String(a.device_code);
     if (code === String(a.user_code)) record(S, 'fail', `${where}: device_code equals user_code — the code shown to the person must not redeem the credential`);
     else if (code.length < 20) record(S, 'fail', `${where}: device_code is ${code.length} characters — it must be unguessable`);
