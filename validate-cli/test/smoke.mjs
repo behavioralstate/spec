@@ -88,7 +88,12 @@ function serve(mode) {
         return res.end('To register, POST request-registration to /commands, then poll /queries/get-registration.');
       }
 
-      // agent registration (RFC 8628)
+      // agent registration (RFC 8628) — a body that is not a form: a JSON invalid_request, or ('bare415') the bare status the spec rules out
+      const isForm = (req.headers['content-type'] ?? '').startsWith('application/x-www-form-urlencoded');
+      if ((path === '/auth/device' || path === '/auth/token') && req.method === 'POST' && good && !isForm) {
+        if (mode === 'bare415') { res.writeHead(415); return res.end(); }
+        return json(400, { error: 'invalid_request', error_description: 'Send this request form-encoded.' });
+      }
       if (path === '/auth/device' && req.method === 'POST' && good) {
         return json(200, { device_code: 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS', user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 5 });
       }
@@ -167,7 +172,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const noisy = report.checks.filter(c => c.level === 'fail' || c.level === 'warn');
   expect(code === 0, `good: exit code ${code}`);
   expect(noisy.length === 0, `good: expected a clean report, got:\n${noisy.map(c => `  ${c.level} [${c.section}] ${c.message} ${c.detail ?? ''}`).join('\n')}`);
-  for (const needle of ['public surface', 'device_code is service-generated', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
+  for (const needle of ['public surface', 'device_code is service-generated', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
     expect(report.checks.some(c => c.level === 'pass' && c.message.includes(needle)), `good: no passing check mentions "${needle}"`);
   }
 }
@@ -193,6 +198,15 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const failed = report.checks.filter(c => c.level === 'fail');
   expect(code === 0 && failed.length === 0, `throttled: a 429 on a recipe step was read as a failure (exit ${code}): ${failed.map(c => `${c.message} ${c.detail ?? ''}`).join('; ')}`);
   expect(report.checks.some(c => c.level === 'skip' && c.message.includes('rate-limited')), 'throttled: the rate-limited walk was not reported as inconclusive');
+}
+
+{
+  const { server, origin } = await serve('bare415');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const warned = what => report.checks.some(c => c.level === 'warn' && c.message.includes(`${what} answered a JSON body with 415 and an empty body`));
+  expect(code === 0, `bare415: a staged rule must not fail the run yet (exit ${code})`);
+  expect(warned('tokenUrl') && warned('deviceAuthorizationUrl'), `bare415: a bare 415 to a JSON body was not reported: ${report.checks.filter(c => c.section === 'registration').map(c => `${c.level} ${c.message}`).join('; ')}`);
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
