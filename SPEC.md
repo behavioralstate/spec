@@ -175,6 +175,8 @@ A deployment whose BEST endpoint is not the public web origin **should** bridge 
 
 **The manifest is the only entry.** A deployment points at its manifest — the well-known path, the redirect, the HTML `<link>` — and **must not** publish a second description of its BEST surface for agents to start from: no `llms.txt` restating operations, no skill or prompt file, no client snippet carrying behaviour, no OpenAPI document of the BEST endpoints. A consumer that has the name has everything; anything else it is handed is a copy that will disagree with the manifest the first time the service changes. *(Required from 0.10.0; until then a violation is reported as a warning.)*
 
+**What a site shows the person.** A site's own "connect your assistant" page **may** give the person a sentence naming the service and the person's act — `Sign me in to <name>`, or `Sign me up on <name>` where the platform lets people sign up — where `<name>` is a name the service is publicly known by. It **must not** append URLs, tenant IDs or steps: the name is the whole instruction ([Name Resolution](#name-resolution)), and anything added is a second agent-directed description. A name that does not resolve yet is fixed with the bridge above, never with a longer sentence. **Required from 0.10.0.**
+
 With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
 
 ### Name Resolution
@@ -271,6 +273,8 @@ A service that lets an agent obtain its own credential declares `deviceAuthoriza
 **3. The agent shows the person `verification_uri_complete` (or `verification_uri` and `user_code`) before anything else**, and polls `tokenUrl` with `grant_type=urn:ietf:params:oauth:grant-type:device_code` and its `device_code`, no faster than `interval`. `authorization_pending` and `slow_down` are not errors; `access_denied` and `expired_token` end the registration (RFC 8628 §3.5).
 
 **4. On approval the token endpoint answers** per RFC 6749 §5.1 — `access_token`, `token_type`, and `expires_in` when the credential is not durable — with two BEST members: `tenant_id`, the account the credential opens, and `auth_header`, the header that carries it when that is not `Authorization`. A `device_code` is redeemed once.
+
+**Errors.** `deviceAuthorizationUrl` and `tokenUrl` answer errors per [RFC 6749 §5.2](https://www.rfc-editor.org/rfc/rfc6749#section-5.2) — for the device endpoint by [RFC 8628 §3.2](https://www.rfc-editor.org/rfc/rfc8628#section-3.2), which answers errors "in the same way as the token endpoint" — not in the BEST error format: status `400` (or `401` for a client failure) with a JSON body carrying `error` and, **recommended**, `error_description`. A request that is not form-encoded is `invalid_request` — never a bare status with an empty body, because the agent is often a model that corrects itself only from what the answer says. `tokenUrl` uses the RFC 8628 §3.5 codes above. **Required from 0.10.0**; until then a bare error is reported as a warning.
 
 Nothing in this exchange is a BEST command, a catalogue entry or a workflow: it needs no public surface, no recipe and no prose, and a client implements it once for every service. What happens on the page the person opens — signing in, signing up, approving — is the platform's own; [Identity and Agent Registration](#identity-and-agent-registration--a-described-pattern) describes it.
 
@@ -794,7 +798,7 @@ A BEST-compliant endpoint **must**:
 3. List all supported capabilities with valid schema URLs
 4. Implement the HTTP API for every listed capability
 5. Return valid JSON conforming to the referenced schemas
-6. Use standard HTTP status codes and the BEST error format
+6. Use standard HTTP status codes and the BEST error format — except `deviceAuthorizationUrl` and `tokenUrl`, which answer errors per RFC 6749 §5.2 ([Agent Registration](#agent-registration))
 7. Declare authentication in the manifest (or omit for public) — never an undocumented `401`
 8. Reference every declared service from at least one capability — in the same manifest or, for a multi-tenant root, in its tenant manifests
 9. Keep every manifest `description` within the length limit and free of mechanics ([Manifest Discipline](#manifest-discipline))

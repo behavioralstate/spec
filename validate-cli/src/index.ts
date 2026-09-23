@@ -721,7 +721,15 @@ async function checkRegistration(root: Dict, opts: Options): Promise<void> {
     else if (['invalid_grant', 'expired_token'].includes(err)) record(S, 'pass', `${where}: tokenUrl refuses an unknown device_code with ${err}`);
     else record(S, 'warn', `${where}: tokenUrl answered an unknown device_code with ${bogus.status} ${err || bogus.error || ''} — RFC 8628 expects invalid_grant or expired_token`);
 
+    // A model's first try is often JSON: the answer must say what is wrong (Agent Registration, "Errors").
+    // Safe on tokenUrl — a bogus device code opens nothing, whatever the body is read as.
+    checkNotFormEncoded(S, `${where}: tokenUrl`, await http('POST', tokenUrl, opts, null,
+      { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', device_code: `best-validate-unknown-${Date.now()}`, client_id: 'best-validate' }));
+
     if (!opts.probeRegistration) { record(S, 'skip', `${where}: device authorization request not sent — pass --probe-registration (it opens a real, inert registration that expires by itself)`); continue; }
+    // Only with --probe-registration: a lenient endpoint that reads JSON would open a registration.
+    checkNotFormEncoded(S, `${where}: deviceAuthorizationUrl`, await http('POST', deviceUrl, opts, null,
+      { client_id: 'best-validate', agent_label: 'best-validate conformance probe' }));
     const res = await http('POST', deviceUrl, opts, null, undefined, { form: { client_id: 'best-validate', agent_label: 'best-validate conformance probe' } });
     const a = asDict(res.json);
     if (res.status !== 200 || !a) { record(S, 'fail', `${where}: POST deviceAuthorizationUrl returned ${res.status || res.error}`); continue; }
@@ -735,6 +743,16 @@ async function checkRegistration(root: Dict, opts: Options): Promise<void> {
     if (typeof a.verification_uri === 'string' && !a.verification_uri.startsWith('https://')) record(S, 'warn', `${where}: verification_uri is not https`);
     const complete = typeof a.verification_uri_complete === 'string' ? a.verification_uri_complete : '';
     if (complete.includes(code)) record(S, 'fail', `${where}: verification_uri_complete contains the device_code — the person's link must carry the user_code only`);
+  }
+}
+
+/** A JSON body to an RFC 8628 endpoint: a 400 `invalid_request` with a JSON body, never a bare status. */
+function checkNotFormEncoded(section: string, what: string, res: Resp): void {
+  const error = String(asDict(res.json)?.error ?? '');
+  if (res.status === 400 && error === 'invalid_request') {
+    record(section, 'pass', `${what} answers a JSON body with invalid_request${asDict(res.json)?.error_description ? ' and says why' : ''}`);
+  } else {
+    record(section, STAGED, `${what} answered a JSON body with ${res.status || res.error}${error ? ` ${error}` : res.text ? '' : ' and an empty body'} — expected 400 invalid_request with a JSON error (RFC 6749 §5.2)${STAGED_NOTE}`);
   }
 }
 

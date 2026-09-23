@@ -9,7 +9,7 @@ A BEST-compliant endpoint **must**:
 3. List all supported capabilities with valid schema URLs
 4. Implement the HTTP API for every listed capability
 5. Return valid JSON conforming to the referenced schemas
-6. Use standard HTTP status codes and the BEST error response format
+6. Use standard HTTP status codes and the BEST error response format — except `deviceAuthorizationUrl` and `tokenUrl`, which answer errors per RFC 6749 §5.2 ([Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration))
 7. Declare authentication requirements in the manifest `authentication` block (or omit it for public endpoints); never silently reject requests with an undocumented 401
 8. Reference every declared service from at least one capability — in the same manifest or, for a multi-tenant root, in its tenant manifests
 9. Keep every manifest `description` within 500 characters and free of mechanics — no URLs or templates, header names or credential formats, operation names, or step-by-step instructions
