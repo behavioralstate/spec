@@ -49,7 +49,12 @@ async function main() {
 	// The sign-in guidance is stated twice — in SPEC.md for people, in discovery.json for programs — and every
 	// example that declares deviceAuthorizationUrl carries it. All of them must say the same words.
 	const discovery = JSON.parse(await readFile(join(SCHEMAS_DIR, 'discovery.json'), 'utf-8'));
-	const guidance = discovery.$defs?.signInGuidance?.properties ?? {};
+	// One set per version that changed them; the highest is current, and SPEC.md and the examples carry it.
+	const semver = (v) => v.split('.').map(Number);
+	const newest = (a, b) => { const [x, y] = [semver(a), semver(b)]; for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
+	const versions = Object.keys(discovery.$defs?.signInGuidance?.$defs ?? {}).sort(newest);
+	const guidance = discovery.$defs?.signInGuidance?.$defs?.[versions.at(-1)]?.properties ?? {};
+	if (!versions.length) { console.error('  FAIL  sign-in guidance — discovery.json publishes no version of it'); errors++; }
 	const spec = await readFile(join(import.meta.dirname, '..', 'SPEC.md'), 'utf-8');
 	for (const part of ['manifest', 'device', 'token']) {
 		const text = guidance[part]?.const;
