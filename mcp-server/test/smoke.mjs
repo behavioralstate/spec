@@ -6,6 +6,9 @@
  *            commandType in the catalogue, application/cloudevents+json on POST /commands.
  *   legacy — a service that states 0.9.8 and declares none of it: the PascalCase fallback,
  *            application/json, and register_agent saying what to do instead.
+ *   named  — nothing configured: "sign me in <name>, start from <manifest>" stores the credential under
+ *            that name, the name is the connection (now and after a restart), and another name is
+ *            another sign-in — even on the same host.
  *   hosted — over HTTP best-mcp is a server shared by every caller: it offers no sign-in, refuses one,
  *            and never loads a stored key, so no caller can ever act as another.
  *
@@ -28,7 +31,7 @@ const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'inde
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
 const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 
-function mock(mode) {
+function mock(mode, { key = ISSUED_KEY, tenants = false } = {}) {
   const modern = mode === 'modern';
   const seen = { posts: [], tokenPolls: 0, deviceRequests: [] };
   let origin = '';
@@ -43,9 +46,14 @@ function mock(mode) {
           version: modern ? '0.9.11' : '0.9.8',
           authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
             ...(modern ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}) },
-          services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api` } } },
+          services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api${tenants ? '/tenants' : ''}` } } },
+          ...(tenants ? { tenants: { manifest: `${origin}/.well-known/best/{tenantId}` } } : {}),
           capabilities: []
         } });
+      }
+      if (tenants && path === '/.well-known/best/acme') {
+        if (req.headers['x-api-key'] !== key) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
+        return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api/tenants/acme` } } }, capabilities: [] } });
       }
       if (path === '/auth/device' && req.method === 'POST') {
         seen.deviceRequests.push(Object.fromEntries(new URLSearchParams(raw)));
@@ -56,7 +64,7 @@ function mock(mode) {
         if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
         seen.tokenPolls++;
         if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
-        return json(200, { access_token: ISSUED_KEY, token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${ISSUED_KEY}` });
+        return json(200, { access_token: key, token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${key}` });
       }
       if (path === '/api/commands' && req.method === 'GET') {
         return json(200, { commands: [{ schema: 'place-order', version: '1.0', ...(modern ? { commandType: 'PlaceAnOrderV1' } : {}), dataschema: `${origin}/api/commands/place-order/1.0`, description: 'Place an order.' }] });
@@ -80,6 +88,19 @@ async function connect(origin, credentialsFile) {
   const transport = new StdioClientTransport({
     command: process.execPath, args: [SERVER],
     env: { ...process.env, BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio' },
+    stderr: 'ignore'
+  });
+  const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+  await client.connect(transport);
+  return client;
+}
+
+// Nothing configured at all: no BEST_* / BSP_* variable reaches the server.
+async function connectBare(credentialsFile) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(BEST|BSP)_/.test(k)));
+  const transport = new StdioClientTransport({
+    command: process.execPath, args: [SERVER],
+    env: { ...env, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio' },
     stderr: 'ignore'
   });
   const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
@@ -163,6 +184,61 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   await client.close(); server.close();
 }
 
+// ── named — "sign me in <name>, start from <manifest>" ─────────────────────
+{
+  const a = await mock('modern', { key: 'key_for_whatever', tenants: true });
+  const b = await mock('modern', { key: 'key_for_ciccio', tenants: true });
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  const stored = () => JSON.parse(readFileSync(credentialsFile, 'utf-8'));
+  let client = await connectBare(credentialsFile);
+  expect((client.getInstructions() ?? '').includes('register_agent'), 'named: with nothing configured the instructions do not say how to sign in');
+  const none = await call(client, 'send_command', { schema: 'place-order', version: '1.0', data: {} });
+  expect(none.isError && none.text.includes('register_agent'), `named: with no connection, a call should point at register_agent, got: ${none.text}`);
+
+  // sign in under a name, then under another name somewhere else
+  const signIn = async (name, manifest, mockOf) => {
+    const reg = await call(client, 'register_agent', { name, manifest, agent_label: 'Smoke test' });
+    expect(!reg.isError && reg.text.includes('WDJB-MJHT') && reg.text.includes(`${mockOf.origin}/.well-known/best`), `named: register_agent '${name}' failed: ${reg.text}`);
+    expect(!reg.text.includes(DEVICE_CODE), `named: register_agent '${name}' LEAKED the device code`);
+    let done;
+    for (let i = 0; i < 3; i++) {
+      done = await call(client, 'exchange_device_code', { connection: name });
+      if (done.isError || !done.text.includes('authorization_pending')) break;
+    }
+    expect(!done.isError && done.text.includes(`"stored_under": "${name}"`), `named: exchange for '${name}' failed: ${done.text}`);
+    return done;
+  };
+  const w = await signIn('whatever', `${a.origin}/.well-known/best`, a);
+  expect(!w.text.includes('key_for_whatever'), 'named: exchange LEAKED the issued key');
+  await signIn('ciccio-live', `${b.origin}/.well-known/best`, b);
+  await signIn('whatever-2', `${a.origin}/`, a);   // same host, another name; a bare origin means its well-known path
+
+  const s = stored();
+  expect(s.whatever?.manifest === `${a.origin}/.well-known/best` && s.whatever?.apiKey === 'key_for_whatever', `named: 'whatever' stored as ${JSON.stringify(s.whatever)}`);
+  expect(s.whatever?.endpoints?.['com.example.app'] === `${a.origin}/api/tenants/acme`, `named: 'whatever' did not resolve the tenant manifest's endpoint: ${JSON.stringify(s.whatever?.endpoints)}`);
+  expect(s['ciccio-live']?.manifest === `${b.origin}/.well-known/best` && s['ciccio-live']?.apiKey === 'key_for_ciccio', `named: 'ciccio-live' stored as ${JSON.stringify(s['ciccio-live'])}`);
+  expect(!!s['whatever-2'] && s['whatever-2'].manifest === s.whatever?.manifest, 'named: a second name on the same host is not its own entry');
+
+  const sentA = await call(client, 'send_command', { connection: 'whatever', schema: 'place-order', version: '1.0', data: {} });
+  expect(!sentA.isError && a.seen.posts.at(-1)?.path === '/api/tenants/acme/commands' && a.seen.posts.at(-1)?.key === 'key_for_whatever', `named: 'whatever' did not reach its service with its key: ${sentA.text} ${JSON.stringify(a.seen.posts.at(-1))}`);
+
+  // a name already signed in elsewhere is refused, and nothing is sent
+  const before = b.seen.deviceRequests.length;
+  const taken = await call(client, 'register_agent', { name: 'whatever', manifest: `${b.origin}/.well-known/best` });
+  expect(!taken.isError && taken.text.includes('name_in_use') && b.seen.deviceRequests.length === before, `named: moving a held name must be refused without replace, got: ${taken.text}`);
+  const bad = await call(client, 'register_agent', { name: 'a/b', manifest: `${b.origin}/.well-known/best` });
+  expect(bad.isError, 'named: a name with "/" must be refused');
+  await client.close();
+
+  // a restart: the stored names ARE the connections
+  client = await connectBare(credentialsFile);
+  const listed = (await call(client, 'list_connections')).text;
+  for (const n of ['whatever', 'ciccio-live', 'whatever-2']) expect(listed.includes(`"name": "${n}"`), `named: '${n}' is not a connection after a restart: ${listed}`);
+  const sentB = await call(client, 'send_command', { connection: 'ciccio-live', schema: 'place-order', version: '1.0', data: {} });
+  expect(!sentB.isError && b.seen.posts.at(-1)?.key === 'key_for_ciccio', `named: after a restart 'ciccio-live' did not use its own key: ${sentB.text}`);
+  await client.close(); a.server.close(); b.server.close();
+}
+
 // ── http — the endpoint is the origin itself; /mcp stays as an alias ────────
 {
   const { server, origin } = await mock('modern');
@@ -209,6 +285,8 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     const names = (await client.listTools()).tools.map(t => t.name);
     expect(!names.includes('register_agent') && !names.includes('exchange_device_code'), `hosted: sign-in tools are offered to ${who}: ${names.join(', ')}`);
     expect(!(client.getInstructions() ?? '').includes('Call register_agent'), `hosted: the instructions tell ${who} to sign in here`);
+    const named = await call(client, 'register_agent', { name: 'whatever', manifest: `${origin}/.well-known/best` });
+    expect(named.isError && named.text.includes('holds no credential'), `hosted: a sign-in under a name was not refused for ${who}: ${named.text}`);
     const reg = await call(client, 'register_agent', { connection: 'example/platform' });
     expect(reg.isError && reg.text.includes('holds no credential'), `hosted: register_agent was not refused for ${who}: ${reg.text}`);
     const byHand = await call(client, 'exchange_device_code', { connection: 'example/platform', device_code: DEVICE_CODE });
@@ -235,4 +313,4 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
-console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key');
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; a sign-in under a name is stored under that name and is that connection, after a restart too; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key');
