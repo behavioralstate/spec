@@ -6,6 +6,8 @@
  *            commandType in the catalogue, application/cloudevents+json on POST /commands.
  *   legacy — a service that states 0.9.8 and declares none of it: the PascalCase fallback,
  *            application/json, and register_agent saying what to do instead.
+ *   hosted — over HTTP best-mcp is a server shared by every caller: it offers no sign-in, refuses one,
+ *            and never loads a stored key, so no caller can ever act as another.
  *
  * What must hold: the device code and the issued key never appear in a tool result; the key is stored;
  * the next call already uses it.
@@ -14,12 +16,13 @@
  */
 import { createServer } from 'http';
 import { spawn } from 'child_process';
-import { mkdtempSync, readFileSync, existsSync } from 'fs';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.js');
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
@@ -183,5 +186,46 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   child.kill(); server.close();
 }
 
+// ── hosted — a server signs no one in and lends no one's key ────────────────
+{
+  const { server, origin, seen } = await mock('modern');
+  const port = await new Promise(resolve => { const probe = createServer(); probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); }); });
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  // A key left in the store (a sign-in by an earlier version, a mounted file) must answer no one.
+  const leftover = JSON.stringify({ [`${origin}/api`]: { apiKey: 'someone_elses_key', authType: 'apikey', tenantId: 'acme', issuedAt: '2026-01-01T00:00:00Z' } });
+  writeFileSync(credentialsFile, leftover);
+  // The shape of a platform's hosted MCP: placeholder credentials, every real one per request.
+  const child = spawn(process.execPath, [SERVER], {
+    env: { ...process.env, MCP_TRANSPORT: 'http', MCP_HTTP_PORT: String(port), BEST_MCP_CREDENTIALS_FILE: credentialsFile,
+      BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_EXAMPLE_API_KEY: 'invalid-set-x-api-key-per-request', BEST_EXAMPLE_TENANT_ID: 'x-tenant-id-header-required' },
+    stdio: 'ignore'
+  });
+  const base = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 50; i++) { try { if ((await fetch(`${base}/health`)).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+  for (const headers of [{}, { 'X-Api-Key': 'a-callers-own-key', 'X-Tenant-Id': 'acme' }]) {
+    const who = Object.keys(headers).length ? 'a per-request caller' : 'an anonymous caller';
+    const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(base), { requestInit: { headers } }));
+    const names = (await client.listTools()).tools.map(t => t.name);
+    expect(!names.includes('register_agent') && !names.includes('exchange_device_code'), `hosted: sign-in tools are offered to ${who}: ${names.join(', ')}`);
+    expect(!(client.getInstructions() ?? '').includes('Call register_agent'), `hosted: the instructions tell ${who} to sign in here`);
+    const reg = await call(client, 'register_agent', { connection: 'example/platform' });
+    expect(reg.isError && reg.text.includes('holds no credential'), `hosted: register_agent was not refused for ${who}: ${reg.text}`);
+    const byHand = await call(client, 'exchange_device_code', { connection: 'example/platform', device_code: DEVICE_CODE });
+    expect(byHand.isError && !byHand.text.includes(ISSUED_KEY), `hosted: exchange_device_code was not refused for ${who}: ${byHand.text}`);
+    await client.close();
+  }
+  expect(seen.deviceRequests.length === 0 && seen.tokenPolls === 0, 'hosted: a sign-in reached the service from a server');
+  expect(readFileSync(credentialsFile, 'utf-8') === leftover, 'hosted: the server wrote to the credential store');
+  {
+    const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(base)));
+    await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+    expect(seen.posts.at(-1)?.key === 'invalid-set-x-api-key-per-request', `hosted: an anonymous call carried ${seen.posts.at(-1)?.key} — a stored key must never answer a caller without one`);
+    await client.close();
+  }
+  child.kill(); server.close();
+}
+
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
-console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself');
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored key');
