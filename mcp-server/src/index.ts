@@ -88,6 +88,8 @@ import { randomUUID, createHash } from 'crypto';
 import { createRequire } from 'module';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'fs';
 import { homedir } from 'os';
+import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 import { join } from 'path';
 
 // The real published version, surfaced to hosts in the initialize result — a hardcoded constant
@@ -576,6 +578,7 @@ async function listServiceConnections(): Promise<{ name: string; endpoint: strin
 }
 
 async function resolveConnection(name?: string): Promise<BestConnection> {
+  if (name && !CONNECTIONS.some(c => c.name === name)) await completeNamedSignIn(name.split('/')[0]);
   if (!name && CONNECTIONS.length === 1) return CONNECTIONS[0];
   if (CONNECTIONS.length === 0) throw new Error(
     (name ? `There is no connection '${name}' — ` : 'There is no connection yet — ') +
@@ -1490,22 +1493,66 @@ function showLinkAndCode(hasComplete: boolean, exchange: string): string {
 const REGISTRATION_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const namedKey = (name: string) => `named:${name}`;
 
+// SPEC Name Resolution: an IP literal is not a name, and a name or redirect that lands on a loopback,
+// link-local or private address is refused outside development use — the person opts into that here.
+const DEVELOPMENT = (process.env.BEST_MCP_ALLOW_LOCAL ?? '').toLowerCase() === 'true';
+
+function isNonPublicAddress(ip: string): boolean {
+  const v4 = ip.toLowerCase().startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (isIP(v4) === 4) {
+    const [a, b] = v4.split('.').map(Number);
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  }
+  const x = ip.toLowerCase();
+  return x === '::' || x === '::1' || /^f[cd]/.test(x) || /^fe[89ab]/.test(x);
+}
+
+/** https only (plain http only on this machine's loopback, in development use). */
+function assertScheme(url: URL, given: string): void {
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(DEVELOPMENT && url.protocol === 'http:' && loopback)) {
+    throw new Error(`'${given}' is not an https address. A BEST manifest is fetched over https only (plain http only on this machine's loopback, in development use: BEST_MCP_ALLOW_LOCAL=true). Nothing was sent.`);
+  }
+}
+
+/** Refuses an IP literal, localhost, or a name resolving to a non-public address — unless in development use. */
+async function assertPublicHost(url: URL): Promise<void> {
+  if (DEVELOPMENT) return;
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  const hint = ' Refused outside development use (SPEC Name Resolution); set BEST_MCP_ALLOW_LOCAL=true only for development. Nothing was sent.';
+  if (isIP(host)) throw new Error(`${url.host} is an IP address, not a name: a BEST service is named by a domain.${hint}`);
+  if (host === 'localhost' || host.endsWith('.localhost')) throw new Error(`${url.host} is this machine.${hint}`);
+  const addresses = await lookup(host, { all: true });
+  const local = addresses.find(a => isNonPublicAddress(a.address));
+  if (local) throw new Error(`${url.host} resolves to ${local.address}, a loopback, link-local or private address.${hint}`);
+}
+
 /** The manifest address a person gave, as a URL: a bare site name means its well-known path (SPEC Name Resolution). */
 function manifestAddress(given: string): URL {
   const raw = given.trim();
   const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`);
   if (url.pathname === '/' || url.pathname === '') url.pathname = '/.well-known/best';
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
-    throw new Error(`'${given}' is not an https address. A BEST manifest is fetched over https only (plain http only on this machine's loopback).`);
-  }
+  assertScheme(url, given);
   return url;
 }
 
-/** Fetches the manifest the person named; the final URL after redirects is the canonical one (SPEC Origin Discovery). */
+/**
+ * Fetches the manifest the person named, checking every redirect hop before following it; the final URL
+ * is the canonical one (SPEC Origin Discovery).
+ */
 async function resolveNamedManifest(given: string): Promise<{ url: string; manifest: RootManifest }> {
-  const address = manifestAddress(given);
-  const response = await fetch(address, { headers: { Accept: 'application/json' } });
+  let address = manifestAddress(given);
+  let response: Response;
+  for (let hop = 0; ; hop++) {
+    await assertPublicHost(address);
+    response = await fetch(address, { headers: { Accept: 'application/json' }, redirect: 'manual' });
+    const location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
+    if (!location) break;
+    if (hop >= 5) throw new Error(`${given}: more than 5 redirects.`);
+    address = new URL(location, address);
+    assertScheme(address, address.toString());
+  }
   const text = await response.text();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let json: any;
@@ -1513,7 +1560,7 @@ async function resolveNamedManifest(given: string): Promise<{ url: string; manif
   if (!response.ok || !json?.best) {
     throw new Error(`${address} is not a BEST manifest (${response.status}${response.ok ? ', no "best" member' : ''}). Check the address with the person.`);
   }
-  const url = manifestAddress(response.url || address.toString()).toString();
+  const url = address.toString();
   rootManifestCache.set(url, json);
   return { url, manifest: json };
 }
@@ -1524,22 +1571,55 @@ async function resolveNamedManifest(given: string): Promise<{ url: string; manif
  * else the root's. The credential goes only to the manifest's own host.
  */
 async function namedEndpoints(manifestUrl: string, tenantId: string | undefined, credential: BestConnection): Promise<Record<string, string>> {
+  const host = new URL(manifestUrl).host;
   const root = await fetchManifestAt(manifestUrl);
   let services = root?.best?.services;
   const template = root?.best?.tenants?.manifest;
   if (typeof template === 'string' && tenantId && SAFE_TENANT_ID.test(tenantId)) {
     const tenantUrl = template.replace('{tenantId}', encodeURIComponent(tenantId));
-    const sameHost = new URL(tenantUrl).host === new URL(manifestUrl).host;
-    const response = await fetch(tenantUrl, { headers: { Accept: 'application/json', ...(sameHost ? authHeaders(credential) : {}) } });
+    // SPEC Name Resolution: a credential is never sent to a host other than the one its name resolved to.
+    if (new URL(tenantUrl).host !== host) {
+      throw new Error(`the tenant manifest is on ${new URL(tenantUrl).host}, not on ${host} where this sign-in resolved; the credential is not sent there.`);
+    }
+    const response = await fetch(tenantUrl, { headers: { Accept: 'application/json', ...authHeaders(credential) } });
     if (!response.ok) throw new Error(`GET ${tenantUrl} → ${response.status}: ${await parseErrorMessage(response)}`);
     services = (await response.json())?.best?.services;
   }
   const endpoints: Record<string, string> = {};
+  const elsewhere: string[] = [];
   for (const [serviceId, service] of Object.entries((services ?? {}) as Record<string, RootManifest>)) {
     const endpoint = service?.http?.endpoint;
-    if (typeof endpoint === 'string' && endpoint) endpoints[serviceId] = endpoint.replace(/\/$/, '');
+    if (typeof endpoint !== 'string' || !endpoint) continue;
+    let endpointHost = '';
+    try { endpointHost = new URL(endpoint).host; } catch { /* not a URL: not a connection */ }
+    if (endpointHost === host) endpoints[serviceId] = endpoint.replace(/\/$/, '');
+    else elsewhere.push(`${serviceId} (${endpointHost || endpoint})`);
+  }
+  if (Object.keys(endpoints).length === 0) {
+    throw new Error(elsewhere.length
+      ? `every service endpoint the manifest names is on another host than ${host} (${elsewhere.join(', ')}); the credential is not sent there.`
+      : 'the manifest names no service endpoint.');
   }
   return endpoints;
+}
+
+/**
+ * A named sign-in whose credential is stored but whose endpoints were not resolved (a transient failure at
+ * the end of the exchange) completes on its next use — nobody approves again.
+ */
+async function completeNamedSignIn(name: string): Promise<void> {
+  const stored = HOLDS_CREDENTIALS ? credentialStore.get(name) : undefined;
+  if (!stored?.manifest || Object.keys(stored.endpoints ?? {}).length > 0) return;
+  const credential = { apiKey: stored.apiKey, authType: stored.authType, authHeader: stored.authHeader ?? 'X-Api-Key', authIn: 'header' } as BestConnection;
+  let endpoints: Record<string, string>;
+  try {
+    endpoints = await namedEndpoints(stored.manifest, stored.tenantId, credential);
+  } catch (e) {
+    throw new Error(`'${name}' is signed in (the credential is stored), but its endpoints could not be resolved yet: ${e instanceof Error ? e.message : e} Try again; nothing needs approving again.`);
+  }
+  const done = { ...stored, endpoints };
+  credentialStore.set(name, done);
+  CONNECTIONS.push(...namedConnections(name, done));
 }
 
 async function handleNamedRegistration(args: Record<string, unknown>, perRequestCaller: boolean): Promise<string> {
@@ -1639,15 +1719,16 @@ async function handleNamedExchange(name: string, perRequestCaller: boolean): Pro
   const tenantId = typeof json?.tenant_id === 'string' ? json.tenant_id : undefined;
   const authType: 'apikey' | 'bearer' = (json?.token_type ?? '').toLowerCase() === 'bearer' ? 'bearer' : 'apikey';
   const authHeader = typeof json?.auth_header === 'string' ? json.auth_header : undefined;
-  const credential = { apiKey, authType, authHeader: authHeader ?? 'X-Api-Key', authIn: 'header' } as BestConnection;
-  const endpoints = await namedEndpoints(pending.manifestUrl, tenantId, credential);
-  const stored: StoredCredential = {
-    tenantId, apiKey, authType, authHeader, issuedAt: new Date().toISOString(), manifest: pending.manifestUrl, endpoints,
+  // The device code is spent: store the credential BEFORE anything else can fail, so a failed discovery
+  // below costs a retry, never a second approval.
+  const issued: StoredCredential = {
+    tenantId, apiKey, authType, authHeader, issuedAt: new Date().toISOString(), manifest: pending.manifestUrl, endpoints: {},
   };
-  credentialStore.set(name, stored);
+  credentialStore.set(name, issued);
   for (let i = CONNECTIONS.length - 1; i >= 0; i--) if (CONNECTIONS[i].registeredAs === name) CONNECTIONS.splice(i, 1);
-  const made = namedConnections(name, stored);
-  CONNECTIONS.push(...made);
+  let unresolved: string | undefined;
+  try { await completeNamedSignIn(name); } catch (e) { unresolved = e instanceof Error ? e.message : String(e); }
+  const made = CONNECTIONS.filter(c => c.registeredAs === name);
   return JSON.stringify({
     ...redacted,
     session: {
@@ -1659,7 +1740,7 @@ async function handleNamedExchange(name: string, perRequestCaller: boolean): Pro
       note: made.length
         ? `Signed in under '${name}'. Pass connection '${name}' on every call for this service — it works now and at every ` +
           'later start. The key itself was not returned and must never be typed into the conversation.'
-        : 'The credential is stored, but the manifest lists no service endpoint to call. Tell the person.',
+        : `${unresolved} Tell the person.`,
     },
   }, null, 2);
 }
@@ -2178,10 +2259,11 @@ async function handleSampleEventStream(args: Record<string, unknown>, conn: Best
  */
 async function handleGetManifest(conn: BestConnection): Promise<string> {
   const origin = new URL(conn.endpoint).origin;
-  const globalUrl = `${origin}/.well-known/best`;
+  // A named connection signed in at a manifest the person gave: that one, not a guess from the endpoint.
+  const globalUrl = conn.manifestUrl ?? `${origin}/.well-known/best`;
 
-  const fetchManifest = async (url: string): Promise<unknown> => {
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  const fetchManifest = async (url: string, headers: Record<string, string> = {}): Promise<unknown> => {
+    const response = await fetch(url, { headers: { Accept: 'application/json', ...headers } });
     if (!response.ok) {
       const message = await parseErrorMessage(response);
       throw new Error(`GET ${url} → ${response.status}: ${message}`);
@@ -2196,8 +2278,10 @@ async function handleGetManifest(conn: BestConnection): Promise<string> {
   const tenantId = conn.endpoint.match(/\/tenants\/([^/?#]+)\/?$/)?.[1];
   if (typeof template === 'string' && tenantId) {
     const tenantUrl = template.replace('{tenantId}', encodeURIComponent(tenantId));
+    // A named connection's credential opens its tenant manifest (SPEC Multi-Tenancy rule 3) — on its own host only.
+    const credential = conn.registeredAs && new URL(tenantUrl).host === new URL(globalUrl).host ? authHeaders(conn) : {};
     try {
-      const tenantManifest = await fetchManifest(tenantUrl);
+      const tenantManifest = await fetchManifest(tenantUrl, credential);
       return JSON.stringify({ client: CLIENT_ID, manifestUrl: tenantUrl, scope: 'tenant', manifest: tenantManifest }, null, 2);
     } catch {
       // Fall through to the global manifest — better a coarser answer than none.

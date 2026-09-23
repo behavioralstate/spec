@@ -31,7 +31,7 @@ const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'inde
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
 const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 
-function mock(mode, { key = ISSUED_KEY, tenants = false } = {}) {
+function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, foreignEndpoint = '' } = {}) {
   const modern = mode === 'modern';
   const seen = { posts: [], tokenPolls: 0, deviceRequests: [] };
   let origin = '';
@@ -53,7 +53,9 @@ function mock(mode, { key = ISSUED_KEY, tenants = false } = {}) {
       }
       if (tenants && path === '/.well-known/best/acme') {
         if (req.headers['x-api-key'] !== key) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
-        return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api/tenants/acme` } } }, capabilities: [] } });
+        seen.tenantManifestGets = (seen.tenantManifestGets ?? 0) + 1;
+        if (seen.tenantManifestGets <= tenantFailures) return json(503, { error: { code: 'UNAVAILABLE', message: 'try again' } });
+        return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: foreignEndpoint || `${origin}/api/tenants/acme` } } }, capabilities: [] } });
       }
       if (path === '/auth/device' && req.method === 'POST') {
         seen.deviceRequests.push(Object.fromEntries(new URLSearchParams(raw)));
@@ -96,11 +98,11 @@ async function connect(origin, credentialsFile) {
 }
 
 // Nothing configured at all: no BEST_* / BSP_* variable reaches the server.
-async function connectBare(credentialsFile) {
+async function connectBare(credentialsFile, extraEnv = { BEST_MCP_ALLOW_LOCAL: 'true' }) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(BEST|BSP)_/.test(k)));
   const transport = new StdioClientTransport({
     command: process.execPath, args: [SERVER],
-    env: { ...env, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio' },
+    env: { ...env, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio', ...extraEnv },
     stderr: 'ignore'
   });
   const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
@@ -228,6 +230,10 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(!taken.isError && taken.text.includes('name_in_use') && b.seen.deviceRequests.length === before, `named: moving a held name must be refused without replace, got: ${taken.text}`);
   const bad = await call(client, 'register_agent', { name: 'a/b', manifest: `${b.origin}/.well-known/best` });
   expect(bad.isError, 'named: a name with "/" must be refused');
+
+  // get_manifest on a named connection reads the manifest it signed in at, and its tenant manifest with its key
+  const man = await call(client, 'get_manifest', { connection: 'whatever' });
+  expect(!man.isError && man.text.includes('"scope": "tenant"') && man.text.includes(`${a.origin}/.well-known/best/acme`), `named: get_manifest did not read the tenant manifest: ${man.text.slice(0, 300)}`);
   await client.close();
 
   // a restart: the stored names ARE the connections
@@ -237,6 +243,41 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const sentB = await call(client, 'send_command', { connection: 'ciccio-live', schema: 'place-order', version: '1.0', data: {} });
   expect(!sentB.isError && b.seen.posts.at(-1)?.key === 'key_for_ciccio', `named: after a restart 'ciccio-live' did not use its own key: ${sentB.text}`);
   await client.close(); a.server.close(); b.server.close();
+}
+
+// ── named, hardening — local addresses, foreign endpoints, a failed discovery ───
+{
+  const c = await mock('modern', { key: 'key_for_retry', tenants: true, tenantFailures: 1 });
+  const d = await mock('modern', { key: 'key_for_foreign', tenants: true, foreignEndpoint: 'https://elsewhere.example/api/tenants/acme' });
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+
+  // outside development use a loopback address is refused, and nothing is sent
+  let client = await connectBare(credentialsFile, {});
+  const before = c.seen.deviceRequests.length;
+  const local = await call(client, 'register_agent', { name: 'local', manifest: `${c.origin}/.well-known/best` });
+  expect(local.isError && local.text.includes('development') && c.seen.deviceRequests.length === before, `named: a loopback manifest was not refused outside development use: ${local.text}`);
+  await client.close();
+
+  client = await connectBare(credentialsFile);
+  const signIn = async (name, mockOf) => {
+    await call(client, 'register_agent', { name, manifest: `${mockOf.origin}/.well-known/best` });
+    let done;
+    for (let i = 0; i < 3; i++) { done = await call(client, 'exchange_device_code', { connection: name }); if (done.isError || !done.text.includes('authorization_pending')) break; }
+    return done;
+  };
+  // a failed discovery keeps the credential; the next use completes it — no second approval
+  const retry = await signIn('retry', c);
+  expect(!retry.isError && retry.text.includes('could not be resolved yet') && JSON.parse(readFileSync(credentialsFile, 'utf-8')).retry?.apiKey === 'key_for_retry', `named: a failed discovery lost the credential: ${retry.text}`);
+  const approvals = c.seen.deviceRequests.length;
+  const used = await call(client, 'send_command', { connection: 'retry', schema: 'place-order', version: '1.0', data: {} });
+  expect(!used.isError && c.seen.posts.at(-1)?.key === 'key_for_retry' && c.seen.deviceRequests.length === approvals, `named: the next use did not complete the sign-in: ${used.text}`);
+
+  // an endpoint on another host never gets the credential
+  const foreign = await signIn('foreign', d);
+  expect(foreign.text.includes('another host'), `named: an endpoint on another host was accepted: ${foreign.text}`);
+  const refused = await call(client, 'send_command', { connection: 'foreign', schema: 'place-order', version: '1.0', data: {} });
+  expect(refused.isError && refused.text.includes('another host'), `named: a connection to another host was usable: ${refused.text}`);
+  await client.close(); c.server.close(); d.server.close();
 }
 
 // ── http — the endpoint is the origin itself; /mcp stays as an alias ────────
