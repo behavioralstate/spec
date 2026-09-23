@@ -148,7 +148,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const done = await call(client, 'exchange_device_code', { connection: platform });
   expect(!done.isError && done.text.includes('acme'), `modern: second exchange should succeed, got: ${done.text}`);
   expect(!done.text.includes(ISSUED_KEY), 'modern: exchange_device_code LEAKED the issued key to the model');
-  expect(!done.text.includes('mcpServers') && !done.text.includes('"http"'), `modern: the credential block's mcp/http reached the model — best-mcp is already the client: ${done.text}`);
+  expect(!done.text.includes('mcpServers') && !done.text.includes('"http"') && !done.text.includes('SECRET'), `modern: the credential block's mcp/http/note reached the model — best-mcp is already the client: ${done.text}`);
   expect(existsSync(credentialsFile) && readFileSync(credentialsFile, 'utf-8').includes(ISSUED_KEY), 'modern: the issued key was not stored');
   const again = await call(client, 'exchange_device_code', { connection: platform });
   expect(again.isError && again.text.includes('register_agent'), `modern: a redeemed registration should be gone, got: ${again.text}`);
@@ -216,7 +216,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   };
   const w = await signIn('whatever', `${a.origin}/.well-known/best`, a);
   expect(!w.text.includes('key_for_whatever'), 'named: exchange LEAKED the issued key');
-  expect(!w.text.includes('mcpServers') && !w.text.includes('"http"'), `named: the credential block's mcp/http reached the model: ${w.text}`);
+  expect(!w.text.includes('mcpServers') && !w.text.includes('"http"') && !w.text.includes('SECRET'), `named: the credential block's mcp/http/note reached the model: ${w.text}`);
   await signIn('ciccio-live', `${b.origin}/.well-known/best`, b);
   await signIn('whatever-2', `${a.origin}/`, a);   // same host, another name; a bare origin means its well-known path
 

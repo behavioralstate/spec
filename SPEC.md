@@ -258,7 +258,7 @@ When `type` is `"oauth2"`, `tokenUrl` names an [RFC 6749](https://www.rfc-editor
 
 ### Agent Registration
 
-A service that lets an agent obtain its own credential declares `deviceAuthorizationUrl` and `tokenUrl`. The exchange is [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628), unchanged; BEST adds three members and nothing else.
+A service that lets an agent obtain its own credential declares `deviceAuthorizationUrl` and `tokenUrl`. The exchange is [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628), unchanged; BEST adds two request parameters (`agent_label`, `credential_lifetime`), two members of the token answer (`tenant_id`, `auth_header`) and the [credential block](#agent-registration) that comes with the credential.
 
 **1. The agent asks.** A form-encoded `POST` to `deviceAuthorizationUrl`, with no credential:
 
@@ -279,13 +279,15 @@ A service that lets an agent obtain its own credential declares `deviceAuthoriza
 | Member | Required | Description |
 |---|---|---|
 | `note` | yes | The credential is a **secret**: store it in the client's configuration or credential store and never repeat it in the conversation — a transcript is not a secret store, and a credential that appears there is leaked and must be replaced. A client that cannot store it says so instead of showing it. |
-| `endpoint` | yes | The surface the credential opens (the tenant endpoint on a multi-tenant host) |
+| `endpoint` | yes | The surface the credential opens (the tenant endpoint on a multi-tenant host), on the canonical endpoint host |
 | `manifest` | no | That surface's manifest |
 | `ready_check` | no | A read that answers `200` once the credential works |
 | `mcp` | no | This connection as an MCP client's configuration (for the reference MCP server: `command`, `args`, `env`) — the credential in its `env` |
-| `http` | no | The surface for direct calls: the header with a **placeholder** for the credential (`X-Api-Key: <access_token>`), and the catalogue URLs |
+| `http` | no | The surface for direct calls: the header with a **placeholder** for the credential (`X-Api-Key: <access_token>`), and the catalogue URLs, on the canonical endpoint host |
 
 The consumer chooses: an MCP-capable client writes `mcp` into its own configuration, one without MCP keeps the credential for direct calls, and a client with its own store keeps it there and redacts it from everything the model sees, as always ([Credentials stay out of transcripts](#security-requirements)). The credential appears only in `access_token` and in `mcp` — never in `note`, `http` or any example.
+
+**Every destination in the block is on the credential's host.** Each URL the credential may be sent to — `endpoint`, the URLs in `http`, the base URL in `mcp` — **must** be on the canonical endpoint host of the name the consumer resolved, and a consumer **must not** send the credential to one that is not ([Name Resolution](#name-resolution): a credential is never sent to a host other than the canonical endpoint host of its name). A page for people (`docs`) may be elsewhere; the credential never goes there.
 
 **Errors.** `deviceAuthorizationUrl` and `tokenUrl` answer errors per [RFC 6749 §5.2](https://www.rfc-editor.org/rfc/rfc6749#section-5.2) — for the device endpoint by [RFC 8628 §3.2](https://www.rfc-editor.org/rfc/rfc8628#section-3.2), which answers errors "in the same way as the token endpoint" — not in the BEST error format: status `400` (or `401` for a client failure) with a JSON body carrying `error` and, **recommended**, `error_description`. A request that is not form-encoded is `invalid_request` — never a bare status with an empty body, because the agent is often a model that corrects itself only from what the answer says. `tokenUrl` uses the RFC 8628 §3.5 codes above. **Required from 0.10.0**; until then a bare error is reported as a warning.
 
