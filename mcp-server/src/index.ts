@@ -152,6 +152,21 @@ interface BestConnection {
 const TRANSPORT = process.env.MCP_TRANSPORT ?? 'stdio';
 const HTTP_PORT = parseInt(process.env.MCP_HTTP_PORT ?? '3000', 10);
 
+// Over stdio this process is ONE person's client: it may obtain a credential for them (register_agent →
+// exchange_device_code), apply it and store it. Over HTTP it is a server, and a server never holds a
+// user's credential: one process answers every caller who reaches it, so a key it obtained or loaded
+// would answer every later caller that sends none of its own — they would all act as that person.
+// Over HTTP every call brings the caller's own credential (per-request headers, set by the platform's
+// door after its own sign-in); the sign-in tools are not offered and the credential store is never read
+// or written.
+const HOLDS_CREDENTIALS = TRANSPORT !== 'http';
+const CREDENTIAL_TOOLS = new Set(['register_agent', 'exchange_device_code']);
+const NO_SIGN_IN_ON_A_SERVER =
+  'This best-mcp is a server (HTTP), so it signs no one in and holds no credential: every call must carry the ' +
+  'caller\'s own. A 401 means the caller\'s credential is missing, expired or replaced — tell the person to sign in ' +
+  'again through their assistant\'s connector for this service (its sign-in runs on the service\'s own site). ' +
+  'Never ask them for an API key.';
+
 // ── Credential store ──────────────────────────────────────────────────────────
 //
 // A credential a service issues to this client through exchange_device_code is stored HERE, never
@@ -183,6 +198,7 @@ class CredentialStore {
 
   constructor() {
     this.file = process.env.BEST_MCP_CREDENTIALS_FILE ?? join(homedir(), '.best-mcp', 'credentials.json');
+    if (!HOLDS_CREDENTIALS) return; // a server never opens the store: a secret left in it stays on disk, not in memory
     try {
       if (existsSync(this.file)) {
         const parsed = JSON.parse(readFileSync(this.file, 'utf8'));
@@ -198,12 +214,13 @@ class CredentialStore {
   get(baseUrl: string): StoredCredential | undefined { return this.entries[baseUrl]; }
 
   set(baseUrl: string, cred: StoredCredential): void {
+    if (!HOLDS_CREDENTIALS) throw new Error(NO_SIGN_IN_ON_A_SERVER);
     this.entries[baseUrl] = cred;
     this.flush();
   }
 
   drop(baseUrl: string): void {
-    if (!(baseUrl in this.entries)) return;
+    if (!HOLDS_CREDENTIALS || !(baseUrl in this.entries)) return;
     delete this.entries[baseUrl];
     this.flush();
   }
@@ -268,7 +285,9 @@ function parseConnections(): BestConnection[] {
       const p        = `BEST_${appName}`;
       const baseUrl  = (process.env[`${p}_BASE_URL`] ?? '').replace(/\/$/, '');
       const app       = appName.toLowerCase();
-      const reconciled = reconcileStoredCredential(app, baseUrl, process.env[`${p}_API_KEY`] ?? '', process.env[`${p}_TENANT_ID`]);
+      const reconciled = HOLDS_CREDENTIALS
+        ? reconcileStoredCredential(app, baseUrl, process.env[`${p}_API_KEY`] ?? '', process.env[`${p}_TENANT_ID`])
+        : { apiKey: process.env[`${p}_API_KEY`] ?? '', tenantId: process.env[`${p}_TENANT_ID`] } as ReturnType<typeof reconcileStoredCredential>;
       const apiKey   = reconciled.apiKey;
       const tenantId = reconciled.tenantId;
       const authType  = reconciled.authType ?? process.env[`${p}_AUTH_TYPE`]   ?? 'apikey';  // Mode 1 default: apikey (X-Api-Key header)
@@ -380,6 +399,16 @@ function parseConnections(): BestConnection[] {
 }
 
 const CONNECTIONS = parseConnections();
+// Over HTTP a configured credential would answer every caller that sends none — the operator's key shared
+// with whoever reaches the server. Whatever the configuration mode, it is dropped: each call carries the
+// caller's own, per request (applyRequestOverrides), or carries none and the service answers 401.
+if (!HOLDS_CREDENTIALS) {
+  const configured = CONNECTIONS.filter(c => c.apiKey).map(c => c.name);
+  if (configured.length) {
+    process.stderr.write(`[best-mcp] INFO: over HTTP a configured credential is never used (${configured.join(', ')}) — every call must carry the caller's own.\n`);
+  }
+  for (const c of CONNECTIONS) c.apiKey = '';
+}
 const MULTI       = CONNECTIONS.length > 1;
 
 // A connection's NAME says nothing about where it points: 'example' may be a laptop. A model that is
@@ -643,7 +672,7 @@ for (const conn of CONNECTIONS) {
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
 function authHeaders(conn: BestConnection): Record<string, string> {
-  if (conn.authType === 'none')   return {};
+  if (conn.authType === 'none' || !conn.apiKey) return {}; // no credential: send none, never an empty one
   if (conn.authType === 'bearer') return { Authorization: `Bearer ${conn.apiKey}` };
   if (conn.authType === 'apikey' && conn.authIn === 'header') return { [conn.authHeader]: conn.apiKey };
   return {}; // apikey in query — credentials go in the URL, not headers
@@ -771,7 +800,7 @@ const CATALOGUE_DETAIL_PROP: Record<string, object> = {
   }
 };
 
-const TOOLS: Tool[] = [
+const ALL_TOOLS: Tool[] = [
   // list_connections and the `connection` argument are always available: connections can appear at
   // runtime (an onboarding from zero creates the tenant connection; root-manifest services resolve
   // by name), so a single configured connection is only a default, not a fixed shape.
@@ -1178,6 +1207,7 @@ const TOOLS: Tool[] = [
     }
   }
 ];
+const TOOLS = ALL_TOOLS.filter(tool => HOLDS_CREDENTIALS || !CREDENTIAL_TOOLS.has(tool.name));
 // ── Argument validation ───────────────────────────────────────────────────────
 
 /**
@@ -1310,6 +1340,7 @@ function registrationBlock(manifest: RootManifest): { deviceAuthorizationUrl: st
 }
 
 async function handleRegisterAgent(args: Record<string, unknown>, conn: BestConnection, perRequestCaller: boolean): Promise<string> {
+  if (!HOLDS_CREDENTIALS) throw new Error(NO_SIGN_IN_ON_A_SERVER); // the dispatch refuses first; never reached over HTTP
   if (perRequestCaller) {
     return JSON.stringify({
       status: 'not_available_here',
@@ -1377,6 +1408,7 @@ async function handleRegisterAgent(args: Record<string, unknown>, conn: BestConn
 }
 
 async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: BestConnection, perRequestCaller: boolean): Promise<string> {
+  if (!HOLDS_CREDENTIALS) throw new Error(NO_SIGN_IN_ON_A_SERVER); // the dispatch refuses first; never reached over HTTP
   const pending = pendingRegistrations.get(registrationKey(conn));
   const explicit = typeof args.device_code === 'string' && args.device_code ? args.device_code : undefined;
   if (!explicit && !pending) {
@@ -2010,7 +2042,7 @@ If a command fails, relay the error message verbatim to the user — it is actio
 
 ## When you hold no credential, or the one you hold is rejected (401)
 
-Call register_agent. Do NOT fall back to a browser, do NOT ask the user for an API key and do NOT
+${HOLDS_CREDENTIALS ? `Call register_agent. Do NOT fall back to a browser, do NOT ask the user for an API key and do NOT
 ask them to sign up somewhere first. register_agent answers a link and a short code: show the user
 both at once, exactly as returned, and ask them to open the link — on that page THEY sign in (or
 sign up, where the service offers it) and approve you. Signing in and signing up are the user's
@@ -2019,7 +2051,7 @@ acted it answers authorization_pending, which is not an error. Once approved, th
 applied to this session's connections at once and stored by best-mcp for later starts; nothing needs
 editing and nothing needs restarting. If a service offers no such registration, register_agent's
 result says what to do instead. Tell the user beforehand if the service says approval replaces the
-account's existing key.
+account's existing key.` : NO_SIGN_IN_ON_A_SERVER}
 
 ## Secrets never reach the conversation
 
@@ -2052,6 +2084,11 @@ function createMcpServer(requestHeaders?: IncomingHttpHeaders): Server {
       const argError = validateToolArgs(name, safeArgs);
       if (argError) {
         return { content: [{ type: 'text', text: `Error: ${argError}` }], isError: true };
+      }
+
+      // Not offered over HTTP (see HOLDS_CREDENTIALS) — and refused if called anyway, before anything is sent.
+      if (!HOLDS_CREDENTIALS && CREDENTIAL_TOOLS.has(name)) {
+        return { content: [{ type: 'text', text: `Error: ${NO_SIGN_IN_ON_A_SERVER}` }], isError: true };
       }
 
       // list_connections needs no connection resolution
