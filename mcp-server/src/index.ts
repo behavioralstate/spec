@@ -1490,7 +1490,8 @@ async function startDeviceAuthorization(
 function showLinkAndCode(hasComplete: boolean, exchange: string): string {
   return 'SHOW THE PERSON THE LINK AND THE CODE NOW, exactly as returned' +
     (hasComplete ? ' (verification_uri_complete already carries the code)' : '') +
-    ', and ask them to open it: there they sign in — or sign up, where the service offers it — and approve you. ' +
+    ', and ask them to open it in their own browser: there they sign in — or sign up, where the service offers it — and approve you. ' +
+    'Never open it yourself or in a browser you control: approving is theirs. ' +
     `Then call ${exchange}; while they have not acted it answers authorization_pending, ` +
     'which is not an error. The device code itself is held by best-mcp and is not shown.';
 }
@@ -2268,6 +2269,33 @@ async function handleSampleEventStream(args: Record<string, unknown>, conn: Best
  * the HOST root — not under the connection's endpoint path. For a tenant-scoped connection, the
  * global manifest's `tenants.manifest` URI template resolves the tenant's own manifest.
  */
+/**
+ * The sign-in guidance (spec 0.9.14, the `note` of an authentication block) is written for a consumer that makes the
+ * device-flow requests itself. best-mcp makes them (register_agent, exchange_device_code) and keeps the credential
+ * out of the model's view, so its model is not handed the by-hand steps: followed with a shell, they would put the
+ * credential in the conversation.
+ */
+function withoutSignInGuidance(manifest: unknown): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const best = (manifest as any)?.best;
+  if (!best || typeof best !== 'object') return manifest;
+  const strip = (auth: unknown): unknown => {
+    if (!auth || typeof auth !== 'object' || Array.isArray(auth)) return auth;
+    const { note: _note, ...rest } = auth as Record<string, unknown>;
+    return rest;
+  };
+  const services = best.services && typeof best.services === 'object'
+    ? Object.fromEntries(Object.entries(best.services as Record<string, unknown>).map(([key, service]) =>
+      [key, service && typeof service === 'object' && 'authentication' in service
+        ? { ...(service as Record<string, unknown>), authentication: strip((service as Record<string, unknown>).authentication) }
+        : service]))
+    : best.services;
+  return {
+    ...(manifest as Record<string, unknown>),
+    best: { ...best, ...('authentication' in best ? { authentication: strip(best.authentication) } : {}), ...(best.services ? { services } : {}) },
+  };
+}
+
 async function handleGetManifest(conn: BestConnection): Promise<string> {
   const origin = new URL(conn.endpoint).origin;
   // A named connection signed in at a manifest the person gave: that one, not a guess from the endpoint.
@@ -2279,7 +2307,7 @@ async function handleGetManifest(conn: BestConnection): Promise<string> {
       const message = await parseErrorMessage(response);
       throw new Error(`GET ${url} → ${response.status}: ${message}`);
     }
-    return response.json();
+    return withoutSignInGuidance(await response.json());
   };
 
   const globalManifest = await fetchManifest(globalUrl);

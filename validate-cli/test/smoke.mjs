@@ -7,10 +7,15 @@
  *   bad  — the divergences 0.9.11 was written against: a pseudo-tenant, a service described only in
  *          words, mechanics in descriptions, a recipe that instructs the client, a public command that
  *          asks for a minted secret, a second entry document. Expected: each one is reported.
+ *   unguided — a good service without the sign-in guidance (0.9.14): no authentication.note and a device
+ *          answer without its note. Expected: both fail the run.
+ *   tenantUnguided — a good root, and a tenant manifest that declares the same device flow without the note.
+ *          Expected: the tenant manifest fails the run, and the shared endpoint is probed once.
  *
  * Run: npm test   (builds first)
  */
 import { createServer } from 'http';
+import { readFileSync } from 'fs';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -19,6 +24,8 @@ const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.j
 const KEY = 'test-key';
 const SPEC = 'https://behavioralstate.io/specs/agents';
 const SCHEMA = 'https://behavioralstate.io/v1/schemas/agents';
+// The spec's words, as the build synced them from protocol/v1/schemas/discovery.json.
+const GUIDANCE = JSON.parse(readFileSync(join(dirname(CLI), '..', 'schemas', 'discovery.json'), 'utf-8')).$defs.signInGuidance.properties;
 
 const cap = (kind, service, description, endpoints) => ({
   name: `io.best.agents.${kind}`, version: '0.9.11', service, description,
@@ -33,7 +40,8 @@ function manifests(mode, origin) {
       version: '0.9.11',
       authentication: {
         type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
-        ...(good ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {})
+        ...(good ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}),
+        ...(good && mode !== 'unguided' ? { note: GUIDANCE.manifest.const } : {})
       },
       services: {
         'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/tenants` } },
@@ -58,7 +66,8 @@ function manifests(mode, origin) {
   const tenant = {
     best: {
       version: '0.9.11',
-      authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header' },
+      authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
+        ...(mode === 'tenantUnguided' ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}) },
       services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/tenants/acme` } } },
       capabilities: [cap('commands', 'com.example.app', 'Everything an account can do.', [{ method: 'GET', path: '/commands' }, { method: 'POST', path: '/commands' }])]
     }
@@ -95,7 +104,8 @@ function serve(mode) {
         return json(400, { error: 'invalid_request', error_description: 'Send this request form-encoded.' });
       }
       if (path === '/auth/device' && req.method === 'POST' && good) {
-        return json(200, { device_code: 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS', user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 5 });
+        return json(200, { device_code: 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS', user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 5,
+          ...(mode === 'unguided' ? {} : { note: GUIDANCE.device.const }) });
       }
       if (path === '/auth/token' && req.method === 'POST' && good) {
         const grant = new URLSearchParams(raw).get('grant_type');
@@ -172,7 +182,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const noisy = report.checks.filter(c => c.level === 'fail' || c.level === 'warn');
   expect(code === 0, `good: exit code ${code}`);
   expect(noisy.length === 0, `good: expected a clean report, got:\n${noisy.map(c => `  ${c.level} [${c.section}] ${c.message} ${c.detail ?? ''}`).join('\n')}`);
-  for (const needle of ['public surface', 'device_code is service-generated', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
+  for (const needle of ['public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
     expect(report.checks.some(c => c.level === 'pass' && c.message.includes(needle)), `good: no passing check mentions "${needle}"`);
   }
 }
@@ -207,6 +217,27 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const warned = what => report.checks.some(c => c.level === 'warn' && c.message.includes(`${what} answered a JSON body with 415 and an empty body`));
   expect(code === 0, `bare415: a staged rule must not fail the run yet (exit ${code})`);
   expect(warned('tokenUrl') && warned('deviceAuthorizationUrl'), `bare415: a bare 415 to a JSON body was not reported: ${report.checks.filter(c => c.section === 'registration').map(c => `${c.level} ${c.message}`).join('; ')}`);
+}
+
+{
+  const { server, origin } = await serve('unguided');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const failed = needle => report.checks.some(c => c.level === 'fail' && c.message.includes(needle));
+  expect(code === 1, `unguided: a service without the sign-in guidance must fail the run (exit ${code})`);
+  expect(failed('declared without the sign-in guidance'), 'unguided: the manifest without authentication.note was not failed');
+  expect(failed('device authorization answer carries no note'), 'unguided: the device answer without its note was not failed');
+}
+
+{
+  const { server, origin } = await serve('tenantUnguided');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const failed = report.checks.filter(c => c.level === 'fail' && c.section === 'registration');
+  expect(code === 1, `tenantUnguided: a tenant manifest without the sign-in guidance must fail the run (exit ${code})`);
+  expect(failed.some(c => c.message.startsWith('tenant manifest: deviceAuthorizationUrl is declared without the sign-in guidance')), `tenantUnguided: the tenant manifest was not failed: ${failed.map(c => c.message).join('; ')}`);
+  const deviceProbes = report.checks.filter(c => c.message.includes('device authorization response carries the RFC 8628 members'));
+  expect(deviceProbes.length === 1, `tenantUnguided: an endpoint both manifests declare was probed ${deviceProbes.length} times`);
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }

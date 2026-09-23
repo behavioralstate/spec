@@ -64,11 +64,12 @@ client_id=best-mcp&agent_label=Claude%20on%20Ada%27s%20laptop
   "verification_uri": "https://example.com/activate",
   "verification_uri_complete": "https://example.com/activate?code=WDJB-MJHT",
   "expires_in": 900,
-  "interval": 5
+  "interval": 5,
+  "note": "Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, and never put it in a message, a command or any output: read the rest of the answer without it."
 }
 ```
 
-**The agent shows the person the link and the code before anything else**, then polls:
+**The agent gives the person the link and the code before anything else**, to open in their own browser — it never opens the link itself — then polls:
 
 ```
 POST /auth/token
@@ -107,7 +108,7 @@ Only the consumer knows what it can keep secret, so the consumer says so.
 
 `credential_lifetime` only ever lowers what is issued, so an agent gains nothing by misstating it.
 
-Making a connection last is the consumer's decision, and the token answer is where the service equips it: the [credential block](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration) says the credential is a secret that is never repeated in the conversation, and offers both ways to use it — an MCP client's configuration (`mcp`) and direct calls (`http`). A recipe still says nothing about the consumer's client ([Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5): the credential, and so the choice, only exists in the token answer.
+At each step the service speaks to the agent in the words of the [sign-in guidance](https://github.com/behavioralstate/spec/blob/main/SPEC.md#sign-in-guidance): the manifest's `authentication.note`, the device answer's `note`, and the start of the token answer's `note`. Making a connection last is the consumer's decision, and the token answer is where the service equips it: the [credential block](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration) says the credential is a secret that is never repeated in the conversation, and offers both ways to use it — an MCP client's configuration (`mcp`) and direct calls (`http`). A recipe still says nothing about the consumer's client ([Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5): the credential, and so the choice, only exists in the token answer.
 
 ## Revoking
 

@@ -14,8 +14,9 @@ A BEST-compliant endpoint **must**:
 8. Reference every declared service from at least one capability — in the same manifest or, for a multi-tenant root, in its tenant manifests
 9. Keep every manifest `description` within 500 characters and free of mechanics — no URLs or templates, header names or credential formats, operation names, or step-by-step instructions
 10. Publish no second machine-readable or agent-directed description of the service (`llms.txt` restating operations, skill or prompt files, client snippets carrying behaviour, an OpenAPI document of the BEST endpoints)
+11. Where `deviceAuthorizationUrl` is declared, carry the [sign-in guidance](https://github.com/behavioralstate/spec/blob/main/SPEC.md#sign-in-guidance) verbatim: the manifest text as that `authentication` block's `note`, the device text as the device answer's `note`, the token text at the start of the token answer's `note`
 
-Items 8–10, the pseudo-tenant rule and accepting `application/cloudevents+json` on `POST /commands` are **required from 0.10.0**. 0.9.11 states them and validators report violations as warnings, so every implementer has one version of grace. Normative text: [SPEC.md — Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline).
+Items 8–10, the pseudo-tenant rule and accepting `application/cloudevents+json` on `POST /commands` are **required from 0.10.0**. 0.9.11 states them and validators report violations as warnings, so every implementer has one version of grace. Item 11 is required now. Normative text: [SPEC.md — Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline).
 
 ## Capability-Level Compliance
 

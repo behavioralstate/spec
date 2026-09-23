@@ -30,6 +30,9 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.js');
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
 const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
+// Stand-ins for the spec's sign-in guidance: written for a consumer that signs in by hand, never for best-mcp's model.
+const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
+const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
 function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, foreignEndpoint = '' } = {}) {
   const modern = mode === 'modern';
@@ -45,7 +48,7 @@ function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, for
         return json(200, { best: {
           version: modern ? '0.9.11' : '0.9.8',
           authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
-            ...(modern ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}) },
+            ...(modern ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device`, note: MANIFEST_GUIDANCE } : {}) },
           services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api${tenants ? '/tenants' : ''}` } } },
           ...(tenants ? { tenants: { manifest: `${origin}/.well-known/best/{tenantId}` } } : {}),
           capabilities: []
@@ -59,7 +62,7 @@ function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, for
       }
       if (path === '/auth/device' && req.method === 'POST') {
         seen.deviceRequests.push(Object.fromEntries(new URLSearchParams(raw)));
-        return json(200, { device_code: DEVICE_CODE, user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 1 });
+        return json(200, { device_code: DEVICE_CODE, user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 1, note: DEVICE_GUIDANCE });
       }
       if (path === '/auth/token' && req.method === 'POST') {
         const form = new URLSearchParams(raw);
@@ -141,6 +144,10 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(!reg.isError, `modern: register_agent failed: ${reg.text}`);
   expect(reg.text.includes('WDJB-MJHT') && reg.text.includes('https://example.com/activate?code=WDJB-MJHT'), 'modern: register_agent did not return the code and the link');
   expect(!reg.text.includes(DEVICE_CODE), 'modern: register_agent LEAKED the device code to the model');
+  expect(reg.text.includes('own browser') && reg.text.includes('Never open it yourself'), `modern: register_agent does not say the person opens the link in their own browser: ${reg.text}`);
+  expect(!reg.text.includes(DEVICE_GUIDANCE), `modern: the device answer's by-hand guidance reached the model: ${reg.text}`);
+  const manifest = await call(client, 'get_manifest', { connection: platform });
+  expect(!manifest.isError && manifest.text.includes('deviceAuthorizationUrl') && !manifest.text.includes(MANIFEST_GUIDANCE), `modern: get_manifest handed the model the by-hand sign-in guidance: ${manifest.text.slice(0, 400)}`);
   expect(seen.deviceRequests[0]?.client_id === 'best-mcp' && seen.deviceRequests[0]?.agent_label === 'Smoke test on a laptop', `modern: device request carried ${JSON.stringify(seen.deviceRequests[0])}`);
 
   const pending = await call(client, 'exchange_device_code', { connection: platform });
