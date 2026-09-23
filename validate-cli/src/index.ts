@@ -103,7 +103,7 @@ function parseArgs(argv: string[]): Options {
 const WELL_KNOWN = '/.well-known/best';
 const ROOT_KEY = 'best';
 const NS = 'io.best.';
-const MODE_LABEL = 'BEST 0.9.14';
+const MODE_LABEL = 'BEST 0.9.15';
 
 // Rules the spec states in 0.9.11 and requires from 0.10.0. Until then a violation is a warning.
 const STAGED: Level = 'warn';
@@ -185,10 +185,42 @@ function loadAjv(): Ajv2020 {
   return ajv;
 }
 
-/** The sign-in guidance (SPEC.md, Sign-in Guidance): the words a service that declares deviceAuthorizationUrl carries verbatim. */
-function signInGuidance(): { manifest: string; device: string; token: string } {
-  const props = JSON.parse(readFileSync(join(SCHEMA_DIR, 'discovery.json'), 'utf-8')).$defs.signInGuidance.properties;
-  return { manifest: props.manifest.const, device: props.device.const, token: props.token.const };
+interface SignInTexts { version: string; manifest: string; device: string; token: string; }
+
+const semverParts = (v: string): number[] => v.split('.').map(n => Number(n) || 0);
+function compareVersions(a: string, b: string): number {
+  const [x, y] = [semverParts(a), semverParts(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return (x[i] ?? 0) - (y[i] ?? 0);
+  return 0;
+}
+
+/**
+ * The sign-in guidance (SPEC.md, Sign-in Guidance): the words a service that declares deviceAuthorizationUrl carries
+ * verbatim, one set per version that changed them. A manifest carries the texts of the version it declares, or of a
+ * later one — so a service is never failed for not having moved yet, and never passes on words older than its claim.
+ */
+function signInGuidance(declared: unknown): { required: SignInTexts; accepted: SignInTexts[]; all: SignInTexts[] } {
+  const defs = JSON.parse(readFileSync(join(SCHEMA_DIR, 'discovery.json'), 'utf-8')).$defs.signInGuidance.$defs as Record<string, Dict>;
+  const all = Object.entries(defs)
+    .map(([version, d]) => {
+      const p = asDict(d.properties) ?? {};
+      const text = (k: string) => String(asDict(p[k])?.const ?? '');
+      return { version, manifest: text('manifest'), device: text('device'), token: text('token') };
+    })
+    .sort((a, b) => compareVersions(a.version, b.version));
+  const claim = typeof declared === 'string' && /^\d+\.\d+\.\d+$/.test(declared) ? declared : all[0].version;
+  const required = [...all].reverse().find(t => compareVersions(t.version, claim) <= 0) ?? all[0];
+  return { required, accepted: all.filter(t => compareVersions(t.version, required.version) >= 0), all };
+}
+
+/** Pass, or say which words a note carries instead: another version's, or none of the spec's. */
+function checkGuidanceText(S: string, what: string, note: unknown, part: 'manifest' | 'device', declared: unknown): void {
+  const { required, accepted, all } = signInGuidance(declared);
+  const hit = accepted.find(t => t[part] === note);
+  if (hit) { record(S, 'pass', `${what} carries the sign-in guidance verbatim (${hit.version})`); return; }
+  const older = all.find(t => t[part] === note);
+  if (older) record(S, 'fail', `${what} carries the ${older.version} sign-in guidance, but the manifest declares ${String(declared)} — carry the ${required.version} words verbatim (SPEC.md, Sign-in Guidance)`);
+  else record(S, 'fail', `${what} is not the sign-in guidance's ${part} text — it must be carried verbatim (SPEC.md, Sign-in Guidance)`);
 }
 
 function ajvErrors(validate: ValidateFunction): string {
@@ -724,10 +756,8 @@ async function checkRegistration(root: Dict, opts: Options, label = 'root', prob
     record(S, 'pass', `${where}: deviceAuthorizationUrl and tokenUrl declared`);
 
     // The consumer is often a model with nothing else to go on: the words are the spec's, carried verbatim.
-    const guidance = signInGuidance();
     if (block.note === undefined) record(S, 'fail', `${where}: deviceAuthorizationUrl is declared without the sign-in guidance — authentication.note must carry the spec's manifest text verbatim (SPEC.md, Sign-in Guidance)`);
-    else if (block.note !== guidance.manifest) record(S, 'fail', `${where}: authentication.note is not the sign-in guidance's manifest text — it must be carried verbatim (SPEC.md, Sign-in Guidance)`);
-    else record(S, 'pass', `${where}: authentication.note carries the sign-in guidance verbatim`);
+    else checkGuidanceText(S, `${where}: authentication.note`, block.note, 'manifest', root.version);
 
     if (probed.has(deviceUrl)) continue;
     probed.add(deviceUrl);
@@ -757,8 +787,7 @@ async function checkRegistration(root: Dict, opts: Options, label = 'root', prob
     if (missing.length) { record(S, 'fail', `${where}: device authorization response lacks ${missing.join(', ')} (RFC 8628 §3.2)`); continue; }
     record(S, 'pass', `${where}: device authorization response carries the RFC 8628 members`);
     if (a.note === undefined) record(S, 'fail', `${where}: the device authorization answer carries no note — it must carry the sign-in guidance's device text verbatim (SPEC.md, Sign-in Guidance)`);
-    else if (a.note !== guidance.device) record(S, 'fail', `${where}: the device authorization answer's note is not the sign-in guidance's device text — it must be carried verbatim (SPEC.md, Sign-in Guidance)`);
-    else record(S, 'pass', `${where}: the device authorization answer carries the sign-in guidance verbatim`);
+    else checkGuidanceText(S, `${where}: the device authorization answer`, a.note, 'device', root.version);
     const code = String(a.device_code);
     if (code === String(a.user_code)) record(S, 'fail', `${where}: device_code equals user_code — the code shown to the person must not redeem the credential`);
     else if (code.length < 20) record(S, 'fail', `${where}: device_code is ${code.length} characters — it must be unguessable`);

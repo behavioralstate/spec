@@ -11,6 +11,8 @@
  *          answer without its note. Expected: both fail the run.
  *   tenantUnguided — a good root, and a tenant manifest that declares the same device flow without the note.
  *          Expected: the tenant manifest fails the run, and the shared endpoint is probed once.
+ *   older — a service that declares 0.9.14 and carries 0.9.14's words: not failed for not having moved yet.
+ *   stale — a service that declares 0.9.15 and still carries 0.9.14's words: failed, and told which words to carry.
  *
  * Run: npm test   (builds first)
  */
@@ -24,8 +26,12 @@ const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.j
 const KEY = 'test-key';
 const SPEC = 'https://behavioralstate.io/specs/agents';
 const SCHEMA = 'https://behavioralstate.io/v1/schemas/agents';
-// The spec's words, as the build synced them from protocol/v1/schemas/discovery.json.
-const GUIDANCE = JSON.parse(readFileSync(join(dirname(CLI), '..', 'schemas', 'discovery.json'), 'utf-8')).$defs.signInGuidance.properties;
+// The spec's words, one set per version, as the build synced them from protocol/v1/schemas/discovery.json.
+const TEXTS = JSON.parse(readFileSync(join(dirname(CLI), '..', 'schemas', 'discovery.json'), 'utf-8')).$defs.signInGuidance.$defs;
+const byVersion = v => TEXTS[v].properties;
+const CURRENT = Object.keys(TEXTS).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
+const wordsFor = mode => byVersion(mode === 'older' || mode === 'stale' ? '0.9.14' : CURRENT);
+const declares = mode => mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : '0.9.11';
 
 const cap = (kind, service, description, endpoints) => ({
   name: `io.best.agents.${kind}`, version: '0.9.11', service, description,
@@ -37,11 +43,11 @@ function manifests(mode, origin) {
   const publicEndpoint = good ? `${origin}/info` : `${origin}/tenants/public`;
   const root = {
     best: {
-      version: '0.9.11',
+      version: declares(mode),
       authentication: {
         type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
         ...(good ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}),
-        ...(good && mode !== 'unguided' ? { note: GUIDANCE.manifest.const } : {})
+        ...(good && mode !== 'unguided' ? { note: wordsFor(mode).manifest.const } : {})
       },
       services: {
         'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/tenants` } },
@@ -105,7 +111,7 @@ function serve(mode) {
       }
       if (path === '/auth/device' && req.method === 'POST' && good) {
         return json(200, { device_code: 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS', user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 5,
-          ...(mode === 'unguided' ? {} : { note: GUIDANCE.device.const }) });
+          ...(mode === 'unguided' ? {} : { note: wordsFor(mode).device.const }) });
       }
       if (path === '/auth/token' && req.method === 'POST' && good) {
         const grant = new URLSearchParams(raw).get('grant_type');
@@ -238,6 +244,25 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(failed.some(c => c.message.startsWith('tenant manifest: deviceAuthorizationUrl is declared without the sign-in guidance')), `tenantUnguided: the tenant manifest was not failed: ${failed.map(c => c.message).join('; ')}`);
   const deviceProbes = report.checks.filter(c => c.message.includes('device authorization response carries the RFC 8628 members'));
   expect(deviceProbes.length === 1, `tenantUnguided: an endpoint both manifests declare was probed ${deviceProbes.length} times`);
+}
+
+{
+  const { server, origin } = await serve('older');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const failed = report.checks.filter(c => c.level === 'fail');
+  expect(code === 0 && failed.length === 0, `older: a 0.9.14 service with 0.9.14's words must not fail (exit ${code}): ${failed.map(c => c.message).join('; ')}`);
+  expect(report.checks.some(c => c.level === 'pass' && c.message.includes('carries the sign-in guidance verbatim (0.9.14)')), 'older: the 0.9.14 words were not recognised as such');
+}
+
+{
+  const { server, origin } = await serve('stale');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const failed = report.checks.filter(c => c.level === 'fail' && c.section === 'registration').map(c => c.message);
+  expect(code === 1, `stale: a 0.9.15 service with 0.9.14's words must fail (exit ${code})`);
+  expect(failed.some(m => m.includes('authentication.note carries the 0.9.14 sign-in guidance, but the manifest declares 0.9.15')), `stale: the manifest note was not failed as stale: ${failed.join('; ')}`);
+  expect(failed.some(m => m.includes('device authorization answer carries the 0.9.14 sign-in guidance')), `stale: the device note was not failed as stale: ${failed.join('; ')}`);
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
