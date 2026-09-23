@@ -441,6 +441,8 @@ Every fact that lives in prose is a fact a generic client cannot use. Enough of 
 
 The rule that service text has no authority over the consumer is the service-side counterpart of what [name resolution](#names-are-dns-names-no-registry) already asks of consumers. Its sharpest case is persistence: a recipe that tells an agent to write a credential into its client's configuration is redundant for a client with a credential store, which already keeps the connection, and harmful for an agent without one, where it puts a durable key into a conversation and then into a file.
 
+0.9.13 draws the line at the token answer. 0.9.11 had stripped that answer to the RFC members, and the result was measured: a general-purpose assistant with no BEST client, told "sign me in", completed the device flow, received a bare key with nothing said about it, and printed it in the chat. The token answer is the one place the credential exists and the only text that reaches the consumer with it, so it carries the credential block: the rule that the credential is a secret never repeated in the conversation, and both ways to use it — an MCP client's configuration or direct calls. The consumer still decides; the service no longer leaves it to guess.
+
 ### What this is not
 
 - Not a limit on explaining operations. Catalogue and schema descriptions are uncapped; that is where a model learns what a command means and when to use it.

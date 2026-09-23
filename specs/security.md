@@ -132,7 +132,7 @@ A conversation with a model is not a secret store: it is kept, synced, summarise
 
 - A consumer that has a store of its own (an MCP server, a gateway) **MUST** run the token request outside the model's view, keep the credential there, and redact it from everything it returns to the model.
 - A consumer that has none — a model making the requests itself — **SHOULD** register with `credential_lifetime=session`, and a service **SHOULD** then issue a short-lived credential (hours, with `expires_in`), so that what the transcript holds is soon worthless.
-- A service's text **MUST NOT** tell a consumer to write a credential into its client's configuration ([Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5).
+- The token answer **MUST** say that the credential is a secret — stored in the client's configuration or credential store, never repeated in the conversation, and replaced if it ever appears there — and **SHOULD** offer the ways to use it: `mcp`, the connection as an MCP client's configuration, and `http`, direct calls with a placeholder in place of the credential ([Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration), the credential block). The consumer chooses. No other service text instructs the consumer about its client ([Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5).
 
 ## Multi-Tenant Isolation
 

@@ -319,7 +319,7 @@
         "tokenUrl": {
           "type": "string",
           "format": "uri",
-          "description": "An RFC 6749 token endpoint. Hosts serving header-constrained clients should accept the client_credentials grant and return a short-lived access token. Where deviceAuthorizationUrl is declared it also serves the RFC 8628 device-code grant that completes an agent registration, answering with access_token, token_type, expires_in when the credential is not durable, and the BEST members tenant_id and auth_header."
+          "description": "An RFC 6749 token endpoint. Hosts serving header-constrained clients should accept the client_credentials grant and return a short-lived access token. Where deviceAuthorizationUrl is declared it also serves the RFC 8628 device-code grant that completes an agent registration, answering with access_token, token_type, expires_in when the credential is not durable, the BEST members tenant_id and auth_header, and the credential block: note (required — the credential is a secret, stored and never repeated in the conversation), endpoint (required), and optionally manifest, ready_check, mcp (the connection as an MCP client's configuration) and http (direct calls, with a placeholder for the credential). Every URL in the block the credential may be sent to is on the canonical endpoint host."
         },
         "deviceAuthorizationUrl": {
           "type": "string",
