@@ -279,7 +279,7 @@ A service that lets an agent obtain its own credential declares `deviceAuthoriza
 
 | Member | Required | Description |
 |---|---|---|
-| `note` | yes | Begins with the token text of the [sign-in guidance](#sign-in-guidance), verbatim: the credential is a **secret**, kept in the client's configuration or credential store and never repeated in the conversation — in a message or in a command. A service may add to it after that text (where a person can mint a credential themselves, how to use this one). |
+| `note` | yes | Begins with the token text of the [sign-in guidance](#sign-in-guidance), verbatim: the credential is a **secret**, kept in the client's configuration or credential store and never repeated in the conversation — in a message, a command or any output. A service may add to it after that text (where a person can mint a credential themselves, how to use this one). |
 | `endpoint` | yes | The surface the credential opens (the tenant endpoint on a multi-tenant host), on the canonical endpoint host |
 | `manifest` | no | That surface's manifest |
 | `ready_check` | no | A read that answers `200` once the credential works |
@@ -306,15 +306,15 @@ The consumer is often a general-purpose model that knows nothing of BEST, and wh
 
 **Manifest text**
 
-> For you, the agent, not the person: read this manifest with an HTTP request; never show it to them or open it in a browser. When the person asks you to sign them in, POST a form to deviceAuthorizationUrl with client_id set to your software's name, and give them the link it answers (verification_uri_complete, or verification_uri and user_code) to open in their own browser, where they sign in and approve you. Never open that link yourself or in a browser you control, never sign in for them, and never ask for a password. Then poll tokenUrl, no faster than interval. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, without printing it, and never put it in a message or a command.
+> For you, the agent, not the person: read this manifest with an HTTP request; never show it to them or open it in a browser. When the person asks you to sign them in, POST a form to deviceAuthorizationUrl with client_id set to your software's name, and give them the link it answers (verification_uri_complete, or verification_uri and user_code) to open in their own browser, where they sign in and approve you. Never open that link yourself or in a browser you control, never sign in for them, and never ask for a password. Then poll tokenUrl, no faster than interval. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, and never put it in a message, a command or any output: read the rest of the answer without it.
 
 **Device text**
 
-> Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, without printing it, and never put it in a message or a command.
+> Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, and never put it in a message, a command or any output: read the rest of the answer without it.
 
 **Token text**
 
-> The credential is a secret. Keep it in your client's configuration or credential store and never repeat it in the conversation, in a message or in a command: read it from where you stored it. A transcript, commands included, is not a secret store, and a credential that appears there is leaked and must be replaced. If your client cannot store it, say so instead of showing it.
+> The credential is a secret. Keep it in your client's configuration or credential store and never repeat it in the conversation, in a message, a command or any output: read it from where you stored it. A transcript, commands and their output included, is not a secret store, and a credential that appears there is leaked and must be replaced. If your client cannot store it, say so instead of showing it.
 
 The same texts are published in [`discovery.json`](protocol/v1/schemas/discovery.json) under `$defs/signInGuidance`: the schema requires the manifest text wherever `deviceAuthorizationUrl` is declared, and validators check the device answer. They change only with this specification, and every implementation takes them unchanged. A consumer whose own client makes these requests — the reference MCP server is one — follows them itself and need not show them to its model.
 

@@ -65,7 +65,7 @@ client_id=best-mcp&agent_label=Claude%20on%20Ada%27s%20laptop
   "verification_uri_complete": "https://example.com/activate?code=WDJB-MJHT",
   "expires_in": 900,
   "interval": 5,
-  "note": "Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, without printing it, and never put it in a message or a command."
+  "note": "Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, and never put it in a message, a command or any output: read the rest of the answer without it."
 }
 ```
 
