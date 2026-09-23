@@ -66,7 +66,10 @@ function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, for
         if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
         seen.tokenPolls++;
         if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
-        return json(200, { access_token: key, token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${key}` });
+        return json(200, { access_token: key, token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${key}`,
+          endpoint: `${origin}/api/tenants/acme`, note: 'The key is a SECRET. Store it and never repeat it in the conversation.',
+          mcp: { mcpServers: { example: { command: 'npx', args: ['-y', '@behavioralstate/best-mcp'], env: { BEST_EXAMPLE_API_KEY: key } } } },
+          http: { header: 'X-Api-Key: <access_token>' } });
       }
       if (path === '/api/commands' && req.method === 'GET') {
         return json(200, { commands: [{ schema: 'place-order', version: '1.0', ...(modern ? { commandType: 'PlaceAnOrderV1' } : {}), dataschema: `${origin}/api/commands/place-order/1.0`, description: 'Place an order.' }] });
@@ -145,6 +148,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const done = await call(client, 'exchange_device_code', { connection: platform });
   expect(!done.isError && done.text.includes('acme'), `modern: second exchange should succeed, got: ${done.text}`);
   expect(!done.text.includes(ISSUED_KEY), 'modern: exchange_device_code LEAKED the issued key to the model');
+  expect(!done.text.includes('mcpServers') && !done.text.includes('"http"'), `modern: the credential block's mcp/http reached the model — best-mcp is already the client: ${done.text}`);
   expect(existsSync(credentialsFile) && readFileSync(credentialsFile, 'utf-8').includes(ISSUED_KEY), 'modern: the issued key was not stored');
   const again = await call(client, 'exchange_device_code', { connection: platform });
   expect(again.isError && again.text.includes('register_agent'), `modern: a redeemed registration should be gone, got: ${again.text}`);
@@ -212,6 +216,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   };
   const w = await signIn('whatever', `${a.origin}/.well-known/best`, a);
   expect(!w.text.includes('key_for_whatever'), 'named: exchange LEAKED the issued key');
+  expect(!w.text.includes('mcpServers') && !w.text.includes('"http"'), `named: the credential block's mcp/http reached the model: ${w.text}`);
   await signIn('ciccio-live', `${b.origin}/.well-known/best`, b);
   await signIn('whatever-2', `${a.origin}/`, a);   // same host, another name; a bare origin means its well-known path
 

@@ -107,7 +107,7 @@ Only the consumer knows what it can keep secret, so the consumer says so.
 
 `credential_lifetime` only ever lowers what is issued, so an agent gains nothing by misstating it.
 
-Making a connection last is never the service's to arrange. A recipe does not tell an agent to write anything into its client's configuration: that is a service instructing a consumer about its own client, which [Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5 forbids — and for an agent without a store it is the harmful path, putting a durable key into a conversation and then into a file.
+Making a connection last is the consumer's decision, and the token answer is where the service equips it: the [credential block](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration) says the credential is a secret that is never repeated in the conversation, and offers both ways to use it — an MCP client's configuration (`mcp`) and direct calls (`http`). A recipe still says nothing about the consumer's client ([Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5): the credential, and so the choice, only exists in the token answer.
 
 ## Revoking
 

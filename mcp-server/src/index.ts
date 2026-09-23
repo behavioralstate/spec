@@ -1395,6 +1395,17 @@ function redactSecret(value: unknown, secret: string): unknown {
   return value;
 }
 
+/**
+ * The token answer's credential block (BEST 0.9.13) offers the consumer the ways to use the credential — `mcp`, a
+ * configuration to write into an MCP client, `http`, direct calls — and `note`, the rule for keeping it. best-mcp has
+ * already chosen: it is the MCP client, it stored the credential and redacted it. Those three are not the model's to
+ * act on (a redacted `mcp` entry would be a broken configuration to write); the rest — endpoint, manifest — stays.
+ */
+function forTheModel(redacted: Record<string, unknown>): Record<string, unknown> {
+  const { mcp: _mcp, http: _http, note: _note, ...rest } = redacted;
+  return rest;
+}
+
 /** True when the caller identifies itself per request (HTTP multi-user backend): shared state must not change. */
 function isPerRequestCaller(headers?: IncomingHttpHeaders): boolean {
   if (!headers) return false;
@@ -1730,7 +1741,7 @@ async function handleNamedExchange(name: string, perRequestCaller: boolean): Pro
   try { await completeNamedSignIn(name); } catch (e) { unresolved = e instanceof Error ? e.message : String(e); }
   const made = CONNECTIONS.filter(c => c.registeredAs === name);
   return JSON.stringify({
-    ...redacted,
+    ...forTheModel(redacted),
     session: {
       connection: name,
       connections: made.map(c => ({ name: c.name, endpoint: c.endpoint })),
@@ -1864,7 +1875,7 @@ async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: Bes
     supersededKeyHash: supersededKey ? sha256(supersededKey) : undefined,
   });
   return JSON.stringify({
-    ...redacted,
+    ...forTheModel(redacted),
     session: {
       applied_to: applied,
       stored_at: credentialStore.path,
