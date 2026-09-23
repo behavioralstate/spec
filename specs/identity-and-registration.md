@@ -117,6 +117,17 @@ Revoke agent is an ordinary command on the account's surface, sent under the cre
 
 Nothing above depends on it, but a platform **may** let an agent open an account itself. That is an ordinary command, and because it commits the person — terms accepted, personal data created, perhaps billing started — it carries the [`impact` annotation](agents/commands.md#high-impact-annotations-impact) with `categories: ["commitment"]` and `confirmation: "required"`: the agent tells the person what they are agreeing to and gets a yes before it sends anything.
 
+## One backend, two kinds of person
+
+A common shape: customers sign in on `app.example.com` and approve agents for their own account, while the operator's staff sign in on `backoffice.example.com` — another identity provider — and approve agents for the accounts they administer. The two identities never join, the customer surface never mentions the back office, and both sit on one BEST API.
+
+BEST needs nothing new for it. A service is named by a domain ([Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution)), so this is **two names and two manifests**:
+
+- **Each host serves its own `/.well-known/best`.** `app.example.com/.well-known/best` and `backoffice.example.com/.well-known/best` are two root manifests. The backend chooses which door it is answering by the request's host, never by a path prefix: a consumer resolves a name at the host's well-known path and looks nowhere else.
+- **Each door has its own registration.** Its `deviceAuthorizationUrl` and `tokenUrl` are on its own host, and the `verification_uri` it answers is that door's own approval page. A person approves where they sign in.
+- **The door is stamped on the registration** when it opens, so one host's approval page refuses a code issued by the other.
+- **The consumer keeps them apart by name.** A credential is bound to the name it was issued under, and is only ever sent to that name's canonical host. A client holding both — a person who is also staff — holds two credentials under two names, and neither is ever used for the other.
+
 ## See also
 
 - [SPEC.md — Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration) — the normative exchange
