@@ -403,6 +403,7 @@
     },
     "signInGuidance": {
       "description": "The sign-in guidance (SPEC.md, Sign-in Guidance): what a consumer does at each step of signing a person in, in words a service that declares deviceAuthorizationUrl carries verbatim. One set per version that changed them, keyed by that version; the highest is current. manifest is that authentication block's note; device is the note of the device authorization answer; token begins the note of the token answer, and a service may add to it after. A service carries the texts of the version it declares, or of a later one.",
+      "type": "object",
       "$defs": {
         "0.9.14": {
           "type": "object",
