@@ -60,10 +60,14 @@ async function main() {
 	}
 	const examplesDir = join(import.meta.dirname, '..', 'protocol', 'v1', 'examples');
 	for (const name of (await readdir(examplesDir)).filter((f) => f.endsWith('.json'))) {
-		const auth = JSON.parse(await readFile(join(examplesDir, name), 'utf-8'))?.best?.authentication;
-		if (auth?.deviceAuthorizationUrl && auth.note !== guidance.manifest?.const) {
-			console.error(`  FAIL  protocol/v1/examples/${name} — declares deviceAuthorizationUrl without the sign-in guidance as authentication.note`);
-			errors++;
+		const best = JSON.parse(await readFile(join(examplesDir, name), 'utf-8'))?.best;
+		// The root's block and every service's own: wherever deviceAuthorizationUrl is declared.
+		const blocks = [['root', best?.authentication], ...Object.entries(best?.services ?? {}).map(([key, service]) => [`service ${key}`, service?.authentication])];
+		for (const [where, auth] of blocks) {
+			if (auth?.deviceAuthorizationUrl && auth.note !== guidance.manifest?.const) {
+				console.error(`  FAIL  protocol/v1/examples/${name} (${where}) — declares deviceAuthorizationUrl without the sign-in guidance as authentication.note`);
+				errors++;
+			}
 		}
 	}
 

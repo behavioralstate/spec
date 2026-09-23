@@ -697,19 +697,24 @@ function checkDescriptionsAgainstCatalogues(root: Dict, label: string, operation
 
 // ── 0.9.11: agent registration (RFC 8628) ─────────────────────────────────────
 
-async function checkRegistration(root: Dict, opts: Options): Promise<void> {
+/**
+ * Run on the root manifest and on the tenant manifest when one was resolved: a multi-tenant host may declare the device
+ * flow in either, and conformance item 11 holds wherever it is declared. `probed` keeps an endpoint both declare from
+ * being probed (and a registration opened) twice.
+ */
+async function checkRegistration(root: Dict, opts: Options, label = 'root', probed = new Set<string>()): Promise<void> {
   const S = 'registration';
   const blocks: { where: string; block: Dict }[] = [];
   const rootAuth = asDict(root.authentication);
-  if (rootAuth) blocks.push({ where: 'root', block: rootAuth });
+  if (rootAuth) blocks.push({ where: label, block: rootAuth });
   for (const [k, v] of Object.entries(asDict(root.services) ?? {})) {
     const own = asDict(asDict(v)?.authentication);
-    if (own) blocks.push({ where: `service ${k}`, block: own });
+    if (own) blocks.push({ where: label === 'root' ? `service ${k}` : `${label} service ${k}`, block: own });
   }
   const needsCredential = blocks.some(b => (b.block.type ?? 'none') !== 'none');
   const declaring = blocks.filter(b => typeof b.block.deviceAuthorizationUrl === 'string');
   if (!declaring.length) {
-    if (needsCredential) record(S, 'warn', 'A credential is required and no authentication.deviceAuthorizationUrl is declared — an agent cannot obtain one by itself and has to ask the person for a key');
+    if (needsCredential && label === 'root') record(S, 'warn', 'A credential is required and no authentication.deviceAuthorizationUrl is declared — an agent cannot obtain one by itself and has to ask the person for a key');
     return;
   }
   for (const { where, block } of declaring) {
@@ -723,6 +728,9 @@ async function checkRegistration(root: Dict, opts: Options): Promise<void> {
     if (block.note === undefined) record(S, 'fail', `${where}: deviceAuthorizationUrl is declared without the sign-in guidance — authentication.note must carry the spec's manifest text verbatim (SPEC.md, Sign-in Guidance)`);
     else if (block.note !== guidance.manifest) record(S, 'fail', `${where}: authentication.note is not the sign-in guidance's manifest text — it must be carried verbatim (SPEC.md, Sign-in Guidance)`);
     else record(S, 'pass', `${where}: authentication.note carries the sign-in guidance verbatim`);
+
+    if (probed.has(deviceUrl)) continue;
+    probed.add(deviceUrl);
 
     // Read-only: an unknown device code must be refused as a bad grant, which proves the grant type is served.
     const bogus = await http('POST', tokenUrl, opts, null, undefined, {
@@ -857,7 +865,9 @@ async function main(): Promise<void> {
 
   checkDiscipline(root, 'root', tenantRoot, !!tenantRoot);
   if (tenantRoot) checkDiscipline(tenantRoot, 'tenant', undefined, false);
-  await checkRegistration(root, opts);
+  const probed = new Set<string>();
+  await checkRegistration(root, opts, 'root', probed);
+  if (tenantRoot) await checkRegistration(tenantRoot, opts, 'tenant manifest', probed);
 
   // The root's own capabilities are probed whether or not a tenant was given: a multi-tenant host may
   // serve root-level surfaces (a public one above all) beside its tenant manifests.

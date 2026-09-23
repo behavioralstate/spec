@@ -9,6 +9,8 @@
  *          asks for a minted secret, a second entry document. Expected: each one is reported.
  *   unguided — a good service without the sign-in guidance (0.9.14): no authentication.note and a device
  *          answer without its note. Expected: both fail the run.
+ *   tenantUnguided — a good root, and a tenant manifest that declares the same device flow without the note.
+ *          Expected: the tenant manifest fails the run, and the shared endpoint is probed once.
  *
  * Run: npm test   (builds first)
  */
@@ -64,7 +66,8 @@ function manifests(mode, origin) {
   const tenant = {
     best: {
       version: '0.9.11',
-      authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header' },
+      authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
+        ...(mode === 'tenantUnguided' ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device` } : {}) },
       services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/tenants/acme` } } },
       capabilities: [cap('commands', 'com.example.app', 'Everything an account can do.', [{ method: 'GET', path: '/commands' }, { method: 'POST', path: '/commands' }])]
     }
@@ -224,6 +227,17 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(code === 1, `unguided: a service without the sign-in guidance must fail the run (exit ${code})`);
   expect(failed('declared without the sign-in guidance'), 'unguided: the manifest without authentication.note was not failed');
   expect(failed('device authorization answer carries no note'), 'unguided: the device answer without its note was not failed');
+}
+
+{
+  const { server, origin } = await serve('tenantUnguided');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const failed = report.checks.filter(c => c.level === 'fail' && c.section === 'registration');
+  expect(code === 1, `tenantUnguided: a tenant manifest without the sign-in guidance must fail the run (exit ${code})`);
+  expect(failed.some(c => c.message.startsWith('tenant manifest: deviceAuthorizationUrl is declared without the sign-in guidance')), `tenantUnguided: the tenant manifest was not failed: ${failed.map(c => c.message).join('; ')}`);
+  const deviceProbes = report.checks.filter(c => c.message.includes('device authorization response carries the RFC 8628 members'));
+  expect(deviceProbes.length === 1, `tenantUnguided: an endpoint both manifests declare was probed ${deviceProbes.length} times`);
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
