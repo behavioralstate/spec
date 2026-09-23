@@ -198,6 +198,7 @@ class CredentialStore {
 
   constructor() {
     this.file = process.env.BEST_MCP_CREDENTIALS_FILE ?? join(homedir(), '.best-mcp', 'credentials.json');
+    if (!HOLDS_CREDENTIALS) return; // a server never opens the store: a secret left in it stays on disk, not in memory
     try {
       if (existsSync(this.file)) {
         const parsed = JSON.parse(readFileSync(this.file, 'utf8'));
@@ -213,12 +214,13 @@ class CredentialStore {
   get(baseUrl: string): StoredCredential | undefined { return this.entries[baseUrl]; }
 
   set(baseUrl: string, cred: StoredCredential): void {
+    if (!HOLDS_CREDENTIALS) throw new Error(NO_SIGN_IN_ON_A_SERVER);
     this.entries[baseUrl] = cred;
     this.flush();
   }
 
   drop(baseUrl: string): void {
-    if (!(baseUrl in this.entries)) return;
+    if (!HOLDS_CREDENTIALS || !(baseUrl in this.entries)) return;
     delete this.entries[baseUrl];
     this.flush();
   }
@@ -397,6 +399,16 @@ function parseConnections(): BestConnection[] {
 }
 
 const CONNECTIONS = parseConnections();
+// Over HTTP a configured credential would answer every caller that sends none — the operator's key shared
+// with whoever reaches the server. Whatever the configuration mode, it is dropped: each call carries the
+// caller's own, per request (applyRequestOverrides), or carries none and the service answers 401.
+if (!HOLDS_CREDENTIALS) {
+  const configured = CONNECTIONS.filter(c => c.apiKey).map(c => c.name);
+  if (configured.length) {
+    process.stderr.write(`[best-mcp] INFO: over HTTP a configured credential is never used (${configured.join(', ')}) — every call must carry the caller's own.\n`);
+  }
+  for (const c of CONNECTIONS) c.apiKey = '';
+}
 const MULTI       = CONNECTIONS.length > 1;
 
 // A connection's NAME says nothing about where it points: 'example' may be a laptop. A model that is
@@ -660,7 +672,7 @@ for (const conn of CONNECTIONS) {
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
 function authHeaders(conn: BestConnection): Record<string, string> {
-  if (conn.authType === 'none')   return {};
+  if (conn.authType === 'none' || !conn.apiKey) return {}; // no credential: send none, never an empty one
   if (conn.authType === 'bearer') return { Authorization: `Bearer ${conn.apiKey}` };
   if (conn.authType === 'apikey' && conn.authIn === 'header') return { [conn.authHeader]: conn.apiKey };
   return {}; // apikey in query — credentials go in the URL, not headers

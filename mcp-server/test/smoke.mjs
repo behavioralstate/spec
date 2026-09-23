@@ -194,10 +194,10 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   // A key left in the store (a sign-in by an earlier version, a mounted file) must answer no one.
   const leftover = JSON.stringify({ [`${origin}/api`]: { apiKey: 'someone_elses_key', authType: 'apikey', tenantId: 'acme', issuedAt: '2026-01-01T00:00:00Z' } });
   writeFileSync(credentialsFile, leftover);
-  // The shape of a platform's hosted MCP: placeholder credentials, every real one per request.
+  // A hosted MCP whose operator also configured a REAL key: over HTTP it must answer no one.
   const child = spawn(process.execPath, [SERVER], {
     env: { ...process.env, MCP_TRANSPORT: 'http', MCP_HTTP_PORT: String(port), BEST_MCP_CREDENTIALS_FILE: credentialsFile,
-      BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_EXAMPLE_API_KEY: 'invalid-set-x-api-key-per-request', BEST_EXAMPLE_TENANT_ID: 'x-tenant-id-header-required' },
+      BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_EXAMPLE_API_KEY: 'the_operators_own_key', BEST_EXAMPLE_TENANT_ID: 'acme' },
     stdio: 'ignore'
   });
   const base = `http://127.0.0.1:${port}`;
@@ -221,11 +221,18 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(base)));
     await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
-    expect(seen.posts.at(-1)?.key === 'invalid-set-x-api-key-per-request', `hosted: an anonymous call carried ${seen.posts.at(-1)?.key} — a stored key must never answer a caller without one`);
+    expect(seen.posts.at(-1)?.key === undefined, `hosted: an anonymous call carried ${seen.posts.at(-1)?.key} — neither a stored nor a configured key may answer a caller without one`);
+    await client.close();
+  }
+  {
+    const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(base), { requestInit: { headers: { 'X-Api-Key': 'a-callers-own-key', 'X-Tenant-Id': 'acme' } } }));
+    await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+    expect(seen.posts.at(-1)?.key === 'a-callers-own-key', `hosted: a caller's own key was not the one sent (${seen.posts.at(-1)?.key})`);
     await client.close();
   }
   child.kill(); server.close();
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
-console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored key');
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key');

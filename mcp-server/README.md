@@ -85,7 +85,7 @@ Every operation tool takes an optional `connection` parameter; with a single con
 
 **Root-manifest services as connections.** A platform's root manifest (`/.well-known/best`) lists its services, each with an HTTP endpoint, and only the tenant surface gets a configured connection. Every other listed service is reachable anyway as `<app>/<serviceId>` (e.g. `acme/com.acme.onboarding`): the client fetches the app's root manifest once, builds an ad-hoc connection at that service's endpoint with the app's credential, and caches it. `list_connections` lists them after the configured ones. Services whose endpoint is merely the parent of a configured surface (a tenants collection root) are not listed.
 
-**A server holds no credential.** Over HTTP (`MCP_TRANSPORT=http`) best-mcp is a server that every caller who reaches it shares, so it never obtains, stores or loads a credential: `register_agent` and `exchange_device_code` are not offered (and refused if called), the credential store below is never read or written, and every call must carry the caller's own credential per request (see [per-request credential overrides](#http--per-request-credential-overrides-multi-user-backends)). A key held by a shared process would answer every later caller that sends none — they would all act as the person who approved it. Sign-in is for one person's own client, over stdio.
+**A server holds no credential.** Over HTTP (`MCP_TRANSPORT=http`) best-mcp is a server that every caller who reaches it shares, so it never obtains, stores or loads a credential: `register_agent` and `exchange_device_code` are not offered (and refused if called), the credential store below is never opened, a configured key (`BEST_<APP>_API_KEY`, `BEST_CONNECTIONS`, `BEST_API_KEY`) is never used, and every call must carry the caller's own credential per request (see [per-request credential overrides](#http--per-request-credential-overrides-multi-user-backends)). A key held by a shared process would answer every later caller that sends none — they would all act as the person who approved it. Sign-in is for one person's own client, over stdio.
 
 **Credential store.** A key issued through `exchange_device_code` is written to `~/.best-mcp/credentials.json` (user-only; override with `BEST_MCP_CREDENTIALS_FILE`), keyed by the app's base URL, and never handed to the model — a chat transcript is not a secret store. At startup the stored credential fills in for an ABSENT `BEST_<APP>_API_KEY` or for the exact key it superseded (one-key-per-account services replaced that key when the new one was issued); a DIFFERENT configured key means you reconfigured deliberately, so the configuration wins and the stale entry is dropped. This also makes onboarding from zero possible: configure only `BEST_<APP>_BASE_URL`, let the model run the service's onboarding workflow, and the tenant connection appears with its key stored.
 
@@ -248,19 +248,14 @@ For simple single-endpoint setups. Use the flat `BEST_*` variables:
 
 ### HTTP — ChatGPT Desktop
 
-Start in HTTP mode and expose via a tunnel:
+Over HTTP best-mcp is a server: it holds no credential, so a configured key is never used and every call must carry the caller's own (`X-Api-Key` / `X-Tenant-Id`, or a Bearer with passthrough). A bare tunnel to it therefore answers 401 — and that is the point: a tunnel with a key in it would hand that key to anyone who finds the URL. Give ChatGPT the service's own hosted MCP address (a platform puts best-mcp behind a door that signs the caller in and forwards their credential per request), or use best-mcp over stdio in a client that supports it.
 
 ```bash
 MCP_TRANSPORT=http MCP_HTTP_PORT=3001 \
   BEST_TRADING_BASE_URL=https://api.example.com/best \
-  BEST_TRADING_API_KEY=<key> \
   BEST_TRADING_AUTH_TYPE=apikey \
   node dist/index.js
-
-ngrok http 3001
 ```
-
-Then in ChatGPT Desktop: **Settings → Apps & Connectors → Create**, connector URL: `https://<subdomain>.ngrok.app`
 
 The MCP endpoint is the server's origin itself — a deployment hands out `https://mcp.example.com` and nothing more. `/mcp` is kept as an alias for connectors and configs that were given it before 2.4.2; `/health` answers `GET` with `{ "status": "ok" }`.
 
@@ -280,7 +275,7 @@ No override header is required — omit them all and a request behaves exactly a
 
 **Security — why Bearer passthrough is opt-in (default off):** on the MCP HTTP transport, the `Authorization` header may carry a credential intended for *this server* (e.g. MCP OAuth between the client and best-mcp). Forwarding it upstream by default would leak that credential across a trust boundary. Enable passthrough only when the MCP caller and the BEST endpoint share one trust domain — i.e. the token the caller sends *is* the credential the BEST service expects. The token is only ever sent to the connection's configured endpoint, over the transport that endpoint's URL specifies (use HTTPS), and is never logged. If a request carries a Bearer token while passthrough is disabled, best-mcp falls back to the configured credential and logs a one-time warning per connection (without the token) so the misconfiguration is diagnosable.
 
-**Fail-closed tip:** for a multi-user deployment where *every* request must carry per-caller credentials, keep the connection's configured `apiKey` set to a deliberately invalid placeholder (e.g. `invalid-set-x-api-key-per-request`). A request that arrives without credentials then fails authentication at the BEST service instead of silently acting as a shared identity.
+**Fail-closed by design (2.4.3+):** over HTTP a configured `apiKey` is never used, so a request that carries no per-caller credential sends none and the BEST service answers it 401. Placeholder keys are no longer needed; existing ones are ignored the same way.
 
 ```bash
 curl -X POST http://localhost:3001/mcp \
