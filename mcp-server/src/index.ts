@@ -1455,10 +1455,11 @@ const NOT_AVAILABLE_HERE = JSON.stringify({
 async function startDeviceAuthorization(
   block: { deviceAuthorizationUrl: string; tokenUrl: string },
   agentLabel: unknown,
+  connection: string,
   key: string,
   manifestUrl?: string,
 ): Promise<{ user_code: string; verification_uri: string; verification_uri_complete?: string; expires_in: number; interval: number }> {
-  const form = new URLSearchParams({ client_id: REGISTRATION_CLIENT_ID });
+  const form = new URLSearchParams({ client_id: REGISTRATION_CLIENT_ID, connection });
   if (typeof agentLabel === 'string' && agentLabel.trim()) form.set('agent_label', agentLabel.trim());
   const response = await fetch(block.deviceAuthorizationUrl, {
     method: 'POST',
@@ -1504,6 +1505,15 @@ function showLinkAndCode(hasComplete: boolean, exchange: string): string {
 
 const REGISTRATION_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const namedKey = (name: string) => `named:${name}`;
+
+/**
+ * SPEC Agent Registration (0.9.17): the connection's name as the device request carries it — one word of lowercase
+ * letters, digits and hyphens made from the name the person gave, which the token answer gives back as `name`.
+ */
+function connectionName(name: string): string {
+  const word = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
+  return word || 'best';
+}
 
 // SPEC Name Resolution: an IP literal is not a name, and a name or redirect that lands on a loopback,
 // link-local or private address is refused outside development use — the person opts into that here.
@@ -1674,7 +1684,7 @@ async function handleNamedRegistration(args: Record<string, unknown>, perRequest
             'belongs in the client configuration.',
     }, null, 2);
   }
-  const shown = await startDeviceAuthorization(block, args.agent_label, namedKey(name), url);
+  const shown = await startDeviceAuthorization(block, args.agent_label, connectionName(name), namedKey(name), url);
   return JSON.stringify({
     name,
     resolved: url,    // SPEC Name Resolution: say what was resolved before the first credentialed interaction
@@ -1784,7 +1794,7 @@ async function handleRegisterAgent(args: Record<string, unknown>, conn: BestConn
     }, null, 2);
   }
 
-  const shown = await startDeviceAuthorization(block, args.agent_label, registrationKey(conn));
+  const shown = await startDeviceAuthorization(block, args.agent_label, connectionName(conn.name), registrationKey(conn));
   return JSON.stringify({
     ...shown,
     next: showLinkAndCode(!!shown.verification_uri_complete, 'exchange_device_code with no device_code'),

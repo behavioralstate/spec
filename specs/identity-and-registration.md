@@ -52,7 +52,7 @@ Registration is [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628) — the OAuth
 POST /auth/device
 Content-Type: application/x-www-form-urlencoded
 
-client_id=best-mcp&agent_label=Claude%20on%20Ada%27s%20laptop
+client_id=best-mcp&connection=acme-payroll&agent_label=Claude%20on%20Ada%27s%20laptop
 ```
 
 **The service answers at once:**
@@ -65,7 +65,7 @@ client_id=best-mcp&agent_label=Claude%20on%20Ada%27s%20laptop
   "verification_uri_complete": "https://example.com/activate?code=WDJB-MJHT",
   "expires_in": 900,
   "interval": 5,
-  "note": "Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential: save it straight to your client's credential store or to a file only the person can read, under the name the person gave this service (its host if they gave none), and never put it in a message, a command or any output: read the rest of the answer without it."
+  "note": "Give the person this link, verification_uri_complete (or verification_uri and user_code), to open in their own browser, where they sign in and approve you. Never open it yourself or in a browser you control: approving is theirs. Then poll tokenUrl no faster than interval, with a form of grant_type=urn:ietf:params:oauth:grant-type:device_code, device_code and client_id. Its answer carries a secret credential and, in name, the connection's name: save the credential straight to your client's credential store or to a file only the person can read, under that name, and never put it in a message, a command or any output: read the rest of the answer without it."
 }
 ```
 
@@ -87,11 +87,12 @@ While the person has not acted: `400 { "error": "authorization_pending" }` — n
   "access_token": "…",
   "token_type": "apikey",
   "auth_header": "X-Api-Key",
-  "tenant_id": "acme"
+  "tenant_id": "acme",
+  "name": "acme-payroll"
 }
 ```
 
-`tenant_id` and `auth_header` are the two members BEST adds to the RFC 6749 token response: the account the credential opens, and the header that carries it. With them the agent expands `tenants.manifest`, fetches the account's manifest and is at work. It never asked the person for a key or a tenant ID.
+`name`, `tenant_id` and `auth_header` are the three members BEST adds to the RFC 6749 token response: the connection's name (the `connection` the agent sent, else the sign-in manifest's address — the credential is kept under it), the account the credential opens, and the header that carries it. With them the agent expands `tenants.manifest`, fetches the account's manifest and is at work. It never asked the person for a key or a tenant ID.
 
 ## Why not a BEST command
 

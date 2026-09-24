@@ -28,6 +28,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.js');
+// SPEC Agent Registration (0.9.17): the connection's name as the device request carries it
+const oneWord = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'best';
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
 const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 // Stand-ins for the spec's sign-in guidance: written for a consumer that signs in by hand, never for best-mcp's model.
@@ -149,6 +151,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const manifest = await call(client, 'get_manifest', { connection: platform });
   expect(!manifest.isError && manifest.text.includes('deviceAuthorizationUrl') && !manifest.text.includes(MANIFEST_GUIDANCE), `modern: get_manifest handed the model the by-hand sign-in guidance: ${manifest.text.slice(0, 400)}`);
   expect(seen.deviceRequests[0]?.client_id === 'best-mcp' && seen.deviceRequests[0]?.agent_label === 'Smoke test on a laptop', `modern: device request carried ${JSON.stringify(seen.deviceRequests[0])}`);
+  expect(seen.deviceRequests[0]?.connection === oneWord(platform), `modern: device request did not carry the connection's name as one word (0.9.17): ${JSON.stringify(seen.deviceRequests[0])}`);
 
   const pending = await call(client, 'exchange_device_code', { connection: platform });
   expect(pending.text.includes('authorization_pending') && !pending.isError, `modern: first exchange should be pending, got: ${pending.text}`);
@@ -212,6 +215,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const signIn = async (name, manifest, mockOf) => {
     const reg = await call(client, 'register_agent', { name, manifest, agent_label: 'Smoke test' });
     expect(!reg.isError && reg.text.includes('WDJB-MJHT') && reg.text.includes(`${mockOf.origin}/.well-known/best`), `named: register_agent '${name}' failed: ${reg.text}`);
+    expect(mockOf.seen.deviceRequests.at(-1)?.connection === oneWord(name), `named: register_agent '${name}' did not send the connection's name as one word (0.9.17): ${JSON.stringify(mockOf.seen.deviceRequests.at(-1))}`);
     expect(!reg.text.includes(DEVICE_CODE), `named: register_agent '${name}' LEAKED the device code`);
     let done;
     for (let i = 0; i < 3; i++) {

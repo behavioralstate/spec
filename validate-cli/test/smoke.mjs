@@ -31,7 +31,7 @@ const TEXTS = JSON.parse(readFileSync(join(dirname(CLI), '..', 'schemas', 'disco
 const byVersion = v => TEXTS[v].properties;
 const CURRENT = Object.keys(TEXTS).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
 const wordsFor = mode => byVersion(mode === 'older' || mode === 'stale' ? '0.9.14' : CURRENT);
-const declares = mode => mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : '0.9.11';
+const declares = mode => mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : CURRENT;
 
 const cap = (kind, service, description, endpoints) => ({
   name: `io.best.agents.${kind}`, version: '0.9.11', service, description,
@@ -110,6 +110,9 @@ function serve(mode) {
         return json(400, { error: 'invalid_request', error_description: 'Send this request form-encoded.' });
       }
       if (path === '/auth/device' && req.method === 'POST' && good) {
+        // 0.9.17: the connection's name, one word; another shape is refused with the shape
+        const connection = new URLSearchParams(raw).get('connection');
+        if (connection && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(connection)) return json(400, { error: 'invalid_request', error_description: 'connection is one word of lowercase letters, digits and hyphens: acme payroll dev becomes acme-payroll-dev.' });
         return json(200, { device_code: 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS', user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 5,
           ...(mode === 'unguided' ? {} : { note: wordsFor(mode).device.const }) });
       }
@@ -188,7 +191,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const noisy = report.checks.filter(c => c.level === 'fail' || c.level === 'warn');
   expect(code === 0, `good: exit code ${code}`);
   expect(noisy.length === 0, `good: expected a clean report, got:\n${noisy.map(c => `  ${c.level} [${c.section}] ${c.message} ${c.detail ?? ''}`).join('\n')}`);
-  for (const needle of ['public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
+  for (const needle of ['public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'refuses a connection of another shape', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
     expect(report.checks.some(c => c.level === 'pass' && c.message.includes(needle)), `good: no passing check mentions "${needle}"`);
   }
 }
