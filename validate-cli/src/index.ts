@@ -103,7 +103,7 @@ function parseArgs(argv: string[]): Options {
 const WELL_KNOWN = '/.well-known/best';
 const ROOT_KEY = 'best';
 const NS = 'io.best.';
-const MODE_LABEL = 'BEST 0.9.15';
+const MODE_LABEL = 'BEST 0.9.17';
 
 // Rules the spec states in 0.9.11 and requires from 0.10.0. Until then a violation is a warning.
 const STAGED: Level = 'warn';
