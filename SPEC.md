@@ -846,7 +846,7 @@ A BEST-compliant endpoint **must**:
 8. Reference every declared service from at least one capability — in the same manifest or, for a multi-tenant root, in its tenant manifests
 9. Keep every manifest `description` within the length limit and free of mechanics ([Manifest Discipline](#manifest-discipline))
 10. Publish no second machine-readable or agent-directed description of the service ([Origin Discovery](#origin-discovery))
-11. Where `deviceAuthorizationUrl` is declared, carry the [sign-in guidance](#sign-in-guidance) verbatim — the manifest text as that `authentication` block's `note`, the device text as the device answer's `note`, the token text at the start of the token answer's `note` — in the words of the version the manifest declares, or of a later one
+11. Where `deviceAuthorizationUrl` is declared, carry the [sign-in guidance](#sign-in-guidance) verbatim — the manifest text as that `authentication` block's `note`, the device text as the device answer's `note`, the token text at the start of the token answer's `note` — in the words of the version the manifest declares, or of a later one; and, from 0.9.17, accept `connection` in the device request and give it back as the token answer's `name`, keying the `mcp` entry by it ([Agent Registration](#agent-registration))
 
 Items 8–10 are **required from 0.10.0**; 0.9.11 states them and validators report violations as warnings, so that every implementer has one version of grace. Item 11 is required now: it is what keeps a credential out of a transcript and the approval in the person's hands.
 

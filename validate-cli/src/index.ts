@@ -779,8 +779,15 @@ async function checkRegistration(root: Dict, opts: Options, label = 'root', prob
     if (!opts.probeRegistration) { record(S, 'skip', `${where}: device authorization request not sent — pass --probe-registration (it opens a real, inert registration that expires by itself)`); continue; }
     // Only with --probe-registration: a lenient endpoint that reads JSON would open a registration.
     checkNotFormEncoded(S, `${where}: deviceAuthorizationUrl`, await http('POST', deviceUrl, opts, null,
-      { client_id: 'best-validate', agent_label: 'best-validate conformance probe' }));
-    const res = await http('POST', deviceUrl, opts, null, undefined, { form: { client_id: 'best-validate', agent_label: 'best-validate conformance probe' } });
+      { client_id: 'best-validate', agent_label: 'best-validate conformance probe', connection: 'best-validate' }));
+    // 0.9.17: the connection's name travels with the request, and another shape is refused with the shape — required of a
+    // service that declares 0.9.17 or later; noted for an older one, which has not moved yet.
+    const namesConnection = typeof root.version === 'string' && /^\d+\.\d+\.\d+$/.test(root.version) && compareVersions(root.version, '0.9.17') >= 0;
+    const shape = await http('POST', deviceUrl, opts, null, undefined, { form: { client_id: 'best-validate', connection: 'Not One Word' } });
+    const shapeErr = String(asDict(shape.json)?.error ?? '');
+    if (shape.status === 400 && shapeErr === 'invalid_request' && asDict(shape.json)?.error_description) record(S, 'pass', `${where}: deviceAuthorizationUrl refuses a connection of another shape with invalid_request and says the shape (0.9.17)`);
+    else record(S, namesConnection ? 'fail' : 'warn', `${where}: deviceAuthorizationUrl answered connection="Not One Word" with ${shape.status || shape.error} ${shapeErr} — 0.9.17 expects 400 invalid_request with an error_description stating the shape (SPEC.md, Agent Registration)${namesConnection ? '' : `; the manifest declares ${String(root.version)}, so this is noted, not failed`}`);
+    const res = await http('POST', deviceUrl, opts, null, undefined, { form: { client_id: 'best-validate', agent_label: 'best-validate conformance probe', connection: 'best-validate' } });
     const a = asDict(res.json);
     if (res.status !== 200 || !a) { record(S, 'fail', `${where}: POST deviceAuthorizationUrl returned ${res.status || res.error}`); continue; }
     const missing = ['device_code', 'user_code', 'verification_uri', 'expires_in'].filter(m => a[m] === undefined);
