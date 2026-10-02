@@ -219,6 +219,16 @@ class CredentialStore {
   constructor() {
     this.file = process.env.BEST_MCP_CREDENTIALS_FILE ?? join(homedir(), '.best-mcp', 'credentials.json');
     if (!HOLDS_CREDENTIALS) return; // a server never opens the store: a secret left in it stays on disk, not in memory
+    this.reload();
+  }
+
+  /**
+   * Re-read the file. The store is shared by every best-mcp process on the machine — one per assistant —
+   * and a sign-in in one of them writes a key this process has never seen. A long-lived session that only
+   * read the file at its start would hold a dead key for as long as it ran; so a 401 re-reads first.
+   */
+  reload(): void {
+    if (!HOLDS_CREDENTIALS) return;
     try {
       if (existsSync(this.file)) {
         const parsed = JSON.parse(readFileSync(this.file, 'utf8'));
@@ -342,12 +352,15 @@ function adoptCredential(account: Account, replacedKeys: string[], apiKey: strin
 /**
  * A request answered 401 on a connection whose account has another stored key is retried with each
  * sibling, newest first: on a one-key service the key in hand is simply the one that got replaced. The
- * sibling that answers is adopted by every entry of the account (see adoptCredential). Nothing is tried
- * without a credential, and never over HTTP, where no store is opened.
+ * store is re-read first, so a key another process wrote since this one started — the connection's own
+ * entry, refreshed by another assistant's approval — counts as a sibling too. The one that answers is
+ * adopted by every entry of the account (see adoptCredential). Nothing is tried without a credential, and
+ * never over HTTP, where no store is opened.
  */
 async function fetchHealing(conn: BestConnection, send: (c: BestConnection) => Promise<Response>): Promise<Response> {
   const response = await send(conn);
   if (response.status !== 401 || !HOLDS_CREDENTIALS || !conn.apiKey || conn.authType === 'none') return response;
+  credentialStore.reload(); // another assistant may have signed in since this process started
   const account = accountOfConnection(conn);
   for (const [fileKey, sibling] of storedSiblings(account, conn.apiKey)) {
     const trial: BestConnection = { ...conn, apiKey: sibling.apiKey, authType: sibling.authType, authHeader: sibling.authHeader ?? conn.authHeader };
