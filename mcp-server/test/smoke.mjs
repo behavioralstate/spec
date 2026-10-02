@@ -11,6 +11,10 @@
  *            another sign-in — even on the same host.
  *   hosted — over HTTP best-mcp is a server shared by every caller: it offers no sign-in, refuses one,
  *            and never loads a stored key, so no caller can ever act as another.
+ *   one account, two entries — a configured app and a named sign-in of the same account (another
+ *            assistant's) are one credential: a replaced configured key heals from the stored sign-in on
+ *            its first 401 and the next start needs no 401 at all; a key issued on the named entry lands
+ *            on the configured app too. (A real two-assistant replay, 2026-10-02.)
  *
  * What must hold: the device code and the issued key never appear in a tool result; the key is stored;
  * the next call already uses it.
@@ -18,6 +22,7 @@
  * Run: npm test   (builds first)
  */
 import { createServer } from 'http';
+import { createHash } from 'crypto';
 import { spawn } from 'child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
@@ -36,9 +41,11 @@ const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
 const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
-function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, foreignEndpoint = '' } = {}) {
+function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantFailures = 0, foreignEndpoint = '', strictKey = false } = {}) {
   const modern = mode === 'modern';
-  const seen = { posts: [], tokenPolls: 0, deviceRequests: [] };
+  // `seen.key` is the account's ONE key: a scenario replaces it to play "another assistant was approved".
+  const seen = { posts: [], tokenPolls: 0, deviceRequests: [], key: initialKey };
+  const key = () => seen.key;
   let origin = '';
   const server = createServer((req, res) => {
     const path = new URL(req.url, origin).pathname;
@@ -57,7 +64,7 @@ function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, for
         } });
       }
       if (tenants && path === '/.well-known/best/acme') {
-        if (req.headers['x-api-key'] !== key) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
+        if (req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
         seen.tenantManifestGets = (seen.tenantManifestGets ?? 0) + 1;
         if (seen.tenantManifestGets <= tenantFailures) return json(503, { error: { code: 'UNAVAILABLE', message: 'try again' } });
         return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: foreignEndpoint || `${origin}/api/tenants/acme` } } }, capabilities: [] } });
@@ -71,9 +78,9 @@ function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, for
         if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
         seen.tokenPolls++;
         if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
-        return json(200, { access_token: key, token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${key}`,
+        return json(200, { access_token: key(), token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${key()}`,
           endpoint: `${origin}/api/tenants/acme`, note: 'The key is a SECRET. Store it and never repeat it in the conversation.',
-          mcp: { mcpServers: { example: { command: 'npx', args: ['-y', '@behavioralstate/best-mcp'], env: { BEST_EXAMPLE_API_KEY: key } } } },
+          mcp: { mcpServers: { example: { command: 'npx', args: ['-y', '@behavioralstate/best-mcp'], env: { BEST_EXAMPLE_API_KEY: key() } } } },
           http: { header: 'X-Api-Key: <access_token>' } });
       }
       if (path === '/api/commands' && req.method === 'GET') {
@@ -82,6 +89,7 @@ function mock(mode, { key = ISSUED_KEY, tenants = false, tenantFailures = 0, for
       if (path.endsWith('/commands') && req.method === 'POST') {
         const body = JSON.parse(raw);
         seen.posts.push({ path, contentType: req.headers['content-type'], type: body.type, key: req.headers['x-api-key'] });
+        if (strictKey && req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'INVALID_API_KEY', message: 'That X-Api-Key is not a key of this tenant.' } });
         return json(201, { id: body.id, correlationId: body.id });
       }
       if (path.endsWith('/commands') && req.method === 'GET') return json(200, { commands: [] });
@@ -98,6 +106,18 @@ async function connect(origin, credentialsFile) {
   const transport = new StdioClientTransport({
     command: process.execPath, args: [SERVER],
     env: { ...process.env, BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio' },
+    stderr: 'ignore'
+  });
+  const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+  await client.connect(transport);
+  return client;
+}
+
+// A configured app with more than the base URL: the entry a service's token answer makes a client write.
+async function connectApp(origin, credentialsFile, extraEnv) {
+  const transport = new StdioClientTransport({
+    command: process.execPath, args: [SERVER],
+    env: { ...process.env, BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_MCP_CREDENTIALS_FILE: credentialsFile, MCP_TRANSPORT: 'stdio', ...extraEnv },
     stderr: 'ignore'
   });
   const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
@@ -261,6 +281,63 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   await client.close(); a.server.close(); b.server.close();
 }
 
+// ── one account, two entries — a configured app and another assistant's named sign-in ─────
+{
+  const m = await mock('modern', { key: 'key_live', tenants: true, strictKey: true });
+  const sha = v => createHash('sha256').update(v).digest('hex');
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  const stored = () => JSON.parse(readFileSync(credentialsFile, 'utf-8'));
+  // Another assistant signed in to this account under a name and holds the account's live key.
+  writeFileSync(credentialsFile, JSON.stringify({ 'acme-live': {
+    tenantId: 'acme', apiKey: 'key_live', authType: 'apikey', authHeader: 'X-Api-Key', issuedAt: '2026-10-02T21:28:55.990Z',
+    manifest: `${m.origin}/.well-known/best`, endpoints: { 'com.example.app': `${m.origin}/api/tenants/acme` } } }));
+  // This client's configured key was replaced by that approval: dead, and nobody edited its configuration.
+  const dead = { BEST_EXAMPLE_API_KEY: 'key_dead', BEST_EXAMPLE_TENANT_ID: 'acme', BEST_EXAMPLE_AUTH_TYPE: 'apikey', BEST_MCP_ALLOW_LOCAL: 'true' };
+  let client = await connectApp(m.origin, credentialsFile, dead);
+  const listed = (await call(client, 'list_connections')).text;
+  expect(listed.includes('"name": "acme-live"') && listed.includes("the same account as 'example/tenant'"), `one account: the named entry does not say it is the configured account: ${listed}`);
+  const healed = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+  expect(!healed.isError && m.seen.posts.at(-1)?.key === 'key_live', `one account: the dead configured key did not heal from the stored sign-in: ${healed.text}`);
+  expect(m.seen.posts.filter(p => p.key === 'key_dead').length === 1, `one account: the configured key should be tried exactly once, was ${m.seen.posts.filter(p => p.key === 'key_dead').length}`);
+  expect(!healed.text.includes('key_live'), 'one account: healing LEAKED the adopted key');
+  const s1 = stored();
+  expect(s1[`${m.origin}/api`]?.apiKey === 'key_live' && s1[`${m.origin}/api`]?.supersededKeyHash === sha('key_dead'), `one account: the app's entry was not written for the next start: ${JSON.stringify(s1[`${m.origin}/api`])}`);
+  await client.close();
+
+  // The next start, same dead configuration: the store fills in and the dead key is never sent again.
+  client = await connectApp(m.origin, credentialsFile, dead);
+  let before = m.seen.posts.length;
+  const quiet = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+  expect(!quiet.isError && m.seen.posts.slice(before).every(p => p.key === 'key_live'), `one account: after a restart the dead configured key was sent again: ${JSON.stringify(m.seen.posts.slice(before))}`);
+
+  // Now the account's key is replaced AGAIN elsewhere: both stored copies are dead, and a sign-in on the
+  // NAMED connection must repair the configured app too — in this session and at the next start.
+  m.seen.key = 'key_live2';
+  const both = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+  expect(both.isError && both.text.includes('INVALID_API_KEY'), `one account: with every copy dead the call should fail honestly, got: ${both.text}`);
+  m.seen.tokenPolls = 0;
+  const reg = await call(client, 'register_agent', { connection: 'acme-live', agent_label: 'Smoke test' });
+  expect(!reg.isError && reg.text.includes('WDJB-MJHT'), `one account: register_agent on the named connection failed: ${reg.text}`);
+  let done;
+  for (let i = 0; i < 3; i++) {
+    done = await call(client, 'exchange_device_code', { connection: 'acme-live' });
+    if (done.isError || !done.text.includes('authorization_pending')) break;
+  }
+  expect(!done.isError && done.text.includes('"stored_under": "acme-live"'), `one account: exchange on the named connection failed: ${done.text}`);
+  before = m.seen.posts.length;
+  const viaApp = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+  expect(!viaApp.isError && m.seen.posts.slice(before).every(p => p.key === 'key_live2'), `one account: the key issued on the named entry did not reach the configured app in this session: ${JSON.stringify(m.seen.posts.slice(before))}`);
+  const s2 = stored();
+  expect(s2['acme-live']?.apiKey === 'key_live2' && s2[`${m.origin}/api`]?.apiKey === 'key_live2' && s2[`${m.origin}/api`]?.supersededKeyHash === sha('key_dead'), `one account: the issued key was not written to both entries naming the configured key as superseded: ${JSON.stringify(s2)}`);
+  await client.close();
+
+  client = await connectApp(m.origin, credentialsFile, dead);
+  before = m.seen.posts.length;
+  const next = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+  expect(!next.isError && m.seen.posts.slice(before).every(p => p.key === 'key_live2'), `one account: at the next start the configured app did not carry the key issued on the named entry: ${JSON.stringify(m.seen.posts.slice(before))}`);
+  await client.close(); m.server.close();
+}
+
 // ── named, hardening — local addresses, foreign endpoints, a failed discovery ───
 {
   const c = await mock('modern', { key: 'key_for_retry', tenants: true, tenantFailures: 1 });
@@ -370,4 +447,4 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
-console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; a sign-in under a name is stored under that name and is that connection, after a restart too; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key');
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; a sign-in under a name is stored under that name and is that connection, after a restart too; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key; the entries of one account are one credential — a replaced configured key heals from a stored sign-in and a key issued on either reaches both');

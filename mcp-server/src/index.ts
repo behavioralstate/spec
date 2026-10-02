@@ -132,6 +132,9 @@ interface BestConnection {
   // the name the person gave — the key its credential is stored under — and the manifest it signed in at.
   registeredAs?: string;
   manifestUrl?: string;
+  // Only set for a Mode 1 connection: the BEST_<APP>_API_KEY as configured, even after a stored or healed
+  // credential replaced it in `apiKey` — what a stored entry must name as superseded for the next start.
+  configuredKey?: string;
 }
 
 // ── Config parsing ────────────────────────────────────────────────────────────
@@ -188,6 +191,10 @@ const NO_SIGN_IN_ON_A_SERVER =
 //     when the new key was issued). A DIFFERENT env credential means the operator reconfigured
 //     deliberately — the operator wins and the stale entry is dropped.
 //
+//   Entries of ONE account (the service's origin plus the tenant id) are one credential, whatever they are
+//   filed under: an absent env credential fills from any of them, a rejected one heals from any live one
+//   on its first 401, and a key issued on one is written to all — see "One account, several entries".
+//
 //   BEST_MCP_CREDENTIALS_FILE — override the location (default ~/.best-mcp/credentials.json).
 
 interface StoredCredential {
@@ -226,6 +233,8 @@ class CredentialStore {
   named(): [string, StoredCredential][] { return Object.entries(this.entries).filter(([, e]) => typeof e?.manifest === 'string'); }
   has(baseUrl: string): boolean { return baseUrl in this.entries; }
   get(baseUrl: string): StoredCredential | undefined { return this.entries[baseUrl]; }
+  /** Every entry with the key it is filed under: a name, or a configured app's base URL. */
+  all(): [string, StoredCredential][] { return Object.entries(this.entries); }
 
   set(baseUrl: string, cred: StoredCredential): void {
     if (!HOLDS_CREDENTIALS) throw new Error(NO_SIGN_IN_ON_A_SERVER);
@@ -249,6 +258,108 @@ class CredentialStore {
 
 const credentialStore = new CredentialStore();
 
+// ── One account, several entries ───────────────────────────────────────────────
+//
+// One machine often reaches one account through more than one entry: a configured app (`BEST_<APP>_*`,
+// filed under its base URL) and a named sign-in (`register_agent` with a name, filed under that name),
+// made by different assistants or by one assistant on different days. On a service that holds one key
+// per account they are ONE credential — every new key kills every other copy — so the entries of one
+// account are kept in step: an account is the service's origin plus the tenant id; a key that is
+// rejected heals from any live sibling on its first 401; a key issued on one entry is written to all
+// of them. Before this (a real two-assistant replay, 2026-10-02) each approval on one entry left the
+// other dead, and the next start asked the person to approve again — forever, in turns.
+
+type Account = { origin: string; tenantId: string };
+
+function originOf(url: string | undefined): string | undefined {
+  try { return url ? new URL(url).origin : undefined; } catch { return undefined; }
+}
+
+/** The account a stored entry belongs to, when both halves are known. */
+function accountOfStored(fileKey: string, stored: StoredCredential): Account | undefined {
+  const origin = originOf(stored.manifest ?? fileKey);
+  return origin && stored.tenantId ? { origin, tenantId: stored.tenantId } : undefined;
+}
+
+/** The account a connection acts for: a tenant endpoint, or a tenant-scoped named sign-in. */
+function accountOfConnection(conn: BestConnection): Account | undefined {
+  const origin = originOf(conn.endpoint);
+  if (!origin) return undefined;
+  if (conn.registeredAs) {
+    const tenantId = credentialStore.get(conn.registeredAs)?.tenantId;
+    return tenantId ? { origin, tenantId } : undefined;
+  }
+  const m = /\/tenants\/([^/?#]+)$/.exec(conn.endpoint);
+  return m ? { origin, tenantId: decodeURIComponent(m[1]) } : undefined;
+}
+
+function sameAccount(a: Account | undefined, b: Account | undefined): boolean {
+  return !!a && !!b && a.origin === b.origin && a.tenantId === b.tenantId;
+}
+
+/** The account's stored credentials other than the given key, newest first. */
+function storedSiblings(account: Account | undefined, notKey: string): [string, StoredCredential][] {
+  if (!account || !HOLDS_CREDENTIALS) return [];
+  return credentialStore.all()
+    .filter(([fileKey, s]) => !!s.apiKey && s.apiKey !== notKey && sameAccount(accountOfStored(fileKey, s), account))
+    .sort(([, x], [, y]) => (y.issuedAt ?? '').localeCompare(x.issuedAt ?? ''));
+}
+
+/**
+ * Every connection and every stored entry of the account takes the credential: the connections that
+ * carried a replaced key (`replacedKeys`: an app's copies share one) and those that act for the account;
+ * the named entries of the account; and, for each configured app among them, its base-URL entry, naming
+ * the CONFIGURED key as superseded so the next start reconciles without a 401.
+ */
+function adoptCredential(account: Account, replacedKeys: string[], apiKey: string, authType: 'apikey' | 'bearer', authHeader: string | undefined, issuedAt: string): string[] {
+  const touched: string[] = [];
+  const appBaseUrls = new Map<string, string>(); // base URL → the configured key it must name as superseded
+  for (const c of [...CONNECTIONS, ...serviceConnectionCache.values()]) {
+    const carriesReplaced = !!c.apiKey && replacedKeys.includes(c.apiKey);
+    if (!carriesReplaced && !sameAccount(accountOfConnection(c), account)) continue;
+    if (c.apiKey === apiKey) continue;
+    const superseded = c.configuredKey ?? c.apiKey;
+    c.apiKey = apiKey;
+    c.authType = authType;
+    if (authHeader) c.authHeader = authHeader;
+    touched.push(c.name);
+    const baseUrl = c.tenantTemplateBaseUrl ?? (c.registeredAs ? undefined : rootConnectionOf(c.name.split('/')[0])?.endpoint);
+    if (baseUrl && !c.registeredAs) appBaseUrls.set(baseUrl, superseded);
+  }
+  if (!HOLDS_CREDENTIALS) return touched;
+  for (const [fileKey, s] of credentialStore.all()) {
+    if (s.apiKey === apiKey) continue;
+    if (!replacedKeys.includes(s.apiKey) && !sameAccount(accountOfStored(fileKey, s), account)) continue;
+    credentialStore.set(fileKey, { ...s, apiKey, authType, authHeader: authHeader ?? s.authHeader, issuedAt, supersededKeyHash: s.manifest ? s.supersededKeyHash : sha256(appBaseUrls.get(fileKey) ?? s.apiKey) });
+  }
+  for (const [baseUrl, superseded] of appBaseUrls) {
+    if (credentialStore.get(baseUrl)?.apiKey === apiKey) continue;
+    credentialStore.set(baseUrl, { tenantId: account.tenantId, apiKey, authType, authHeader, issuedAt, supersededKeyHash: superseded ? sha256(superseded) : undefined });
+  }
+  return touched;
+}
+
+/**
+ * A request answered 401 on a connection whose account has another stored key is retried with each
+ * sibling, newest first: on a one-key service the key in hand is simply the one that got replaced. The
+ * sibling that answers is adopted by every entry of the account (see adoptCredential). Nothing is tried
+ * without a credential, and never over HTTP, where no store is opened.
+ */
+async function fetchHealing(conn: BestConnection, send: (c: BestConnection) => Promise<Response>): Promise<Response> {
+  const response = await send(conn);
+  if (response.status !== 401 || !HOLDS_CREDENTIALS || !conn.apiKey || conn.authType === 'none') return response;
+  const account = accountOfConnection(conn);
+  for (const [fileKey, sibling] of storedSiblings(account, conn.apiKey)) {
+    const trial: BestConnection = { ...conn, apiKey: sibling.apiKey, authType: sibling.authType, authHeader: sibling.authHeader ?? conn.authHeader };
+    const retry = await send(trial);
+    if (retry.status === 401) continue;
+    const touched = adoptCredential(account!, [conn.apiKey], sibling.apiKey, sibling.authType, sibling.authHeader, sibling.issuedAt);
+    process.stderr.write(`[best-mcp] INFO: ${conn.name}: its credential was rejected, and the one stored under '${fileKey}' (${sibling.issuedAt}) answers for the same account — adopted by ${touched.join(', ') || conn.name}.\n`);
+    return retry;
+  }
+  return response;
+}
+
 /**
  * Startup reconciliation for one app: the stored credential applies when the env credential is absent
  * or is exactly the one it superseded; a different env credential wins and evicts the entry.
@@ -257,7 +368,15 @@ const credentialStore = new CredentialStore();
 function reconcileStoredCredential(app: string, baseUrl: string, envKey: string, envTenantId: string | undefined):
   { apiKey: string; tenantId: string | undefined; authType?: string; authHeader?: string } {
   const stored = credentialStore.get(baseUrl);
-  if (!stored) return { apiKey: envKey, tenantId: envTenantId };
+  if (!stored) {
+    const origin = originOf(baseUrl);
+    const [fileKey, sibling] = (!envKey && envTenantId && origin ? storedSiblings({ origin, tenantId: envTenantId }, '') : [])[0] ?? [];
+    if (sibling) {
+      process.stderr.write(`[best-mcp] INFO: ${app}: no credential configured — using the one stored under '${fileKey}' (${sibling.issuedAt}) for the same account.\n`);
+      return { apiKey: sibling.apiKey, tenantId: envTenantId, authType: sibling.authType, authHeader: sibling.authHeader };
+    }
+    return { apiKey: envKey, tenantId: envTenantId };
+  }
   const envMatchesSuperseded = !envKey || (stored.supersededKeyHash !== undefined && sha256(envKey) === stored.supersededKeyHash);
   if (!envMatchesSuperseded) {
     process.stderr.write(`[best-mcp] INFO: ${app}: the configured credential changed since the stored one was issued — using the configuration, dropping the stored credential.\n`);
@@ -320,7 +439,7 @@ function parseConnections(): BestConnection[] {
         );
       }
 
-      const shared = { apiKey, authType, authHeader, authIn, authParam, allowBearerPassthrough };
+      const shared = { apiKey, authType, authHeader, authIn, authParam, allowBearerPassthrough, configuredKey: process.env[`${p}_API_KEY`] || undefined };
 
       if (tenantId) {
         // Auto-generate two connections from one set of vars
@@ -459,7 +578,10 @@ for (const [name, stored] of credentialStore.named()) {
     process.stderr.write(`[best-mcp] WARNING: the stored sign-in '${name}' has the name of a configured connection — the configuration wins; '${name}' from ${credentialStore.path} is not loaded.\n`);
     continue;
   }
-  CONNECTIONS.push(...namedConnections(name, stored));
+  const made = namedConnections(name, stored);
+  const twins = CONNECTIONS.filter(c => sameAccount(accountOfConnection(c), accountOfStored(name, stored))).map(c => `'${c.name}'`);
+  if (twins.length) for (const c of made) c.description = `${c.description} — the same account as ${twins.join(', ')}: one credential, kept in step`;
+  CONNECTIONS.push(...made);
 }
 const MULTI       = CONNECTIONS.length > 1;
 
@@ -775,9 +897,9 @@ async function parseErrorMessage(response: Response): Promise<string> {
 }
 
 async function bestGet<T>(path: string, conn: BestConnection): Promise<T> {
-  const response = await fetch(`${conn.endpoint}${withAuthQuery(path, conn)}`, {
-    headers: { ...authHeaders(conn), Accept: 'application/json' }
-  });
+  const response = await fetchHealing(conn, c => fetch(`${c.endpoint}${withAuthQuery(path, c)}`, {
+    headers: { ...authHeaders(c), Accept: 'application/json' }
+  }));
   if (!response.ok) {
     const message = await parseErrorMessage(response);
     throw new Error(message);
@@ -807,20 +929,20 @@ async function commandContentType(conn: BestConnection): Promise<string> {
 }
 
 async function bestPost<T>(path: string, body: unknown, conn: BestConnection): Promise<T> {
-  const send = (contentType: string) => fetch(`${conn.endpoint}${withAuthQuery(path, conn)}`, {
+  const send = (contentType: string, c: BestConnection = conn) => fetch(`${c.endpoint}${withAuthQuery(path, c)}`, {
     method: 'POST',
     headers: {
-      ...authHeaders(conn),
+      ...authHeaders(c),
       'Content-Type': contentType,
       Accept: 'application/json'
     },
     body: JSON.stringify(body)
   });
   const contentType = path === '/commands' ? await commandContentType(conn) : 'application/json';
-  let response = await send(contentType);
+  let response = await fetchHealing(conn, c => send(contentType, c));
   if (response.status === 415 && contentType === CLOUDEVENTS_JSON) {
     jsonOnlyEndpoints.add(conn.endpoint);
-    response = await send('application/json');
+    response = await send('application/json'); // `conn` carries the healed credential, if one was adopted
   }
   if (!response.ok) {
     const message = await parseErrorMessage(response);
@@ -1746,10 +1868,14 @@ async function handleNamedExchange(name: string, perRequestCaller: boolean): Pro
   const issued: StoredCredential = {
     tenantId, apiKey, authType, authHeader, issuedAt: new Date().toISOString(), manifest: pending.manifestUrl, endpoints: {},
   };
+  const replaced = credentialStore.get(name)?.apiKey;
   credentialStore.set(name, issued);
   for (let i = CONNECTIONS.length - 1; i >= 0; i--) if (CONNECTIONS[i].registeredAs === name) CONNECTIONS.splice(i, 1);
   let unresolved: string | undefined;
   try { await completeNamedSignIn(name); } catch (e) { unresolved = e instanceof Error ? e.message : String(e); }
+  // One key per account: every other entry of this account — a configured app, another name — takes it too.
+  const account = accountOfStored(name, issued);
+  if (account) adoptCredential(account, replaced ? [replaced] : [], apiKey, authType, authHeader, issued.issuedAt);
   const made = CONNECTIONS.filter(c => c.registeredAs === name);
   return JSON.stringify({
     ...forTheModel(redacted),
@@ -1885,6 +2011,9 @@ async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: Bes
     issuedAt: new Date().toISOString(),
     supersededKeyHash: supersededKey ? sha256(supersededKey) : undefined,
   });
+  // One key per account: a named sign-in of this account, made by another assistant, takes it too.
+  const issuedTo = tenantId && originOf(baseUrl) ? { origin: originOf(baseUrl)!, tenantId } : undefined;
+  if (issuedTo) adoptCredential(issuedTo, supersededKey ? [supersededKey] : [], apiKey, (json?.token_type ?? '').toLowerCase() === 'bearer' ? 'bearer' : 'apikey', typeof json?.auth_header === 'string' ? json.auth_header : undefined, new Date().toISOString());
   return JSON.stringify({
     ...forTheModel(redacted),
     session: {
