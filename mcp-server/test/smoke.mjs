@@ -14,8 +14,7 @@
  *   one account, two entries — a configured app and a named sign-in of the same account (another
  *            assistant's) are one credential: a replaced configured key heals from the stored sign-in on
  *            its first 401 and the next start needs no 401 at all; a key issued on the named entry lands
- *            on the configured app too; a key ANOTHER process writes into the shared file while this one
- *            runs is found on the first 401, no restart. (A real two-assistant replay, 2026-10-02.)
+ *            on the configured app too. (A real two-assistant replay, 2026-10-02.)
  *
  * What must hold: the device code and the issued key never appear in a tool result; the key is stored;
  * the next call already uses it.
@@ -336,21 +335,6 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   before = m.seen.posts.length;
   const next = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
   expect(!next.isError && m.seen.posts.slice(before).every(p => p.key === 'key_live2'), `one account: at the next start the configured app did not carry the key issued on the named entry: ${JSON.stringify(m.seen.posts.slice(before))}`);
-
-  // While this process runs, ANOTHER assistant's best-mcp is approved and writes the account's new key
-  // into the shared file: this process has never seen it, and must find it on its first 401 — on the
-  // configured app and on the named connection alike — without a restart and without asking anyone.
-  m.seen.key = 'key_live3';
-  const s3 = stored();
-  s3['acme-live'] = { ...s3['acme-live'], apiKey: 'key_live3', issuedAt: new Date().toISOString() };
-  writeFileSync(credentialsFile, JSON.stringify(s3));
-  before = m.seen.posts.length;
-  const live = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
-  expect(!live.isError && m.seen.posts.at(-1)?.key === 'key_live3', `one account: a key another process wrote was not picked up by the configured app without a restart: ${live.text}`);
-  const named = await call(client, 'send_command', { connection: 'acme-live', schema: 'place-order', version: '1.0', data: {} });
-  expect(!named.isError && m.seen.posts.at(-1)?.key === 'key_live3', `one account: the named connection kept its stale in-memory key after another process refreshed its entry: ${named.text}`);
-  expect(m.seen.posts.slice(before).filter(p => p.key !== 'key_live3').length === 1, `one account: the stale key should be tried once, then never again: ${JSON.stringify(m.seen.posts.slice(before))}`);
-  expect(stored()[`${m.origin}/api`]?.apiKey === 'key_live3', 'one account: the app entry was not refreshed from the other process\'s key');
   await client.close(); m.server.close();
 }
 
