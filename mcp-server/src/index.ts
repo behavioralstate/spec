@@ -1076,8 +1076,7 @@ const ALL_TOOLS: Tool[] = [
     description:
       'List all commands this BEST endpoint accepts. ' +
       'Returns the command catalogue: every command type with its schema name, version, dataschema URI, and description. ' +
-      'Call this first to discover what you can send. ' +
-      'Examples: configure-broker, configure-indicator-alert, submit-signal, archive-broker. ' +
+      'Call this first to discover what you can send: every service names its own commands. ' +
       "An entry's 'workflows' array names the published recipes that command participates in — when your task " +
       'spans several operations, read the recipe FIRST (get_workflows with that id) instead of assembling the ' +
       'sequence from raw schemas. ' +
@@ -1102,7 +1101,7 @@ const ALL_TOOLS: Tool[] = [
         ...CONNECTION_PROP,
         schema: {
           type: 'string',
-          description: 'Command schema name in kebab-case, from get_command_catalogue (e.g. configure-broker)'
+          description: 'Command schema name in kebab-case, exactly as get_command_catalogue lists it'
         },
         version: {
           type: 'string',
@@ -1133,7 +1132,7 @@ const ALL_TOOLS: Tool[] = [
         ...CONNECTION_PROP,
         schema: {
           type: 'string',
-          description: 'Command schema name in kebab-case, from get_command_catalogue (e.g. configure-broker)'
+          description: 'Command schema name in kebab-case, exactly as get_command_catalogue lists it'
         },
         version: {
           type: 'string',
@@ -1167,9 +1166,9 @@ const ALL_TOOLS: Tool[] = [
     description:
       'Send a command to the BEST endpoint and wait for it to be processed by polling a query. ' +
       'Use this instead of send_command when you need to confirm the command was processed before proceeding, ' +
-      'for example subscribing a price feed and then verifying it appears in the list. ' +
+      'for example creating an item and then verifying it appears in a list query. ' +
       'Provide poll_query (query schema name from get_query_catalogue) and poll_until_contains ' +
-      '(a string that must appear in the query result, e.g. a ticker symbol). ' +
+      '(a string that must appear in the query result, e.g. the id or name you just sent). ' +
       'Returns the command ID plus the query result once the condition is met, ' +
       'or a timeout warning if the condition is not met within timeout_seconds.',
     inputSchema: {
@@ -1178,7 +1177,7 @@ const ALL_TOOLS: Tool[] = [
         ...CONNECTION_PROP,
         schema: {
           type: 'string',
-          description: 'Command schema name in kebab-case (e.g. subscribe-price-feed)'
+          description: 'Command schema name in kebab-case, exactly as get_command_catalogue lists it'
         },
         version: {
           type: 'string',
@@ -1229,8 +1228,7 @@ const ALL_TOOLS: Tool[] = [
     description:
       'List all read queries available at this BEST endpoint. ' +
       'Returns the query catalogue: every query type with its schema name, version, dataschema URI, and description. ' +
-      'Call this to discover what current-state data you can read. ' +
-      'Examples: list-brokers (get configured broker accounts), list-alerts (get configured alerts), list-price-feeds (get configured price feeds). ' +
+      'Call this to discover what current-state data you can read: every service names its own queries. ' +
       "An entry's 'workflows' array names the published recipes that query participates in (see get_workflows). " +
       "Descriptions are truncated by default so the listing stays small — call get_query_schema for one " +
       "query's complete description and parameters, or pass detail='full' to get every description verbatim.",
@@ -1248,7 +1246,7 @@ const ALL_TOOLS: Tool[] = [
         ...CONNECTION_PROP,
         schema: {
           type: 'string',
-          description: 'Query schema name in kebab-case, from get_query_catalogue (e.g. list-brokers)'
+          description: 'Query schema name in kebab-case, exactly as get_query_catalogue lists it'
         },
         version: {
           type: 'string',
@@ -1265,14 +1263,14 @@ const ALL_TOOLS: Tool[] = [
       'Use get_query_catalogue to discover available queries, ' +
       'then get_query_schema to learn the accepted parameters and response shape, ' +
       'then call this with the schema name and any parameters. ' +
-      'Example: execute list-brokers to get IDs needed for a subsequent send_command call.',
+      'Example: read a list query to get the ids a later send_command needs.',
     inputSchema: {
       type: 'object',
       properties: {
         ...CONNECTION_PROP,
         schema: {
           type: 'string',
-          description: 'Query schema name in kebab-case, from get_query_catalogue (e.g. list-brokers)'
+          description: 'Query schema name in kebab-case, exactly as get_query_catalogue lists it'
         },
         params: {
           type: 'object',
@@ -2194,7 +2192,7 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
   const data    = args.data as Record<string, unknown>;
 
   // The envelope type is what the catalogue entry states (commandType, spec 0.9.11). Where it states
-  // none, the PascalCase form of the schema name is the fallback — a guess: configure-broker → ConfigureBroker.
+  // none, the PascalCase form of the schema name is the fallback — a guess: my-command → MyCommand.
   const stated = (await catalogueEntryMeta('commands', conn)).get(schema)?.commandType;
   const type = stated ?? schema
     .split('-')
@@ -2555,7 +2553,7 @@ Use the query tools to read domain state before issuing commands that require ex
 4. Call send_command with schema, version, and data payload.
 
 CloudEvent envelope rules (enforced by send_command):
-- 'type': the commandType the catalogue entry states; where it states none, the PascalCase of the schema name (configure-broker → ConfigureBroker). Set automatically.
+- 'type': the commandType the catalogue entry states; where it states none, the PascalCase of the schema name (my-command → MyCommand). Set automatically.
 - 'source': identifies the command's ORIGIN and defaults to this client's identity ('${CLIENT_SOURCE}') — BEST servers route by 'type', never by 'source' alone. Pass an explicit source ONLY when the schema description documents a specific required value; never invent one.
 - 'dataschema': the absolute catalogue URI '{endpoint}/commands/{schema}/{version}'. Built automatically from the connection endpoint.
 - 'correlationid' (spec 0.9.2+): omitted by default — the server then correlates by the command's own ID. Pass correlation_id only to join an existing chain.
