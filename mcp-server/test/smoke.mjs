@@ -41,7 +41,7 @@ const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
 const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
-function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantFailures = 0, foreignEndpoint = '', strictKey = false } = {}) {
+function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false } = {}) {
   const modern = mode === 'modern';
   // `seen.key` is the account's ONE key: a scenario replaces it to play "another assistant was approved".
   const seen = { posts: [], tokenPolls: 0, deviceRequests: [], key: initialKey };
@@ -63,11 +63,13 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantFailu
           capabilities: []
         } });
       }
-      if (tenants && path === '/.well-known/best/acme') {
+      const tenant = tenants && /^\/\.well-known\/best\/([^/]+)$/.exec(path)?.[1];
+      if (tenant) {
         if (req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
+        if (!tenantIds.includes(tenant)) return json(404, { error: { code: 'NO_SUCH_TENANT', message: `no tenant ${tenant} opens to this credential` } });
         seen.tenantManifestGets = (seen.tenantManifestGets ?? 0) + 1;
         if (seen.tenantManifestGets <= tenantFailures) return json(503, { error: { code: 'UNAVAILABLE', message: 'try again' } });
-        return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: foreignEndpoint || `${origin}/api/tenants/acme` } } }, capabilities: [] } });
+        return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: foreignEndpoint || `${origin}/api/tenants/${tenant}` } } }, capabilities: [] } });
       }
       if (path === '/auth/device' && req.method === 'POST') {
         seen.deviceRequests.push(Object.fromEntries(new URLSearchParams(raw)));
@@ -78,7 +80,7 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantFailu
         if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
         seen.tokenPolls++;
         if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
-        return json(200, { access_token: key(), token_type: 'apikey', auth_header: 'X-Api-Key', tenant_id: 'acme', echo: `your key is ${key()}`,
+        return json(200, { access_token: key(), token_type: 'apikey', auth_header: 'X-Api-Key', ...(tokenTenant ? { tenant_id: tokenTenant } : {}), echo: `your key is ${key()}`,
           endpoint: `${origin}/api/tenants/acme`, note: 'The key is a SECRET. Store it and never repeat it in the conversation.',
           mcp: { mcpServers: { example: { command: 'npx', args: ['-y', '@behavioralstate/best-mcp'], env: { BEST_EXAMPLE_API_KEY: key() } } } },
           http: { header: 'X-Api-Key: <access_token>' } });
@@ -373,6 +375,39 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   await client.close(); c.server.close(); d.server.close();
 }
 
+// ── a tenant of the name's host — the workspace an agent made, acted in with the credential that made it ───
+{
+  // A door like best-peer's: signed in at the root, no tenant in the token answer, and the identity opens the
+  // tenants it made. (#73: the 2026-10-20 acceptance run made a workspace and could not reach it.)
+  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a'] });
+  const q = await mock('modern', { key: 'key_for_plain' });
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  let client = await connectBare(credentialsFile);
+  for (const [name, m] of [['peer', p], ['plain', q]]) {
+    await call(client, 'register_agent', { name, manifest: `${m.origin}/.well-known/best` });
+    for (let i = 0; i < 3; i++) { const done = await call(client, 'exchange_device_code', { connection: name }); if (done.isError || !done.text.includes('authorization_pending')) break; }
+  }
+  const approvals = p.seen.deviceRequests.length;
+  const sent = await call(client, 'send_command', { connection: 'peer/ws-7f3a', schema: 'place-order', version: '1.0', data: {} });
+  expect(!sent.isError && p.seen.posts.at(-1)?.path === '/api/tenants/ws-7f3a/commands' && p.seen.posts.at(-1)?.key === 'key_for_peer', `tenant: 'peer/ws-7f3a' did not reach the tenant with the name's key: ${sent.text} ${JSON.stringify(p.seen.posts.at(-1))}`);
+  expect(p.seen.deviceRequests.length === approvals, 'tenant: reaching a tenant started another sign-in');
+  const listed = (await call(client, 'list_connections')).text;
+  expect(listed.includes('"name": "peer/ws-7f3a"') && listed.includes(`${p.origin}/api/tenants/ws-7f3a`), `tenant: the tenant connection is not listed once used: ${listed}`);
+  const man = await call(client, 'get_manifest', { connection: 'peer/ws-7f3a' });
+  expect(!man.isError && man.text.includes('"scope": "tenant"') && man.text.includes(`${p.origin}/.well-known/best/ws-7f3a`), `tenant: get_manifest did not read the tenant's manifest: ${man.text.slice(0, 300)}`);
+  const gone = await call(client, 'send_command', { connection: 'peer/ws-gone', schema: 'place-order', version: '1.0', data: {} });
+  expect(gone.isError && gone.text.includes('no tenant ws-gone opens to this credential'), `tenant: a tenant the credential does not open did not answer with the service's error: ${gone.text}`);
+  const flat = await call(client, 'send_command', { connection: 'plain/acme', schema: 'place-order', version: '1.0', data: {} });
+  expect(flat.isError && flat.text.includes("Unknown connection 'plain/acme'"), `tenant: a host with no tenants made a tenant connection: ${flat.text}`);
+  await client.close();
+
+  // a later start resolves it again on first use, still without a sign-in
+  client = await connectBare(credentialsFile);
+  const again = await call(client, 'send_command', { connection: 'peer/ws-7f3a', schema: 'place-order', version: '1.0', data: {} });
+  expect(!again.isError && p.seen.posts.at(-1)?.path === '/api/tenants/ws-7f3a/commands' && p.seen.deviceRequests.length === approvals, `tenant: after a restart 'peer/ws-7f3a' did not resolve: ${again.text}`);
+  await client.close(); p.server.close(); q.server.close();
+}
+
 // ── http — the endpoint is the origin itself; /mcp stays as an alias ────────
 {
   const { server, origin } = await mock('modern');
@@ -447,4 +482,4 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
-console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; a sign-in under a name is stored under that name and is that connection, after a restart too; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key; the entries of one account are one credential — a replaced configured key heals from a stored sign-in and a key issued on either reaches both');
+console.log('smoke: registration keeps both secrets from the model, stores the key and uses it; a sign-in under a name is stored under that name and is that connection, after a restart too; commandType and the content type follow the manifest; a legacy service is handled; over HTTP the endpoint is the origin itself, and a server signs no one in and lends no stored or configured key; the entries of one account are one credential — a replaced configured key heals from a stored sign-in and a key issued on either reaches both; a name reaches a tenant of its host as <name>/<tenantId> with its own credential');
