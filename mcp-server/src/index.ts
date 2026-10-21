@@ -132,6 +132,8 @@ interface BestConnection {
   // the name the person gave — the key its credential is stored under — and the manifest it signed in at.
   registeredAs?: string;
   manifestUrl?: string;
+  // Only set for a '<name>/<tenantId>' connection: the tenant manifest it was resolved from, with the sign-in's key.
+  tenantManifestUrl?: string;
   // Only set for a Mode 1 connection: the BEST_<APP>_API_KEY as configured, even after a stored or healed
   // credential replaced it in `apiKey` — what a stored entry must name as superseded for the next start.
   configuredKey?: string;
@@ -653,9 +655,11 @@ async function resolveServiceConnection(name: string): Promise<BestConnection | 
   const app = name.slice(0, slash);
   const serviceId = name.slice(slash + 1);
   const root = rootConnectionOf(app);
-  // A named registration's connections are exactly the services its sign-in resolved (tenant-scoped
-  // where the manifest is multi-tenant); the root manifest's unscoped endpoints are not more of them.
-  if (!root || root.registeredAs) return undefined;
+  // A named registration's connections are the services its sign-in resolved (tenant-scoped where the
+  // manifest is multi-tenant), and the tenants its credential opens; the root manifest's unscoped endpoints
+  // are not more of them.
+  if (root?.registeredAs) return resolveTenantConnection(root.registeredAs, serviceId);
+  if (!root) return undefined;
   const manifest = await fetchRootManifest(root);
   const service = manifest?.best?.services?.[serviceId];
   const endpoint = service?.http?.endpoint;
@@ -669,6 +673,43 @@ async function resolveServiceConnection(name: string): Promise<BestConnection | 
   };
   serviceConnectionCache.set(name, conn);
   return conn;
+}
+
+/**
+ * `<name>/<tenantId>`: a tenant of the multi-tenant host a named sign-in resolved at, reached with that sign-in's
+ * credential. SPEC Multi-Tenancy: the tenant manifest is fetched with the root's credential and then treated as a
+ * direct service manifest, so an identity that opens several tenants (the workspaces it made, the ones it joined)
+ * acts in each without signing in again — a sign-in at a tenant's manifest would be another identity, a stranger
+ * to it. `<name>/<tenantId>/<serviceId>` names one of the tenant's services when it has several. The connections
+ * last for the process; a later start resolves them again on first use.
+ */
+async function resolveTenantConnection(name: string, rest: string): Promise<BestConnection | undefined> {
+  const signedIn = CONNECTIONS.find(c => c.name === name && c.registeredAs === name);
+  if (!signedIn?.manifestUrl) return undefined;
+  const [tenantId, serviceId, ...more] = rest.split('/');
+  if (more.length || !SAFE_TENANT_ID.test(tenantId)) return undefined;
+  const template = (await fetchManifestAt(signedIn.manifestUrl))?.best?.tenants?.manifest;
+  if (typeof template !== 'string') return undefined;
+  let endpoints: Record<string, string>;
+  try {
+    endpoints = await namedEndpoints(signedIn.manifestUrl, tenantId, signedIn);
+  } catch (e) {
+    throw new Error(`'${name}/${tenantId}' is tenant ${tenantId} of the host '${name}' is signed in at, and it cannot be ` +
+      `reached with that credential: ${e instanceof Error ? e.message : e}`);
+  }
+  const tenantManifestUrl = template.replace('{tenantId}', encodeURIComponent(tenantId));
+  const host = new URL(signedIn.manifestUrl).host;
+  const services = Object.entries(endpoints);
+  const made: BestConnection[] = [];
+  services.forEach(([id, endpoint], i) => {
+    const description = `${name}/${tenantId} — tenant ${tenantId} at ${host}, with the credential '${name}' signed in (${id})`;
+    const conn = { ...signedIn, endpoint, tenantManifestUrl, description };
+    if (i === 0) made.push({ ...conn, name: `${name}/${tenantId}` });
+    if (services.length > 1) made.push({ ...conn, name: `${name}/${tenantId}/${id}` });
+  });
+  for (const c of made) if (!CONNECTIONS.some(k => k.name === c.name)) CONNECTIONS.push(c);
+  const wanted = serviceId ? `${name}/${tenantId}/${serviceId}` : `${name}/${tenantId}`;
+  return CONNECTIONS.find(c => c.name === wanted);
 }
 
 /** Root-manifest services of every configured app that are not already a configured connection. */
@@ -716,7 +757,9 @@ async function resolveConnection(name?: string): Promise<BestConnection> {
   if (!conn) throw new Error(
     `Unknown connection '${name}'. Available: ${CONNECTIONS.map(c => c.name).join(', ')}` +
     ` — plus '<app>/<serviceId>' for any service the app's root manifest lists ` +
-    `(list_connections shows them; get_manifest on the platform connection shows the manifest). ` +
+    `(list_connections shows them; get_manifest on the platform connection shows the manifest), ` +
+    `and '<name>/<tenantId>' for a tenant (a workspace, an account) of a multi-tenant host a name is signed in at, ` +
+    `with that name's credential. ` +
     `If '${name}' is a name the person wants to be signed in under, call register_agent with name '${name}' ` +
     `and the manifest address they gave.`
   );
@@ -966,7 +1009,9 @@ const CONNECTION_PROP: Record<string, object> = {
     type: 'string',
     description:
       `Name of the BEST connection to target. Available: ${CONNECTIONS.map(c => c.name).join(', ')}; ` +
-      `also '<app>/<serviceId>' for any service the app's root manifest lists (e.g. an onboarding surface). ` +
+      `also '<app>/<serviceId>' for any service the app's root manifest lists (e.g. an onboarding surface), ` +
+      `and '<name>/<tenantId>' for a tenant (a workspace, an account) of a multi-tenant host a name is signed in ` +
+      `at — one the name's own calls made or listed — acting with that name's credential, no new sign-in. ` +
       'Call list_connections to see full details (endpoint, description) for each. ' +
       'If you are not certain which connection the user intends, call list_connections ' +
       'and ask the user to confirm before proceeding — a wrong connection may silently ' +
@@ -997,7 +1042,8 @@ const ALL_TOOLS: Tool[] = [
     name: 'list_connections',
     description:
       'List all configured BEST connections with their names, endpoints, and descriptions, plus every ' +
-      'further service the apps\' root manifests list (reachable by the same connection names). ' +
+      'further service the apps\' root manifests list (reachable by the same connection names). A name signed in ' +
+      'at a multi-tenant host also reaches each tenant its credential opens as \'<name>/<tenantId>\', listed here once used. ' +
       'Call this when you are unsure which connection to use for a given request, ' +
       'then confirm the correct connection with the user before calling any operation tool.',
     inputSchema: { type: 'object', properties: {}, required: [] }
@@ -2434,6 +2480,13 @@ function withoutSignInGuidance(manifest: unknown): unknown {
 }
 
 async function handleGetManifest(conn: BestConnection): Promise<string> {
+  if (conn.tenantManifestUrl) {
+    // A '<name>/<tenantId>' connection: the tenant manifest it was resolved from, on the sign-in's host, with its key.
+    const response = await fetch(conn.tenantManifestUrl, { headers: { Accept: 'application/json', ...authHeaders(conn) } });
+    if (!response.ok) throw new Error(`GET ${conn.tenantManifestUrl} → ${response.status}: ${await parseErrorMessage(response)}`);
+    const manifest = withoutSignInGuidance(await response.json());
+    return JSON.stringify({ client: CLIENT_ID, manifestUrl: conn.tenantManifestUrl, scope: 'tenant', manifest }, null, 2);
+  }
   const origin = new URL(conn.endpoint).origin;
   // A named connection signed in at a manifest the person gave: that one, not a guess from the endpoint.
   const globalUrl = conn.manifestUrl ?? `${origin}/.well-known/best`;
