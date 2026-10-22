@@ -281,7 +281,7 @@ A service that lets an agent obtain its own credential declares `deviceAuthoriza
 | Member | Required | Description |
 |---|---|---|
 | `note` | yes | Begins with the token text of the [sign-in guidance](#sign-in-guidance), verbatim: the credential is a **secret**, kept in the client's configuration or credential store and never repeated in the conversation — in a message, a command or any output. A service may add to it after that text (where a person can mint a credential themselves, how to use this one). |
-| `name` | yes | The connection's name: the `connection` the agent sent to `deviceAuthorizationUrl`, else the address of the sign-in manifest (its host, and its path when it is not at the root). The credential is kept under it, and the `mcp` entry is keyed by it |
+| `name` | yes | The connection's name: the `connection` the agent sent to `deviceAuthorizationUrl`, else the address of the sign-in manifest (its host, with its port when it has one, and its path when it is not at the root). The credential is kept under it, and the `mcp` entry is keyed by it |
 | `endpoint` | yes | The surface the credential opens (the tenant endpoint on a multi-tenant host), on the canonical endpoint host |
 | `manifest` | no | That surface's manifest |
 | `ready_check` | no | A read that answers `200` once the credential works |
