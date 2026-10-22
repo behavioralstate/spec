@@ -8,7 +8,8 @@ tooling (the layout, version stamping, best-mcp's configuration) are in
 - Starting on an issue, move it to In progress on the Behavioralstate board first (project 4 of Amarcode-Studios, its
   Status field: `gh project item-edit`, or the board itself), and its epic to In progress if it was not; once its
   change is in a release, with only a proof by an implementation or the owner's acceptance left, move it to In review
-  (SDLC.md section 1).
+  (SDLC.md section 1). An issue carries its one epic's label (`best-peer-01`, `windlet-02`), the label the epic
+  carries beside `epic`, and no other epic's.
 - A gap an implementation met in the spec is an entry on the spec follow-ups issue, #37, before it is spec text; the
   change that settles it names the entry. A new `must` says the version it is required from and is listed in
   `specs/conformance.md`.
