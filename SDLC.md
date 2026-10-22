@@ -11,7 +11,8 @@
   problem, the outcome from the agent's side, numbered decisions, and a "Done when" list. A gap an implementation met
   in the spec is first an entry on the spec follow-ups issue,
   [#37](https://github.com/behavioralstate/spec/issues/37): the entry says what the implementation does and the
-  sentence the spec could gain, and the spec change that settles it names the entry.
+  sentence the spec could gain, and the spec change that settles it names the entry. Most entries close as the
+  implementation's own; section 2's first rule says which become text.
 - Ambiguity is resolved by reading the spec and the implementations that run it, never by guessing.
 - The board's Status says where each issue is:
   - **Backlog** until its first change.
@@ -35,9 +36,13 @@
 
 ## 2. Design rules every change is held to
 
-- **The spec follows the implementations.** A rule enters the spec once an implementation proved the need, through
-  its entry on #37; the spec does not invent a surface no implementation has asked for. A spec change names the
-  entry or issue it settles.
+- **The spec is stable, and changes only for a very good reason.** The text changes when two independent
+  implementations read a sentence differently and interop fails between them, or when a client cannot be written
+  from the text alone; the entry on #37 shows which, with the failure. A mechanism one implementation needs is that
+  implementation's own, documented in its README, until a second implementation needs it: the spec does not
+  generalise one service's way of running, however well it works. Every other entry closes as the implementation's
+  own. A change that passes the bar is additive where it can be (a may, a should, an optional member), names the
+  entry it settles, and never invents a surface no implementation has asked for.
 - `SPEC.md` and `specs/` are the source of truth, and nothing of them is copied elsewhere in the repository: the
   website renders them, and every other file links to them. A link from `specs/` to `SPEC.md` is the absolute GitHub
   URL, which the website keeps.

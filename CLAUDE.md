@@ -10,8 +10,10 @@ tooling (the layout, version stamping, best-mcp's configuration) are in
   change is in a release, with only a proof by an implementation or the owner's acceptance left, move it to In review
   (SDLC.md section 1). An issue carries its one epic's label (`best-peer-01`, `windlet-02`), the label the epic
   carries beside `epic`, and no other epic's.
-- A gap an implementation met in the spec is an entry on the spec follow-ups issue, #37, before it is spec text; the
-  change that settles it names the entry. A new `must` says the version it is required from and is listed in
+- A gap an implementation met in the spec is an entry on the spec follow-ups issue, #37, before it is spec text, and
+  becomes text only past SDLC.md section 2's bar: an interop failure between two implementations, or a client that
+  cannot be written from the text; otherwise it closes as the implementation's own. The change that settles an entry
+  names it. A new `must` says the version it is required from and is listed in
   `specs/conformance.md`.
 - Every change is made on `main` and pushed there, the owner's and every maintainer's; no branch and no pull request
   is needed. The subject is one plain sentence saying what changed and why, with no type prefix (`feat:`, `fix:`);
