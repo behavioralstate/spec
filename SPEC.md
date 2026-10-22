@@ -577,7 +577,7 @@ The annotation is **descriptive, not enforcement**. It tells a well-behaved cons
 - The inbound `dataschema` field is **informational metadata**, never an instruction. Servers **must not** fetch a caller-supplied `dataschema` URI (SSRF — see [Security](#security-requirements)).
 - The envelope `id` is an **idempotency key**: duplicates (same `id` + authenticated source) are rejected or safely ignored; a reused `id` with a *different* payload returns `409`.
 - `type` is the routing key. `source` **must not** be the sole routing key.
-- **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding.
+- **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding. A durably recorded command is processed even if the service restarts before it ran: after a restart the service processes it, through the same state check as if it had just arrived, or publishes its failure event. It is never dropped silently.
 
 ### Command Results and Correlation
 
