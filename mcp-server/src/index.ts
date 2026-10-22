@@ -687,7 +687,7 @@ async function resolveTenantConnection(name: string, rest: string): Promise<Best
   const signedIn = CONNECTIONS.find(c => c.name === name && c.registeredAs === name);
   if (!signedIn?.manifestUrl) return undefined;
   const [tenantId, serviceId, ...more] = rest.split('/');
-  if (more.length || !SAFE_TENANT_ID.test(tenantId)) return undefined;
+  if (more.length || !isSafeTenantId(tenantId)) return undefined;
   const template = (await fetchManifestAt(signedIn.manifestUrl))?.best?.tenants?.manifest;
   if (typeof template !== 'string') return undefined;
   let endpoints: Record<string, string>;
@@ -742,7 +742,10 @@ async function listServiceConnections(): Promise<{ name: string; endpoint: strin
 
 async function resolveConnection(name?: string): Promise<BestConnection> {
   if (name && !CONNECTIONS.some(c => c.name === name)) await completeNamedSignIn(name.split('/')[0]);
-  if (!name && CONNECTIONS.length === 1) return CONNECTIONS[0];
+  // The one connection configured or signed in is the default; a '<name>/<tenantId>' reached through it is not
+  // another one.
+  const own = CONNECTIONS.filter(c => !c.tenantManifestUrl);
+  if (!name && own.length === 1) return own[0];
   if (CONNECTIONS.length === 0) throw new Error(
     (name ? `There is no connection '${name}' — ` : 'There is no connection yet — ') +
     'nothing is configured and nobody has signed in. Call register_agent with the name the person gave and the ' +
@@ -784,7 +787,7 @@ function applyIssuedCredential(
   // An app configured without a tenant id has no tenant connection yet — an onboarding from zero
   // creates it, so the next call can target `<app>/tenant` like any configured setup.
   const root = rootConnectionOf(app);
-  if (tenantId && root && !root.tenantTemplateBaseUrl && !CONNECTIONS.some(c => c.name === `${app}/tenant`) && SAFE_TENANT_ID.test(tenantId)) {
+  if (tenantId && root && !root.tenantTemplateBaseUrl && !CONNECTIONS.some(c => c.name === `${app}/tenant`) && isSafeTenantId(tenantId)) {
     CONNECTIONS.push({
       ...root,
       name: `${app}/tenant`,
@@ -809,7 +812,7 @@ function applyIssuedCredential(
       c.authIn = 'header';
       if (authHeader) c.authHeader = authHeader;
     }
-    if (tenantId && c.tenantTemplateBaseUrl && SAFE_TENANT_ID.test(tenantId)) {
+    if (tenantId && c.tenantTemplateBaseUrl && isSafeTenantId(tenantId)) {
       c.endpoint = `${c.tenantTemplateBaseUrl}/tenants/${tenantId}`;
     }
     applied.push(c.name);
@@ -820,6 +823,21 @@ function applyIssuedCredential(
 // Tenant IDs are spliced directly into a URL path segment — restrict to a safe
 // charset rather than trusting an arbitrary caller-supplied header value.
 const SAFE_TENANT_ID = /^[A-Za-z0-9_.-]+$/;
+/** A tenant id that is one path segment and nothing else: `.` and `..` would move the template's path. */
+const isSafeTenantId = (id: string): boolean => SAFE_TENANT_ID.test(id) && id !== '.' && id !== '..';
+
+/**
+ * GET with a connection's credential, never following a redirect: Node's fetch drops only `Authorization` on a
+ * cross-origin redirect, so a credential in `X-Api-Key` or another header would follow it to any host (SPEC Name
+ * Resolution: a credential is never sent to a host other than the one its name resolved to).
+ */
+async function fetchWithCredential(url: string, conn: BestConnection): Promise<Response> {
+  const response = await fetch(url, { redirect: 'manual', headers: { Accept: 'application/json', ...authHeaders(conn) } });
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error(`GET ${url} → ${response.status}, a redirect to ${response.headers.get('location') ?? 'nowhere said'}: a credential is not sent on a redirect.`);
+  }
+  return response;
+}
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   const v = Array.isArray(value) ? value[0] : value;
@@ -857,7 +875,7 @@ function applyRequestOverrides(conn: BestConnection, headers: IncomingHttpHeader
 
   let endpoint = conn.endpoint;
   if (requestTenantId && conn.tenantTemplateBaseUrl) {
-    if (SAFE_TENANT_ID.test(requestTenantId)) {
+    if (isSafeTenantId(requestTenantId)) {
       endpoint = `${conn.tenantTemplateBaseUrl}/tenants/${requestTenantId}`;
     } else {
       process.stderr.write(
@@ -1763,13 +1781,13 @@ async function namedEndpoints(manifestUrl: string, tenantId: string | undefined,
   const root = await fetchManifestAt(manifestUrl);
   let services = root?.best?.services;
   const template = root?.best?.tenants?.manifest;
-  if (typeof template === 'string' && tenantId && SAFE_TENANT_ID.test(tenantId)) {
+  if (typeof template === 'string' && tenantId && isSafeTenantId(tenantId)) {
     const tenantUrl = template.replace('{tenantId}', encodeURIComponent(tenantId));
     // SPEC Name Resolution: a credential is never sent to a host other than the one its name resolved to.
     if (new URL(tenantUrl).host !== host) {
       throw new Error(`the tenant manifest is on ${new URL(tenantUrl).host}, not on ${host} where this sign-in resolved; the credential is not sent there.`);
     }
-    const response = await fetch(tenantUrl, { headers: { Accept: 'application/json', ...authHeaders(credential) } });
+    const response = await fetchWithCredential(tenantUrl, credential);
     if (!response.ok) throw new Error(`GET ${tenantUrl} → ${response.status}: ${await parseErrorMessage(response)}`);
     services = (await response.json())?.best?.services;
   }
@@ -2482,7 +2500,7 @@ function withoutSignInGuidance(manifest: unknown): unknown {
 async function handleGetManifest(conn: BestConnection): Promise<string> {
   if (conn.tenantManifestUrl) {
     // A '<name>/<tenantId>' connection: the tenant manifest it was resolved from, on the sign-in's host, with its key.
-    const response = await fetch(conn.tenantManifestUrl, { headers: { Accept: 'application/json', ...authHeaders(conn) } });
+    const response = await fetchWithCredential(conn.tenantManifestUrl, conn);
     if (!response.ok) throw new Error(`GET ${conn.tenantManifestUrl} → ${response.status}: ${await parseErrorMessage(response)}`);
     const manifest = withoutSignInGuidance(await response.json());
     return JSON.stringify({ client: CLIENT_ID, manifestUrl: conn.tenantManifestUrl, scope: 'tenant', manifest }, null, 2);

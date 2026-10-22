@@ -41,7 +41,7 @@ const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
 const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
-function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false } = {}) {
+function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '' } = {}) {
   const modern = mode === 'modern';
   // `seen.key` is the account's ONE key: a scenario replaces it to play "another assistant was approved".
   const seen = { posts: [], tokenPolls: 0, deviceRequests: [], key: initialKey };
@@ -64,6 +64,7 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
         } });
       }
       const tenant = tenants && /^\/\.well-known\/best\/([^/]+)$/.exec(path)?.[1];
+      if (tenant === 'redir' && redirectTenantTo) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
       if (tenant) {
         if (req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
         if (!tenantIds.includes(tenant)) return json(404, { error: { code: 'NO_SUCH_TENANT', message: `no tenant ${tenant} opens to this credential` } });
@@ -379,7 +380,11 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
 {
   // A door like best-peer's: signed in at the root, no tenant in the token answer, and the identity opens the
   // tenants it made. (#73: the 2026-10-20 acceptance run made a workspace and could not reach it.)
-  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a'] });
+  // A host that takes anything sent to it: where a redirect would carry the key if it were followed.
+  const stolen = [];
+  const thief = createServer((req, res) => { stolen.push(req.headers['x-api-key'] ?? ''); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); });
+  await new Promise(r => thief.listen(0, '127.0.0.1', r));
+  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a'], redirectTenantTo: `http://127.0.0.1:${thief.address().port}/stolen` });
   const q = await mock('modern', { key: 'key_for_plain' });
   const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
   let client = await connectBare(credentialsFile);
@@ -397,6 +402,10 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(!man.isError && man.text.includes('"scope": "tenant"') && man.text.includes(`${p.origin}/.well-known/best/ws-7f3a`), `tenant: get_manifest did not read the tenant's manifest: ${man.text.slice(0, 300)}`);
   const gone = await call(client, 'send_command', { connection: 'peer/ws-gone', schema: 'place-order', version: '1.0', data: {} });
   expect(gone.isError && gone.text.includes('no tenant ws-gone opens to this credential'), `tenant: a tenant the credential does not open did not answer with the service's error: ${gone.text}`);
+  const redirected = await call(client, 'get_command_catalogue', { connection: 'peer/redir' });
+  expect(redirected.isError && stolen.length === 0, `tenant: a tenant manifest that redirects elsewhere was followed with the key: ${redirected.text} ${JSON.stringify(stolen)}`);
+  const up = await call(client, 'get_manifest', { connection: 'peer/..' });
+  expect(up.isError && up.text.includes("Unknown connection 'peer/..'"), `tenant: '..' was taken for a tenant: ${up.text.slice(0, 300)}`);
   const flat = await call(client, 'send_command', { connection: 'plain/acme', schema: 'place-order', version: '1.0', data: {} });
   expect(flat.isError && flat.text.includes("Unknown connection 'plain/acme'"), `tenant: a host with no tenants made a tenant connection: ${flat.text}`);
   await client.close();
@@ -405,7 +414,17 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   client = await connectBare(credentialsFile);
   const again = await call(client, 'send_command', { connection: 'peer/ws-7f3a', schema: 'place-order', version: '1.0', data: {} });
   expect(!again.isError && p.seen.posts.at(-1)?.path === '/api/tenants/ws-7f3a/commands' && p.seen.deviceRequests.length === approvals, `tenant: after a restart 'peer/ws-7f3a' did not resolve: ${again.text}`);
-  await client.close(); p.server.close(); q.server.close();
+  await client.close(); p.server.close(); q.server.close(); thief.close();
+
+  // With one sign-in, using one of its tenants does not end its being the default connection.
+  const solo = await mock('modern', { key: 'key_for_solo', tenants: true, tokenTenant: null, tenantIds: ['ws-1'] });
+  client = await connectBare(join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json'));
+  await call(client, 'register_agent', { name: 'solo', manifest: `${solo.origin}/.well-known/best` });
+  for (let i = 0; i < 3; i++) { const done = await call(client, 'exchange_device_code', { connection: 'solo' }); if (done.isError || !done.text.includes('authorization_pending')) break; }
+  await call(client, 'send_command', { connection: 'solo/ws-1', schema: 'place-order', version: '1.0', data: {} });
+  const unnamed = await call(client, 'get_command_catalogue', {});
+  expect(!unnamed.isError, `tenant: using a tenant ended the one sign-in's being the default: ${unnamed.text.slice(0, 300)}`);
+  await client.close(); solo.server.close();
 }
 
 // ── http — the endpoint is the origin itself; /mcp stays as an alias ────────
