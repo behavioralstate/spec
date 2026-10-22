@@ -148,7 +148,7 @@ For implementations that serve multiple tenants:
 
 ## Input Limits
 
-Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
+Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded, with `details.limit_bytes`, the largest body the endpoint accepts, since a body refused before it is read has no field to name. A service that forwards a command to another service **MUST** accept no body it cannot forward whole. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
 
 Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission.
 
