@@ -11,7 +11,7 @@ All BEST HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT
 `GET /.well-known/best` is always unauthenticated — it is the public discovery endpoint. Beyond it, only two things are reachable without a BEST credential:
 
 - the capabilities of a service whose manifest entry declares `"authentication": { "type": "none" }` — a **public surface**; and
-- the `deviceAuthorizationUrl` and `tokenUrl` endpoints of [agent registration](identity-and-registration.md), which **MUST** be rate-limited per client and per `device_code`.
+- the `deviceAuthorizationUrl` and `tokenUrl` endpoints of [agent registration](identity-and-registration.md), which **MUST** be rate-limited per client and per `device_code`. Since `client_id` is the caller's own word, a service **SHOULD** also bound the registrations pending per network origin, an IPv6 origin by its /64, without reading a forwarded address the caller writes; a refusal **SHOULD** say when a place frees.
 
 Every other endpoint **MUST** require authentication. A public surface **MUST NOT** return data belonging to any account and **MUST** be rate-limited per client. A command accepted on a public surface **MUST** have no effect on any account until a person signed in to the platform has approved it.
 
