@@ -4,7 +4,7 @@ BEST is an open protocol with a broad attack surface. This page catalogues the s
 
 ## TLS
 
-All BEST HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production. Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
+All BEST HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production: it **MAY** be used only where both ends are the same machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), judged on the address a service listens on and the host of the endpoint it advertises, or where its operator states that the network already encrypts the hop. Otherwise a service **MUST** refuse to serve in cleartext, not warn, and its refusal **MUST** name the setting and the fix. The same holds for a service's own outbound calls that carry a credential: a service **MUST NOT** send one to another service in cleartext off loopback. Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
 
 ## Authentication and Authorisation
 

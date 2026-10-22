@@ -879,7 +879,7 @@ Consumers **must ignore unknown fields** (forward compatibility). All BEST ident
 
 Condensed from the normative set — every conformant implementation observes these:
 
-- **TLS** — HTTPS everywhere in production; MCP transports must provide TLS-equivalent confidentiality; validate certificates; never send credentials over insecure transports.
+- **TLS** — HTTPS everywhere in production, cleartext on loopback alone or where the operator states the network encrypts the hop, refused rather than warned elsewhere, outbound calls included; MCP transports must provide TLS-equivalent confidentiality; validate certificates; never send credentials over insecure transports.
 - **Auth** — `GET /.well-known/best` is always unauthenticated; beyond it, only the capabilities of a service that declares `"authentication": { "type": "none" }` are, along with the `deviceAuthorizationUrl` and `tokenUrl` endpoints, which are rate-limited per client and per `device_code`. A public surface **must not** return data belonging to any account and **must** be rate-limited per client. A command accepted on a public surface **must** have no effect on any account until a person signed in to the platform has approved it. `GET /events` requires auth and tenant-scoped authorisation unless explicitly public. Distinct Read/Write scopes are recommended.
 - **`dataschema` SSRF** — servers select validation schemas from their own catalogue keyed by `type`; they **must not** fetch caller-supplied `dataschema` URIs, and **should** reject commands whose `dataschema` doesn't match a catalogue entry.
 - **Replay protection** — envelope `id` is an idempotency key; duplicates rejected within a retention window, scoped to the authenticated tenant/sender; same `id` + different payload → `409`.
