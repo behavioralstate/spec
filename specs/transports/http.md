@@ -84,7 +84,7 @@ All endpoints use standard HTTP status codes with a consistent error body:
 | 400 | Invalid request (schema validation failure, or a well-formed command the service cannot honour in its current state) |
 | 401 | Authentication required or credentials invalid |
 | 404 | Resource not found |
-| 409 | Conflict (duplicate command `id` with different payload) |
+| 409 | Conflict (duplicate command `id`: with a different payload always, with the same payload when the service rejects a duplicate rather than ignoring it) |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal runtime error |
 

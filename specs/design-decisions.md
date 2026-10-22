@@ -219,7 +219,7 @@ SSE already serves push for connected consumers, and polling covers the rest. If
 
 ### The decision
 
-`correlationid` is a first-class envelope attribute — a CloudEvents extension attribute (lowercase on the wire, per CE naming rules) defined by the BEST profile. Commands **may** carry it (the server adopts the command's `id` when absent); the `201` response echoes the effective value as `correlationId`; every event produced by processing a command **must** carry it; follow-up commands in the same business process **should** propagate it. The `?correlationId=` filters on `GET /events` and `GET /events/stream` match this attribute.
+`correlationid` is a first-class envelope attribute — a CloudEvents extension attribute (lowercase on the wire, per CE naming rules) defined by the BEST profile. Commands **may** carry it (the server adopts the command's `id` when absent); the `201` response echoes the effective value as `correlationId`; every event produced by processing a command **must** carry it, and so does every later fact about what the command created; follow-up commands in the same business process, from the same sender, **should** propagate it, since a correlation id belongs to the sender that first used it. The `?correlationId=` filters on `GET /events` and `GET /events/stream` match this attribute.
 
 ### Why
 

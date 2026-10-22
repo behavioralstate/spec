@@ -1242,8 +1242,9 @@ const ALL_TOOLS: Tool[] = [
           type: 'string',
           description: 'Optional correlation ID (spec 0.9.2+). Omit it and the server correlates by the ' +
             "command's own ID — the right default for a fresh piece of work. Pass a value ONLY to attach " +
-            'this command to an EXISTING chain: an earlier correlation ID from a send_command response or ' +
-            "from an event's correlationid attribute. Pre-0.9.2 servers ignore it."
+            'this command to an EXISTING chain of your own: a correlation ID this connection first used, from ' +
+            "one of its send_command responses. A correlation ID belongs to the credential that first used it, " +
+            "so another sender's is refused (400). Pre-0.9.2 servers ignore it."
         },
         data: {
           type: 'object',
@@ -1424,7 +1425,7 @@ const ALL_TOOLS: Tool[] = [
     description:
       'Fetch the JSON Schema document for a specific event type and version (GET /events/{schema}/{version}). ' +
       'Use it to interpret the data payload of events returned by get_events or sample_event_stream. ' +
-      'Untyped events have no schema — their catalogue description is the documentation.',
+      'Untyped events have no schema — the description of the command that produces them is the documentation.',
     inputSchema: {
       type: 'object',
       properties: {

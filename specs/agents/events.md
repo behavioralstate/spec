@@ -53,7 +53,7 @@ Events ride the same CloudEvents 1.0 envelope as commands. Two event-specific ru
 
 ### SSE stream (`GET /events/stream`)
 
-Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it; an id the server never told, or no longer holds, is no position in its log, so the server delivers from now on and the client reads what it missed from `GET /events`. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection — the stream is not lossless.
+Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it; an id the server never told, or no longer holds, is no position in its log, so the server **should** deliver from now on and the client reads what it missed from `GET /events`. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection — the stream is not lossless.
 
 ### Event types
 

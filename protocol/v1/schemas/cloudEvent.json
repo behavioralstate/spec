@@ -45,7 +45,7 @@
         "correlationid": {
           "type": "string",
           "minLength": 1,
-          "description": "CloudEvents extension attribute (lowercase per CE naming rules) carrying the correlation identifier that ties a business process together. For commands: optional — when omitted, the server adopts the command's id as the correlation identifier. For events: required on every event produced as a result of processing a command, set to that command's correlation identifier; events not caused by a command may omit it. Callers issuing follow-up commands within the same process SHOULD propagate the same value."
+          "description": "CloudEvents extension attribute (lowercase per CE naming rules) carrying the correlation identifier that ties a business process together. For commands: optional — when omitted, the server adopts the command's id as the correlation identifier. For events: required on every event produced as a result of processing a command, set to that command's correlation identifier, and on every later fact about what the command created; events not caused by a command may omit it. A correlation identifier belongs to the sender that first used it: callers issuing follow-up commands within the same process, under the same credential, SHOULD propagate the same value."
         },
         "data": {
           "type": "object",
