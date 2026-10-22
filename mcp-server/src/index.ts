@@ -842,13 +842,19 @@ async function fetchWithCredential(url: string, conn: BestConnection): Promise<R
  * itself is told without the query, which may carry the credential.
  */
 async function sendWithCredential(url: string, init: RequestInit): Promise<Response> {
-  const where = url.split('?')[0];
+  // The origin and path only: never a query, a username or a password.
+  let where = 'the endpoint';
+  try { const u = new URL(url); where = `${u.origin}${u.pathname}`; } catch { /* said as the endpoint */ }
   let response: Response;
   try {
     response = await fetch(url, { ...init, redirect: 'manual' });
   } catch (e) {
-    const why = e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : String(e);
-    throw new Error(`${init.method ?? 'GET'} ${where} failed: ${why.split('?')[0]}`);
+    // An abort is the caller's own (a stream's window ending): it goes on as it was.
+    if (e instanceof Error && e.name === 'AbortError') throw e;
+    // Never the error's own words, which can echo a header value (the credential) or the URL: its code alone.
+    const cause = e instanceof Error ? (e.cause as { code?: string; errors?: { code?: string }[] } | undefined) : undefined;
+    const code = cause?.code ?? cause?.errors?.[0]?.code ?? (e instanceof Error ? e.name : 'an error');
+    throw new Error(`${init.method ?? 'GET'} ${where} could not be sent (${code}).`, { cause: e });
   }
   if (response.status >= 300 && response.status < 400) {
     let target = 'nowhere said';
@@ -2466,7 +2472,8 @@ async function handleSampleEventStream(args: Record<string, unknown>, conn: Best
     }
   } catch (error) {
     // The time bound firing surfaces as an abort — that is the normal end of a sample.
-    const aborted = error instanceof Error && (error.name === 'AbortError' || /abort/i.test(error.message));
+    // Ended by this call's own window, never by matching words a URL could carry.
+    const aborted = controller.signal.aborted || (error instanceof Error && error.name === 'AbortError');
     if (!aborted) throw error;
   } finally {
     clearTimeout(timer);
