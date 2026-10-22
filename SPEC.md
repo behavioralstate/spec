@@ -572,7 +572,10 @@ The annotation is **descriptive, not enforcement**. It tells a well-behaved cons
 1. Validate required envelope attributes.
 2. Look up the schema **in the server's own catalogue, keyed by `type`**.
 3. Validate `data` against that schema.
-4. Valid → durably queue and return `201 Created` with `{ "id": "<command id>", "correlationId": "<correlation identifier>" }`. Invalid → `400`.
+4. Check the command against the service's current state: a well-formed command it cannot honour now (no room for it, nothing by the name it gives) is refused with `400`, a service-defined `code` that names the condition, a `message` that says what to do, and `details` a program can act on.
+5. Valid → durably queue and return `201 Created` with `{ "id": "<command id>", "correlationId": "<correlation identifier>" }`. Invalid → `400`.
+
+A command refused at step 4 was never accepted: its `id` is free for the corrected retry. A retry of an accepted command is answered as the original was, without the check.
 
 - The inbound `dataschema` field is **informational metadata**, never an instruction. Servers **must not** fetch a caller-supplied `dataschema` URI (SSRF — see [Security](#security-requirements)).
 - The envelope `id` is an **idempotency key**, scoped to the credential that sent it (two credentials of one account do not collide on an `id`) and kept for a retention window the service states in its documentation: duplicates (same `id` + authenticated source) are rejected or safely ignored; a reused `id` with a *different* payload returns `409`. A duplicate that is safely ignored is answered as the original was, `201` with the original's `id` and `correlationId`, and runs nothing again, so a client that lost the first answer and retries gets exactly what it missed.
@@ -756,7 +759,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 | 200 | Success with body (queries, event lists, catalogues, schema documents) |
 | 201 | Created — command accepted and durably queued |
 | 202 | Accepted without durability guarantee (see [Ingestion Semantics](#ingestion-semantics)) |
-| 400 | Invalid request body or parameters (schema validation failure) |
+| 400 | Invalid request body or parameters (schema validation failure), or a well-formed command the service cannot honour in its current state, with a code that names the condition |
 | 401 | Missing/invalid credentials (only when the governing `authentication.type` is not `none`) |
 | 404 | Unknown route, schema name, or version |
 | 409 | Conflict — duplicate command `id` with different payload |
