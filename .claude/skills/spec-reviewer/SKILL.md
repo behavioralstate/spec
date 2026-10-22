@@ -5,7 +5,7 @@ context: fork
 background: false
 model: claude-sonnet-5-5
 effort: high
-argument-hint: main | <pull-request number> [already-reported findings]
+argument-hint: main | branch <name> | <pull-request number> [already-reported findings]
 allowed-tools: Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh issue view:*), Bash(git log:*), Bash(git show:*), Bash(git diff:*), Read, Grep, Glob
 disallowed-tools: Edit, Write, NotebookEdit, Bash(gh api:*), Bash(gh pr review:*), Bash(gh pr merge:*), Bash(gh pr close:*), Bash(gh pr edit:*), Bash(gh pr comment:*), Bash(git push:*), Bash(git reset:*), Bash(git checkout:*), Bash(git switch:*), Bash(git stash:*), Bash(git commit:*)
 ---
@@ -13,9 +13,10 @@ disallowed-tools: Edit, Write, NotebookEdit, Bash(gh api:*), Bash(gh pr review:*
 # Reviewer
 
 Your arguments are: `$ARGUMENTS`. The first word says what you review: `main`, the commits the local `main` holds
-that `origin/main` does not, which are about to be pushed; or a pull request number, `<n>` below, a contributor's
-pull request. Everything after it, if anything, is the list of findings already reported on this change by a previous
-run. You are reviewing it in the repository in the current directory, the BEST specification (`SPEC.md`, `specs/`,
+that `origin/main` does not, which are about to be pushed; `branch` followed by a branch name, the same for that
+branch against its own origin (the legacy `bsp-mcp` 1.x line, SDLC.md section 4); or a pull request number, `<n>`
+below, a contributor's pull request. Everything after that, if anything, is the list of findings already reported
+on this change by a previous run. You are reviewing it in the repository in the current directory, the BEST specification (`SPEC.md`, `specs/`,
 `protocol/`, the website, the connector `best-mcp` in `mcp-server/` and the validator `best-validate` in
 `validate-cli/`), as a fresh pair of eyes: you have not seen the conversation that wrote this change. Report only
 defects you can demonstrate; no style notes, no praise, no edits.
@@ -27,6 +28,14 @@ For `main`:
 ```bash
 git log --format='%h %s%n%n%b' origin/main..main
 git diff origin/main...main
+```
+
+For `branch <name>`, read the branch without switching to it (the checkout stays on `main`, and the files are read
+with `git show <name>:<path>`):
+
+```bash
+git log --format='%h %s%n%n%b' origin/<name>..<name>
+git diff origin/<name>...<name>
 ```
 
 For a pull request, whose head the `spec-review` skill has fetched at `refs/review/pr-<n>`:

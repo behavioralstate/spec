@@ -99,8 +99,9 @@
   - The one exception is the legacy `@behavioralstate/bsp-mcp` 1.x line, kept on a branch cut from `mcp/v1.7.1`
     for deployments still pinned to it: its fixes are committed on that branch and released by a tag made by hand,
     as the README says, since `release-mcp.sh` would publish best-mcp from `main`. That branch predates the gate
-    script: its local proof is the package's own build (`npm run build` in `mcp-server`), and the review runs on what
-    it pushes, as on `main`.
+    script and the skills: its local proof is the package's own build (`npm run build` in `mcp-server`), and its
+    review is the `spec-reviewer` skill run from a checkout of `main` with `branch <name>` as its first argument,
+    which reviews what that branch holds that its origin does not; its findings are answered there as on `main`.
 
 ## 5. A change from another maintainer, or from a contributor
 
