@@ -616,7 +616,7 @@ Events are immutable facts published as the result of processing. Schema: [`even
 | `type` | Filter by envelope `type` (PascalCase) |
 | `correlationId` | Only events whose `correlationid` envelope attribute matches (the `correlationId` echoed by `POST /commands`) |
 | `source` | Filter by publishing service |
-| `from` / `to` | ISO 8601 time-range bounds (inclusive) |
+| `from` / `to` | Time-range bounds (inclusive), as RFC 3339 timestamps: the form of the envelope's `time` |
 | `limit` | Max results; servers may apply a lower ceiling |
 | `after` | Opaque pagination cursor from a previous response's `nextCursor` |
 
