@@ -65,7 +65,9 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
       }
       const tenant = tenants && /^\/\.well-known\/best\/([^/]+)$/.exec(path)?.[1];
       if (tenant === 'redir' && redirectTenantTo) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
-      if (tenant === 'flip' && redirectTenantTo && (seen.flipped = (seen.flipped ?? 0) + 1) > 1) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
+      if (typeof tenant === 'string' && tenant.startsWith('flip') && redirectTenantTo && (seen[tenant] = (seen[tenant] ?? 0) + 1) > 1) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
+      if (path === '/api/tenants/same/commands') { res.writeHead(302, { Location: '/api/tenants/same/commands/' }); return res.end(); }
+      if (path === '/api/tenants/same/commands/') return json(200, { commands: [] });
       if (redirectTenantTo && path.startsWith('/api/tenants/hop/')) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
       if (tenant) {
         if (req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
@@ -386,7 +388,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const stolen = [];
   const thief = createServer((req, res) => { stolen.push(req.headers['x-api-key'] ?? ''); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); });
   await new Promise(r => thief.listen(0, '127.0.0.1', r));
-  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a', 'hop', 'flip'], redirectTenantTo: `http://127.0.0.1:${thief.address().port}/stolen` });
+  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a', 'hop', 'flip', 'same'], redirectTenantTo: `http://127.0.0.1:${thief.address().port}/stolen` });
   const q = await mock('modern', { key: 'key_for_plain' });
   const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
   let client = await connectBare(credentialsFile);
@@ -409,7 +411,12 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   // A tenant's service that redirects a catalogue read, a command or the stream: refused, the key kept.
   const hopRead = await call(client, 'get_command_catalogue', { connection: 'peer/hop' });
   const hopSend = await call(client, 'send_command', { connection: 'peer/hop', schema: 'place-order', version: '1.0', data: {} });
+  await call(client, 'sample_event_stream', { connection: 'peer/hop', max_seconds: 1 });
   expect(hopRead.isError && hopSend.isError && stolen.length === 0, `tenant: a service that redirects was followed with the key: ${hopRead.text} ${hopSend.text} ${JSON.stringify(stolen)}`);
+  expect(!hopRead.text.includes('key_for_peer'), `tenant: a refused redirect said the key: ${hopRead.text}`);
+  // A read redirected within its own origin is followed.
+  const same = await call(client, 'get_command_catalogue', { connection: 'peer/same' });
+  expect(!same.isError, `tenant: a read redirected within its own origin was refused: ${same.text.slice(0, 300)}`);
   // A tenant manifest read once, then redirecting when get_manifest reads it again: refused, the key kept.
   await call(client, 'send_command', { connection: 'peer/flip', schema: 'place-order', version: '1.0', data: {} });
   const flipped = await call(client, 'get_manifest', { connection: 'peer/flip' });
@@ -424,7 +431,17 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   client = await connectBare(credentialsFile);
   const again = await call(client, 'send_command', { connection: 'peer/ws-7f3a', schema: 'place-order', version: '1.0', data: {} });
   expect(!again.isError && p.seen.posts.at(-1)?.path === '/api/tenants/ws-7f3a/commands' && p.seen.deviceRequests.length === approvals, `tenant: after a restart 'peer/ws-7f3a' did not resolve: ${again.text}`);
-  await client.close(); p.server.close(); q.server.close(); thief.close();
+  await client.close(); p.server.close(); q.server.close();
+
+  // A sign-in whose endpoint is a tenant: get_manifest reads that tenant's manifest again, which now redirects.
+  const t2 = await mock('modern', { key: 'key_for_flip2', tenants: true, tokenTenant: 'flip2', tenantIds: ['flip2'], redirectTenantTo: `http://127.0.0.1:${thief.address().port}/stolen` });
+  const thiefWas = stolen.length;
+  client = await connectBare(join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json'));
+  await call(client, 'register_agent', { name: 'tflip', manifest: `${t2.origin}/.well-known/best` });
+  for (let i = 0; i < 3; i++) { const done = await call(client, 'exchange_device_code', { connection: 'tflip' }); if (done.isError || !done.text.includes('authorization_pending')) break; }
+  await call(client, 'get_manifest', { connection: 'tflip' });
+  expect(t2.seen.flip2 >= 2 && stolen.length === thiefWas, `tenant: get_manifest of a tenant endpoint followed a redirect with the key: ${JSON.stringify(stolen)}`);
+  await client.close(); t2.server.close();
 
   // With one sign-in, using one of its tenants does not end its being the default connection.
   const solo = await mock('modern', { key: 'key_for_solo', tenants: true, tokenTenant: null, tenantIds: ['ws-1'] });
@@ -437,7 +454,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(soloListed.includes('"name": "solo/ws-1"'), `tenant: the tenant connection is not there to test the default with: ${soloListed}`);
   const unnamed = await call(client, 'get_command_catalogue', {});
   expect(!unnamed.isError, `tenant: using a tenant ended the one sign-in's being the default: ${unnamed.text.slice(0, 300)}`);
-  await client.close(); solo.server.close();
+  await client.close(); solo.server.close(); thief.close();
 }
 
 // ── http — the endpoint is the origin itself; /mcp stays as an alias ────────

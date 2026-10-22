@@ -835,14 +835,30 @@ async function fetchWithCredential(url: string, conn: BestConnection): Promise<R
   return sendWithCredential(url, { headers: { Accept: 'application/json', ...authHeaders(conn) } });
 }
 
-/** Any request that carries a credential, in a header or in its query: it follows no redirect, and refuses one. */
+/**
+ * Any request that carries a credential, in a header or in its query. A read follows a redirect within its own
+ * origin (`/commands` to `/commands/`), a few hops at most; a redirect to another origin, or of a command, is refused,
+ * so the credential never leaves the host it was meant for. What is said names the target without its query, which
+ * may echo a credential carried there.
+ */
 async function sendWithCredential(url: string, init: RequestInit): Promise<Response> {
-  const response = await fetch(url, { ...init, redirect: 'manual' });
-  if (response.status >= 300 && response.status < 400) {
-    const target = response.headers.get('location') ?? 'nowhere said';
-    throw new Error(`${init.method ?? 'GET'} ${url.split('?')[0]} → ${response.status}, a redirect to ${target}: a credential is not sent on a redirect.`);
+  const reading = (init.method ?? 'GET').toUpperCase() === 'GET';
+  let at = url;
+  for (let hop = 0; hop <= 5; hop++) {
+    const response = await fetch(at, { ...init, redirect: 'manual' });
+    if (response.status < 300 || response.status >= 400) return response;
+    const location = response.headers.get('location');
+    let next: URL | undefined;
+    try { next = location ? new URL(location, at) : undefined; } catch { next = undefined; }
+    if (next && reading && hop < 5 && next.origin === new URL(at).origin) {
+      at = next.toString();
+      continue;
+    }
+    const where = next ? `${next.origin}${next.pathname}` : 'nowhere said';
+    throw new Error(`${init.method ?? 'GET'} ${at.split('?')[0]} → ${response.status}, a redirect to ${where}: a credential ` +
+      `is sent on a read's redirect within its own origin only, and never on a command's.`);
   }
-  return response;
+  throw new Error(`GET ${url.split('?')[0]}: too many redirects.`);
 }
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
