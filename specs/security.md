@@ -109,7 +109,8 @@ CloudEvent `id` is a UUID and **MUST** be treated as an idempotency key by serve
 **Requirements:**
 - Servers **MUST** detect and reject or safely ignore duplicate command submissions (same `id`, same authenticated source) within a defined retention window appropriate to the domain.
 - If a previously seen `id` is reused with different payload contents, the server **MUST** reject it as invalid (`409 Conflict`).
-- Replay detection scope **MUST** include the authenticated tenant and sender identity, not only the `id` string, to prevent cross-tenant or cross-source collisions.
+- Replay detection scope **MUST** include the authenticated tenant and sender identity, not only the `id` string, to prevent cross-tenant or cross-source collisions. The sender is the credential that sent the command: two credentials of one account do not collide on an `id`.
+- A service **SHOULD** state its retention window in its documentation, so a client knows how long a retry with the same `id` is answered as the original was.
 
 ## CloudEvent `source` Field
 
