@@ -47,6 +47,7 @@
   was issued for.
 - **best-validate checks what the spec says.** A check reports a violation of a rule the spec states; a rule the
   validator does not check yet is an issue, not a silent gap.
+- No name of a client's platform appears in the repository: an example uses a made-up service.
 - Instructions and this file state the current rule, not its history; the history is in git.
 
 ## 3. Build
@@ -83,9 +84,11 @@
   gates run before the push and CI checks the push; that they ran is each maintainer's word.
 - **A release is a tag, made by its script**, which runs only on `main` level with `origin/main`, so everything it
   releases has passed the gates.
-  - The specification: `scripts/release.sh <version>` writes `version.json` and tags `spec/v<version>`, and CI
-    publishes the GitHub release, the website image and its deploy. Its notes, `RELEASE_NOTES/v<version>.md`, are
-    written first, in a commit that passes the gates like any other.
+  - The specification: `scripts/release.sh <version>` writes `version.json`, tags `spec/v<version>` and, for a
+    stable release, moves the `BEST@stable` tag to it, the one tag a script moves. CI then creates the GitHub
+    release, publishes the website image and opens the pull request that deploys it on the infrastructure
+    repository. The notes, `RELEASE_NOTES/v<version>.md`, are written first, in a commit that passes the gates like
+    any other.
   - best-mcp: `scripts/release-mcp.sh <version>` tags `mcp/v<version>`, and CI publishes `@behavioralstate/best-mcp`.
   - best-validate: `scripts/release-validate.sh <version>` tags `validate/v<version>`, and CI publishes
     `@behavioralstate/best-validate`.
@@ -93,6 +96,10 @@
     the documents at that version), and are the ones that skip the gates. A release
     gathers every change since the previous one; before 1.0 the minor goes up with a new obligation or capability,
     and the patch with a clarification or a fix.
+  - The one exception is the legacy `@behavioralstate/bsp-mcp` 1.x line, kept on a branch cut from `mcp/v1.7.1`
+    for deployments still pinned to it: its fixes are committed on that branch and released by a tag made by hand,
+    as the README says, since `release-mcp.sh` would publish best-mcp from `main`. The gates still run on that branch
+    before each push.
 
 ## 5. A change from another maintainer, or from a contributor
 
@@ -111,7 +118,7 @@
 
 - No push without `GATE GREEN` and the review: `/spec-review` and its `spec-reviewer` run on what is pushed, every
   finding fixed or set aside with its reason; the release scripts' version commits alone skip them.
-- No release of a commit the gates have not passed; no tag made by hand.
+- No release of a commit the gates have not passed; no tag made by hand, but on the legacy 1.x line (section 4).
 - No force-push to `main`; no push on top of a red `main`; no merge of a pull request with an unanswered finding,
   without the local gate green on what would land, or with a red check.
 - No plan file, no `TODO`, no dated narrative: open work is an issue.

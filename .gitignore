@@ -37,7 +37,7 @@ validate-cli/schemas/
 **/*.sln
 **/*.sw?
 
-# Claude Code local session config (browser-pane launch config, local permission grants); the repository's own
-# skills (SDLC.md section 4) are tracked
-.claude/*
-!.claude/skills/
+# Claude Code local session config (browser-pane launch config, local permission grants), at any depth; the
+# repository's own skills at the root (SDLC.md section 4) are tracked
+**/.claude/*
+!/.claude/skills/

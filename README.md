@@ -133,7 +133,7 @@ This repo has **three independent** versioned artifacts. Running one release doe
 | `@behavioralstate/best-validate` npm package | `validate/v*` | `./scripts/release-validate.sh [x.y.z]` | CI publishes to npm |
 | BEST protocol spec + website | `spec/v*` | `./scripts/release.sh x.y.z [--prerelease]` | CI builds the site image → GHCR → IaC deploy PR |
 
-`release-mcp.sh` with no argument auto-bumps the patch version. `release.sh` requires a clean `main` checkout, bumps `version.json` (the single source of truth for `{{BEST_VERSION}}` placeholders), updates this README's release references, tags, and creates the GitHub Release. When releasing both in one session, release `best-mcp` first.
+`release-mcp.sh` with no argument auto-bumps the patch version. `release.sh` requires a clean `main` checkout, bumps `version.json` (the single source of truth for `{{BEST_VERSION}}` placeholders), updates this README's release references, tags, and moves `BEST@stable` to a stable release; CI then creates the GitHub Release from the committed `RELEASE_NOTES/v<version>.md`. When releasing both in one session, release `best-mcp` first.
 
 **The tag prefix does not select the npm package.** CI checks out the tagged commit and publishes whatever `mcp-server/package.json` names *there*, so package identity comes from the commit, not the tag.
 
