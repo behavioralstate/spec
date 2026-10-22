@@ -481,6 +481,8 @@ Whether a person without an account can get one is the page's business, not the 
 
 **Revoke agent** is an ordinary command on the account's surface, sent under the credential being revoked. After it, that credential receives `401`, and the way back is the one the manifest declares.
 
+**Membership by the service's own commands.** Admission by the approver is how an agent gets a credential; it need not be the only way into an account. A service whose accounts are shared — a workspace, a team — may let an account's owner invite an identity and the identity accept, both ordinary commands with events of their own, while its credential still came from the flow above. Across accounts the service then names an identity by an opaque id it gives, derived from the credential and never the credential, so an owner can name whom to invite without holding anything that opens it.
+
 **Optional, and outside this flow:** a platform may let an agent open an account itself. That is an ordinary command carrying [`impact: commitment`](#impact-annotations), confirmed with the person before it is sent; nothing above depends on it.
 
 ## Commands — `io.best.agents.commands`
