@@ -66,8 +66,7 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
       const tenant = tenants && /^\/\.well-known\/best\/([^/]+)$/.exec(path)?.[1];
       if (tenant === 'redir' && redirectTenantTo) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
       if (typeof tenant === 'string' && tenant.startsWith('flip') && redirectTenantTo && (seen[tenant] = (seen[tenant] ?? 0) + 1) > 1) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
-      if (path === '/api/tenants/same/commands') { res.writeHead(302, { Location: '/api/tenants/same/commands/' }); return res.end(); }
-      if (path === '/api/tenants/same/commands/') return json(200, { commands: [] });
+      if (path === '/api/tenants/same/commands') { res.writeHead(302, { Location: '/api/tenants/same/commands/?k=SECRET-IN-QUERY' }); return res.end(); }
       if (redirectTenantTo && path.startsWith('/api/tenants/hop/')) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
       if (tenant) {
         if (req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
@@ -414,9 +413,9 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   await call(client, 'sample_event_stream', { connection: 'peer/hop', max_seconds: 1 });
   expect(hopRead.isError && hopSend.isError && stolen.length === 0, `tenant: a service that redirects was followed with the key: ${hopRead.text} ${hopSend.text} ${JSON.stringify(stolen)}`);
   expect(!hopRead.text.includes('key_for_peer'), `tenant: a refused redirect said the key: ${hopRead.text}`);
-  // A read redirected within its own origin is followed.
+  // A redirect within the same origin is refused too, and what is said carries no query.
   const same = await call(client, 'get_command_catalogue', { connection: 'peer/same' });
-  expect(!same.isError, `tenant: a read redirected within its own origin was refused: ${same.text.slice(0, 300)}`);
+  expect(same.isError && same.text.includes('/api/tenants/same/commands/') && !same.text.includes('SECRET-IN-QUERY'), `tenant: a same-origin redirect was followed, or its query said: ${same.text.slice(0, 300)}`);
   // A tenant manifest read once, then redirecting when get_manifest reads it again: refused, the key kept.
   await call(client, 'send_command', { connection: 'peer/flip', schema: 'place-order', version: '1.0', data: {} });
   const flipped = await call(client, 'get_manifest', { connection: 'peer/flip' });
