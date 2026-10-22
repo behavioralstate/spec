@@ -770,6 +770,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 | 413 | Request body exceeds server limits |
 | 415 | `POST /commands` with a `Content-Type` the server does not take; the error says which it takes |
 | 422 | Semantic error (capability not supported) |
+| 429 | A command past the server's pace; `Retry-After` says when to send again |
 | 500 | Internal error |
 
 ## MCP Transport
