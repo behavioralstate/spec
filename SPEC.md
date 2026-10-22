@@ -593,6 +593,10 @@ The caller **may** set `correlationid` on the command; when omitted, the server 
 
 The schema document at `GET /commands/{schema}/{version}` **may** declare a `produces` array of PascalCase event types the command can raise (e.g. `["CounterProposed", "NegotiationFailed"]`). Failure outcomes are ordinary events in that list; naming conventions (`*Failed`) are service-defined. BEST defines no timeout protocol — services **should** document expected processing times and always publish a failure event rather than silently dropping a command; callers decide how long to wait. When the service publishes [workflows](#workflows--iobestagentsworkflows), the document **should** also carry the operation's `workflows` cross-link array; when the catalogue entry carries an [`impact` annotation](#impact-annotations), the document **must** carry the same annotation as a top-level `impact` member.
 
+### Commands That Wait
+
+A service **may** accept a command it cannot carry out yet, for want of capacity, and carry it out when it can. It **should** then tell that the command waits, as an event under its correlation id, and **must** end it with an outcome event if it never runs. A command **may** carry bounds on how long it waits and how long it runs; a service that honours them counts them from its own events' times, so a restart neither resets nor extends them, and ends the command with an event naming the bound it reached. A service that bounds the wait of a command whose caller named no bound **must** tell that bound on the event that says the command waits. A waiting command is ended before it starts by the same command that stops it once running. A service **may** refuse at once a command whose caller did not ask to wait, so that a caller distributing work elsewhere is not held by one service with no room.
+
 ## Events — `io.best.agents.events`
 
 Events are immutable facts published as the result of processing. Schema: [`events.json`](protocol/v1/schemas/agents/events.json)
