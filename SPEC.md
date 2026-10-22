@@ -599,7 +599,7 @@ Events are immutable facts published as the result of processing. Schema: [`even
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/events` | **Historical query** — paginated, filterable log of past events; may double as the event catalogue |
+| GET | `/events` | **Historical query** — paginated, filterable log of past events |
 | GET | `/events/stream` | **Live stream** — SSE; delivers events produced *after* the connection opens |
 | GET | `/events/{schema}/{version}` | JSON Schema document for one event type/version |
 
@@ -628,7 +628,7 @@ Request with `Accept: text/event-stream` plus credentials; optional filters `cor
 
 ### Event Catalogue
 
-`GET /events` may also serve catalogue entries mirroring the command catalogue: `schema` (kebab-case), `version`, optional `dataschema` (omitted for untyped events), `description`. Untyped events rely on `description` as primary documentation.
+There is no listing of events: `GET /events` is the log, an `eventList` and nothing else. A typed event's schema document is at `GET /events/{schema}/{version}`, where the event's own `dataschema` points; a command's schema document names in `produces` the event types it can raise, which is how a consumer learns them before any has been told. Untyped events rely on the `description` of the command that produces them.
 
 ### Choosing a Delivery Channel
 
