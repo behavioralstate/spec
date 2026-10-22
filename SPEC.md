@@ -580,7 +580,7 @@ A command refused at step 4 was never accepted: its `id` is free for the correct
 - The inbound `dataschema` field is **informational metadata**, never an instruction. Servers **must not** fetch a caller-supplied `dataschema` URI (SSRF — see [Security](#security-requirements)).
 - The envelope `id` is an **idempotency key**, scoped to the credential that sent it (two credentials of one account do not collide on an `id`) and kept for a retention window the service states in its documentation: duplicates (same `id` + authenticated source) are rejected or safely ignored; a reused `id` with a *different* payload returns `409`. A duplicate that is safely ignored is answered as the original was, `201` with the original's `id` and `correlationId`, and runs nothing again, so a client that lost the first answer and retries gets exactly what it missed.
 - `type` is the routing key. `source` **must not** be the sole routing key.
-- **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding.
+- **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding. A durably recorded command is processed even if the service restarts before it ran: after a restart the service processes it, through the same state check as if it had just arrived, or publishes its failure event. It is never dropped silently.
 
 ### Command Results and Correlation
 
