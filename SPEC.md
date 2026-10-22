@@ -620,6 +620,10 @@ Events are immutable facts published as the result of processing. Schema: [`even
 
 **No replay guarantee:** `GET /events` returns whatever the server currently exposes — a full log, a recent window, or a mapped view of domain records. Clients cannot assume completeness, ordering, or replay fidelity. For reliable point-in-time delivery, use a push channel.
 
+### Forgetting Content
+
+A service **may** let a holder forget the content of facts it sent or was told, by a command that names what to forget. A forgotten event **must** keep its envelope (`id`, `type`, `time`, `correlationid`) on every read path, the page, the stream and a replay alike, so a consumer's position in the log and its correlation stay whole; what of its `data` it keeps is the service's, and the event that completes the forgetting **must** name what was removed and what was kept.
+
 ### Query Parameters (`GET /events`)
 
 | Parameter | Description |
