@@ -584,6 +584,8 @@ A command refused at step 4 was never accepted: its `id` is free for the correct
 - `type` is the routing key. `source` **must not** be the sole routing key.
 - **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding. A durably recorded command is processed even if the service restarts before it ran: after a restart the service processes it, through the same state check as if it had just arrived, or publishes its failure event. It is never dropped silently.
 
+**A field marked `writeOnly` is taken, not recorded.** A command's data schema **may** mark a field `writeOnly`: a credential, a URL that grants access by itself. A service **must not** record, replay or emit such a field; it takes the field at admission and records the command without it. A command accepted with one is not run again from its record after a restart: the service **must** fail it with a reason that says to send it again.
+
 ### Command Results and Correlation
 
 BEST defines **no synchronous command response**. The result of processing is one or more published events, tied to the command by the first-class **`correlationid`** envelope attribute:
