@@ -152,6 +152,10 @@ Servers **MUST** enforce maximum request body sizes for `POST /commands` and **S
 
 Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission.
 
+## Event Streams
+
+A server **MAY** bound the event streams a client holds open. Past the bound it **SHOULD** end the client's oldest stream rather than refuse the new one: a client cannot close a stream whose connection it lost, and its reconnect must not be refused by a stream the server still believes open. The client reads the ended stream as closed and reconnects with `Last-Event-ID`.
+
 ## Manifest Content
 
 The `/.well-known/best` manifest is publicly accessible by design. Its content **MUST** be limited to information intended for unauthenticated disclosure:
