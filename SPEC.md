@@ -575,7 +575,7 @@ The annotation is **descriptive, not enforcement**. It tells a well-behaved cons
 4. Valid → durably queue and return `201 Created` with `{ "id": "<command id>", "correlationId": "<correlation identifier>" }`. Invalid → `400`.
 
 - The inbound `dataschema` field is **informational metadata**, never an instruction. Servers **must not** fetch a caller-supplied `dataschema` URI (SSRF — see [Security](#security-requirements)).
-- The envelope `id` is an **idempotency key**: duplicates (same `id` + authenticated source) are rejected or safely ignored; a reused `id` with a *different* payload returns `409`.
+- The envelope `id` is an **idempotency key**: duplicates (same `id` + authenticated source) are rejected or safely ignored; a reused `id` with a *different* payload returns `409`. A duplicate that is safely ignored is answered as the original was, `201` with the original's `id` and `correlationId`, and runs nothing again, so a client that lost the first answer and retries gets exactly what it missed.
 - `type` is the routing key. `source` **must not** be the sole routing key.
 - **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding.
 
