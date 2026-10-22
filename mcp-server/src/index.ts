@@ -832,9 +832,15 @@ const isSafeTenantId = (id: string): boolean => SAFE_TENANT_ID.test(id) && id !=
  * Resolution: a credential is never sent to a host other than the one its name resolved to).
  */
 async function fetchWithCredential(url: string, conn: BestConnection): Promise<Response> {
-  const response = await fetch(url, { redirect: 'manual', headers: { Accept: 'application/json', ...authHeaders(conn) } });
+  return sendWithCredential(url, { headers: { Accept: 'application/json', ...authHeaders(conn) } });
+}
+
+/** Any request that carries a credential, in a header or in its query: it follows no redirect, and refuses one. */
+async function sendWithCredential(url: string, init: RequestInit): Promise<Response> {
+  const response = await fetch(url, { ...init, redirect: 'manual' });
   if (response.status >= 300 && response.status < 400) {
-    throw new Error(`GET ${url} → ${response.status}, a redirect to ${response.headers.get('location') ?? 'nowhere said'}: a credential is not sent on a redirect.`);
+    const target = response.headers.get('location') ?? 'nowhere said';
+    throw new Error(`${init.method ?? 'GET'} ${url.split('?')[0]} → ${response.status}, a redirect to ${target}: a credential is not sent on a redirect.`);
   }
   return response;
 }
@@ -958,7 +964,7 @@ async function parseErrorMessage(response: Response): Promise<string> {
 }
 
 async function bestGet<T>(path: string, conn: BestConnection): Promise<T> {
-  const response = await fetchHealing(conn, c => fetch(`${c.endpoint}${withAuthQuery(path, c)}`, {
+  const response = await fetchHealing(conn, c => sendWithCredential(`${c.endpoint}${withAuthQuery(path, c)}`, {
     headers: { ...authHeaders(c), Accept: 'application/json' }
   }));
   if (!response.ok) {
@@ -990,7 +996,7 @@ async function commandContentType(conn: BestConnection): Promise<string> {
 }
 
 async function bestPost<T>(path: string, body: unknown, conn: BestConnection): Promise<T> {
-  const send = (contentType: string, c: BestConnection = conn) => fetch(`${c.endpoint}${withAuthQuery(path, c)}`, {
+  const send = (contentType: string, c: BestConnection = conn) => sendWithCredential(`${c.endpoint}${withAuthQuery(path, c)}`, {
     method: 'POST',
     headers: {
       ...authHeaders(c),
@@ -2395,7 +2401,7 @@ async function handleSampleEventStream(args: Record<string, unknown>, conn: Best
   let serverClosed = false;
 
   try {
-    const response = await fetch(`${conn.endpoint}${path}`, {
+    const response = await sendWithCredential(`${conn.endpoint}${path}`, {
       headers: {
         ...authHeaders(conn),
         Accept: 'text/event-stream',
@@ -2510,7 +2516,8 @@ async function handleGetManifest(conn: BestConnection): Promise<string> {
   const globalUrl = conn.manifestUrl ?? `${origin}/.well-known/best`;
 
   const fetchManifest = async (url: string, headers: Record<string, string> = {}): Promise<unknown> => {
-    const response = await fetch(url, { headers: { Accept: 'application/json', ...headers } });
+    const init = { headers: { Accept: 'application/json', ...headers } };
+    const response = Object.keys(headers).length ? await sendWithCredential(url, init) : await fetch(url, init);
     if (!response.ok) {
       const message = await parseErrorMessage(response);
       throw new Error(`GET ${url} → ${response.status}: ${message}`);

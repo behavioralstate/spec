@@ -65,6 +65,8 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
       }
       const tenant = tenants && /^\/\.well-known\/best\/([^/]+)$/.exec(path)?.[1];
       if (tenant === 'redir' && redirectTenantTo) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
+      if (tenant === 'flip' && redirectTenantTo && (seen.flipped = (seen.flipped ?? 0) + 1) > 1) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
+      if (redirectTenantTo && path.startsWith('/api/tenants/hop/')) { res.writeHead(302, { Location: redirectTenantTo }); return res.end(); }
       if (tenant) {
         if (req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'UNAUTHORIZED', message: 'key required' } });
         if (!tenantIds.includes(tenant)) return json(404, { error: { code: 'NO_SUCH_TENANT', message: `no tenant ${tenant} opens to this credential` } });
@@ -384,7 +386,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const stolen = [];
   const thief = createServer((req, res) => { stolen.push(req.headers['x-api-key'] ?? ''); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); });
   await new Promise(r => thief.listen(0, '127.0.0.1', r));
-  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a'], redirectTenantTo: `http://127.0.0.1:${thief.address().port}/stolen` });
+  const p = await mock('modern', { key: 'key_for_peer', tenants: true, tokenTenant: null, tenantIds: ['ws-7f3a', 'hop', 'flip'], redirectTenantTo: `http://127.0.0.1:${thief.address().port}/stolen` });
   const q = await mock('modern', { key: 'key_for_plain' });
   const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
   let client = await connectBare(credentialsFile);
@@ -404,6 +406,14 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(gone.isError && gone.text.includes('no tenant ws-gone opens to this credential'), `tenant: a tenant the credential does not open did not answer with the service's error: ${gone.text}`);
   const redirected = await call(client, 'get_command_catalogue', { connection: 'peer/redir' });
   expect(redirected.isError && stolen.length === 0, `tenant: a tenant manifest that redirects elsewhere was followed with the key: ${redirected.text} ${JSON.stringify(stolen)}`);
+  // A tenant's service that redirects a catalogue read, a command or the stream: refused, the key kept.
+  const hopRead = await call(client, 'get_command_catalogue', { connection: 'peer/hop' });
+  const hopSend = await call(client, 'send_command', { connection: 'peer/hop', schema: 'place-order', version: '1.0', data: {} });
+  expect(hopRead.isError && hopSend.isError && stolen.length === 0, `tenant: a service that redirects was followed with the key: ${hopRead.text} ${hopSend.text} ${JSON.stringify(stolen)}`);
+  // A tenant manifest read once, then redirecting when get_manifest reads it again: refused, the key kept.
+  await call(client, 'send_command', { connection: 'peer/flip', schema: 'place-order', version: '1.0', data: {} });
+  const flipped = await call(client, 'get_manifest', { connection: 'peer/flip' });
+  expect(flipped.isError && stolen.length === 0, `tenant: get_manifest followed a redirect with the key: ${flipped.text.slice(0, 200)} ${JSON.stringify(stolen)}`);
   const up = await call(client, 'get_manifest', { connection: 'peer/..' });
   expect(up.isError && up.text.includes("Unknown connection 'peer/..'"), `tenant: '..' was taken for a tenant: ${up.text.slice(0, 300)}`);
   const flat = await call(client, 'send_command', { connection: 'plain/acme', schema: 'place-order', version: '1.0', data: {} });
@@ -421,7 +431,10 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   client = await connectBare(join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json'));
   await call(client, 'register_agent', { name: 'solo', manifest: `${solo.origin}/.well-known/best` });
   for (let i = 0; i < 3; i++) { const done = await call(client, 'exchange_device_code', { connection: 'solo' }); if (done.isError || !done.text.includes('authorization_pending')) break; }
-  await call(client, 'send_command', { connection: 'solo/ws-1', schema: 'place-order', version: '1.0', data: {} });
+  const viaTenant = await call(client, 'send_command', { connection: 'solo/ws-1', schema: 'place-order', version: '1.0', data: {} });
+  expect(!viaTenant.isError, `tenant: the solo sign-in did not reach its tenant: ${viaTenant.text.slice(0, 300)}`);
+  const soloListed = (await call(client, 'list_connections')).text;
+  expect(soloListed.includes('"name": "solo/ws-1"'), `tenant: the tenant connection is not there to test the default with: ${soloListed}`);
   const unnamed = await call(client, 'get_command_catalogue', {});
   expect(!unnamed.isError, `tenant: using a tenant ended the one sign-in's being the default: ${unnamed.text.slice(0, 300)}`);
   await client.close(); solo.server.close();
