@@ -674,7 +674,7 @@ Workflows are **published recipes**: read-only, named sequences of catalogue ope
 | GET | `/workflows` | Workflow index — `id`, `name`, `description` per recipe, **never the steps** |
 | GET | `/workflows/{id}` | One full recipe with its ordered steps; `404` for an unknown id |
 
-The index is deliberately shallow so a consumer can hold the entire list in one read and choose; full recipes are fetched one at a time.
+The index is deliberately shallow so a consumer can hold the entire list in one read and choose; full recipes are fetched one at a time. A service declares the capability `active` only when it publishes at least one recipe; one that publishes none yet declares it `planned`, so a consumer that reads `active` finds something to follow.
 
 **Workflow ids** are stable, service-defined, URL-path-safe strings — reverse-domain (`io.example.workflows.onboard-a-worker`) or kebab-case. Renaming an id is a breaking change for anything linking to it.
 
