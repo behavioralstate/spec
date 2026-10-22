@@ -6,7 +6,7 @@ Domain events are **immutable facts** published by a BEST-compliant service as t
 
 Events ride the same CloudEvents 1.0 envelope as commands. Two event-specific rules:
 
-- **`correlationid`** (CloudEvents extension attribute, lowercase on the wire) is **required** on every event produced by processing a command — set to that command's correlation identifier (the `correlationId` echoed by `POST /commands`). Spontaneous events may omit it. This is what lets any consumer, including one that never saw the command, match events to their originating submission.
+- **`correlationid`** (CloudEvents extension attribute, lowercase on the wire) is **required** on every event produced by processing a command — set to that command's correlation identifier (the `correlationId` echoed by `POST /commands`) — and on every later fact about what that command created. Spontaneous events, with no command behind them, may omit it. This is what lets any consumer, including one that never saw the command, match events to their originating submission.
 - **`dataschema` is optional.** With it, the event is **typed** — consumers fetch the schema and validate. Without it, the event is **untyped** — the consumer interprets `data`; the envelope (`type`, `source`, `id`, `correlationid`, `time`) still supports routing and correlation. Both patterns can coexist in one service; untyped suits dynamic payloads (sensor readings, log streams, forwarded third-party events).
 
 ```json
@@ -47,17 +47,17 @@ Events ride the same CloudEvents 1.0 envelope as commands. Two event-specific ru
 | `type` | Filter by envelope `type` (PascalCase), across all interactions |
 | `correlationId` | Only events whose `correlationid` envelope attribute matches |
 | `source` | Filter by publishing service |
-| `from` / `to` | ISO 8601 time-range bounds (inclusive) |
+| `from` / `to` | Time-range bounds (inclusive), as RFC 3339 timestamps; any other form is a `400` naming the parameter |
 | `limit` | Max results; servers may apply a lower ceiling |
 | `after` | Opaque pagination cursor — pass the previous response's `nextCursor`, preserving all other parameters; absent `nextCursor` means last page |
 
 ### SSE stream (`GET /events/stream`)
 
-Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection — the stream is not lossless.
+Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it; an id the server never told, or no longer holds, is no position in its log, so the server delivers from now on and the client reads what it missed from `GET /events`. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection — the stream is not lossless.
 
-### Event catalogue
+### Event types
 
-`GET /events` may also serve catalogue entries mirroring the command catalogue: `schema` (kebab-case), `version`, optional `dataschema` (omitted for untyped events), `description` — the primary documentation for untyped events.
+There is no listing of events: `GET /events` is the log and nothing else. A typed event's schema document is at `GET /events/{schema}/{version}`, where its `dataschema` points; a command's schema document names in `produces` the event types it can raise. Untyped events rely on the `description` of the command that produces them ([SPEC.md — Events](https://github.com/behavioralstate/spec/blob/main/SPEC.md#events--iobestagentsevents)).
 
 ## Push channels
 

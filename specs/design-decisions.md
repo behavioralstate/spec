@@ -29,7 +29,7 @@ POST  /commands                        → 201 { "id": "abc123", "correlationId"
 GET   /events?correlationId=abc123     → [ { "type": "CounterProposed", "correlationid": "abc123", ... } ]
 ```
 
-Correlation is **first-class**: the `correlationid` envelope attribute (a CloudEvents extension, lowercase on the wire) may be set by the caller on the command — when omitted, the server adopts the command's `id` — and **must** appear on every event produced by processing that command. Follow-up commands in the same business process should propagate it, which is what lets one identifier traverse a chain of services. See [Correlation becomes first-class](#correlation-becomes-first-class).
+Correlation is **first-class**: the `correlationid` envelope attribute (a CloudEvents extension, lowercase on the wire) may be set by the caller on the command — when omitted, the server adopts the command's `id` — and **must** appear on every event produced by processing that command. Follow-up commands in the same business process, from the same sender, should propagate it, so one identifier ties the steps of a process together; a service that reacts under its own credential starts a correlation of its own, since a correlation id belongs to the sender that first used it. See [Correlation becomes first-class](#correlation-becomes-first-class).
 
 ### Polling vs push
 
@@ -225,7 +225,7 @@ SSE already serves push for connected consumers, and polling covers the rest. If
 
 Before this, the command's `id` was the correlation handle, but nothing at the protocol level carried it *on the events* — the field name inside event payloads was "agreed between client and server." That worked only when one party wrote both sides. A generic consumer polling `GET /events` had no reliable way to match events to commands, and the identifier could not survive a multi-step process spanning services: each hop minted a new command `id` and the chain broke.
 
-Making correlation an envelope attribute fixes both without touching `data`: any consumer can correlate from the envelope alone, and because the attribute is *supplied* rather than derived, a process manager can stamp one identifier on the first command and carry it through every subsequent command and event in the chain. Keeping it out of the payload also preserves the rule that `data` is semantically opaque to the protocol. As a CloudEvents extension attribute it rides through CE SDKs, brokers, and validators unchanged, and pre-0.9.2 consumers — required to ignore unknown envelope attributes — are unaffected.
+Making correlation an envelope attribute fixes both without touching `data`: any consumer can correlate from the envelope alone, and because the attribute is *supplied* rather than derived, a process manager can stamp one identifier on the first command and carry it through every subsequent command it sends, and every event they cause. Keeping it out of the payload also preserves the rule that `data` is semantically opaque to the protocol. As a CloudEvents extension attribute it rides through CE SDKs, brokers, and validators unchanged, and pre-0.9.2 consumers — required to ignore unknown envelope attributes — are unaffected.
 
 Idempotency and correlation stay separate concerns: `id` remains the idempotency key, unique per message; `correlationid` groups messages into a process.
 

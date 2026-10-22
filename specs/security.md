@@ -4,14 +4,14 @@ BEST is an open protocol with a broad attack surface. This page catalogues the s
 
 ## TLS
 
-All BEST HTTP endpoints **MUST** be served over HTTPS. Cleartext HTTP **MUST NOT** be used in production: it **MAY** be used only where both ends are the same machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), judged on the address a service listens on and the host of the endpoint it advertises, or where its operator states that the network already encrypts the hop. Otherwise a service **MUST** refuse to serve in cleartext, not warn, and its refusal **MUST** name the setting and the fix. The same holds for a service's own outbound calls that carry a credential: a service **MUST NOT** send one to another service in cleartext off loopback. Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over insecure or unauthenticated transports.
+All BEST HTTP endpoints **MUST** be served over HTTPS, but for the cleartext this section allows. Cleartext HTTP **MAY** be used only where both ends are the same machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), judged on the address a service listens on and the host of the endpoint it advertises, or where its operator states that the network already encrypts the hop. Elsewhere a service **MUST** refuse to serve in cleartext, not warn, and its refusal **MUST** name the setting and the fix. A service's own outbound calls that carry a credential follow the same rule: it **MUST NOT** send one in cleartext but to loopback or over a hop its operator stated encrypted. *(The refusal and the outbound rule are required from 0.10.0.)* Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over a transport this section does not allow.
 
 ## Authentication and Authorisation
 
 `GET /.well-known/best` is always unauthenticated — it is the public discovery endpoint. Beyond it, only two things are reachable without a BEST credential:
 
 - the capabilities of a service whose manifest entry declares `"authentication": { "type": "none" }` — a **public surface**; and
-- the `deviceAuthorizationUrl` and `tokenUrl` endpoints of [agent registration](identity-and-registration.md), which **MUST** be rate-limited per client and per `device_code`. Since `client_id` is the caller's own word, a service **SHOULD** also bound the registrations pending per network origin, an IPv6 origin by its /64, without reading a forwarded address the caller writes; a refusal **SHOULD** say when a place frees.
+- the `deviceAuthorizationUrl` and `tokenUrl` endpoints of [agent registration](identity-and-registration.md), which **MUST** be rate-limited per client and per `device_code`. Since `client_id` is the caller's own word, a service **SHOULD** also bound the registrations pending per network origin, an IPv6 origin by its /64, without reading a forwarded address the caller writes (behind a proxy, the bound per address is the proxy's to set); a refusal **SHOULD** be a `503` whose `Retry-After` says when a place frees.
 
 Every other endpoint **MUST** require authentication. A public surface **MUST NOT** return data belonging to any account and **MUST** be rate-limited per client. A command accepted on a public surface **MUST** have no effect on any account until a person signed in to the platform has approved it.
 
@@ -107,9 +107,9 @@ A server that **fetches** the caller-supplied `dataschema` URI to perform valida
 CloudEvent `id` is a UUID and **MUST** be treated as an idempotency key by servers.
 
 **Requirements:**
-- Servers **MUST** detect and reject or safely ignore duplicate command submissions (same `id`, same authenticated source) within a defined retention window appropriate to the domain.
+- Servers **MUST** detect and reject or safely ignore duplicate command submissions (the same `id` from the same credential) within a defined retention window appropriate to the domain; a safely ignored duplicate is answered as the original was.
 - If a previously seen `id` is reused with different payload contents, the server **MUST** reject it as invalid (`409 Conflict`).
-- Replay detection scope **MUST** include the authenticated tenant and sender identity, not only the `id` string, to prevent cross-tenant or cross-source collisions. The sender is the credential that sent the command: two credentials of one account do not collide on an `id`.
+- Replay detection scope **MUST** include the authenticated tenant and sender identity, not only the `id` string, to prevent cross-tenant or cross-source collisions. The sender is the credential that sent the command: two credentials of one account do not collide on an `id` as an idempotency key, though a command that names no `correlationid` takes its `id` as its correlation, which belongs to the sender that used it first.
 - A service **SHOULD** state its retention window in its documentation, so a client knows how long a retry with the same `id` is answered as the original was.
 
 ## CloudEvent `source` Field
@@ -129,7 +129,7 @@ The `source` field in a command is **caller-declared** and **MUST NOT** be treat
 
 ## Request Records
 
-A service **SHOULD** keep a record of the requests it answers that names the verified principal when there is one, refused requests included. It **MUST NOT** record a credential, a header carrying one, or a query string, which may carry an exchanged token ([Token Exchange and Query-String Credentials](#token-exchange-and-query-string-credentials)).
+A service **SHOULD** keep a record of the requests it answers that names the verified principal when there is one, refused requests included. It **MUST NOT** record a credential, a header carrying one, or a query string, which may carry an exchanged token ([Token Exchange and Query-String Credentials](#token-exchange-and-query-string-credentials)). *(Required from 0.10.0.)*
 
 ## Credentials Stay Out of Transcripts
 
@@ -153,13 +153,13 @@ For implementations that serve multiple tenants:
 
 ## Input Limits
 
-Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded, with `details.limit_bytes`, the largest body the endpoint accepts, since a body refused before it is read has no field to name. A service that forwards a command to another service **MUST** accept no body it cannot forward whole. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
+Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded, with `details.limit_bytes`, the largest body the endpoint accepts, since a body refused before it is read has no field to name. A service that forwards a command to another service **MUST** accept no body it cannot forward whole *(required from 0.10.0)*. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
 
-Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission. A server that limits it **MUST** answer a command past the limit with `429` and a `Retry-After` header, **MUST NOT** count a retry of a command it accepted or a command it refused, and **SHOULD** count a client once across the tenants it opens.
+Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission. A server that limits it **MUST** answer a command past the limit with `429` and a `Retry-After` header, **MUST NOT** count a retry of a command it accepted or a command it refused, and **SHOULD** count a client once across the tenants it opens. *(Required from 0.10.0.)*
 
 ## Event Streams
 
-A server **MAY** bound the event streams a client holds open. Past the bound it **SHOULD** end the client's oldest stream rather than refuse the new one: a client cannot close a stream whose connection it lost, and its reconnect must not be refused by a stream the server still believes open. The client reads the ended stream as closed and reconnects with `Last-Event-ID`.
+A server **MAY** bound the event streams a client holds open. Past the bound it **SHOULD** end the client's oldest stream rather than refuse the new one: a client cannot close a stream whose connection it lost, and its reconnect must not be refused by a stream the server still believes open. The client reads the ended stream as closed and reconnects with `Last-Event-ID`. A service that bounds streams **SHOULD** state the bound in its documentation, so a client does not hold more than it and lose its oldest stream at every reconnect.
 
 ## Manifest Content
 

@@ -81,7 +81,7 @@ All endpoints use standard HTTP status codes with a consistent error body:
 | 200 | Success with body |
 | 201 | Created (command accepted and durably queued) |
 | 202 | Accepted (async processing without durability guarantee) |
-| 400 | Invalid request body (schema validation failure) |
+| 400 | Invalid request (schema validation failure, or a well-formed command the service cannot honour in its current state) |
 | 401 | Authentication required or credentials invalid |
 | 404 | Resource not found |
 | 409 | Conflict (duplicate command `id` with different payload) |

@@ -104,7 +104,7 @@ The four standard capabilities are `io.best.agents.commands`, `io.best.agents.ev
 | `version` | Semver |
 | `spec` / `schema` | URLs to the specification page and the **JSON Schema** (not OpenAPI). Required for `io.best.*`; optional for custom capabilities |
 | `service` | Key of the implementing service in `services` — required when the capability's name prefix doesn't match the service key; consumers use it to resolve which `http.endpoint` to call |
-| `status` | `active` (default) · `partial` · `planned`. `active` means every required endpoint is callable — declaring it while returning `404`/`501` is a conformance violation |
+| `status` | `active` (default) · `partial` · `planned`. `active` means every required endpoint is callable — declaring it while returning `404`/`501` is a conformance violation; a workflows capability is `active` only while it publishes a recipe |
 | `endpoints` | Machine-readable `{ method, path }` list. Paths are appended to the service's `http.endpoint` (the leading slash is a separator, not root-relative) — this is how consumers self-bootstrap without reading spec pages |
 | `push` | Events capability only — declared push channels |
 | `extensions` | Vendor-defined static declarations — see [Extensions](#extensions) |

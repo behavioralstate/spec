@@ -115,7 +115,7 @@ At each step the service speaks to the agent in the words of the [sign-in guidan
 
 ## Revoking
 
-Revoke agent is an ordinary command on the account's surface, sent under the credential being revoked (and, on most platforms, a button in the account's UI). After it, that credential receives `401`; the way back is the one the manifest declares — register again.
+Revoke agent is an ordinary command on the account's surface, sent under the credential being revoked (and, on most platforms, a button in the account's UI). After it, that credential receives `401`; the way back is the one the manifest declares — register again. An event stream open under it delivers the revocation's own event and then ends, and so, within a bounded time, does any stream of a credential revoked another way or run out; an approver who bounded a credential's life finds the bound in `expires_in`, never shortened silently ([SPEC.md — Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration)).
 
 ## Optional: an agent that opens accounts
 

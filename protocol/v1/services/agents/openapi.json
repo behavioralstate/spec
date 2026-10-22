@@ -163,13 +163,13 @@
             "name": "from",
             "in": "query",
             "schema": { "type": "string", "format": "date-time" },
-            "description": "Return only events published at or after this ISO 8601 timestamp (e.g. 2025-07-01T00:00:00Z)."
+            "description": "Return only events published at or after this RFC 3339 timestamp (e.g. 2025-07-01T00:00:00Z); any other form is a 400 naming the parameter."
           },
           {
             "name": "to",
             "in": "query",
             "schema": { "type": "string", "format": "date-time" },
-            "description": "Return only events published at or before this ISO 8601 timestamp."
+            "description": "Return only events published at or before this RFC 3339 timestamp; any other form is a 400 naming the parameter."
           },
           {
             "name": "limit",
@@ -255,7 +255,7 @@
           "schema": {
             "type": "string"
           },
-          "description": "Event schema name in kebab-case, matching the 'schema' field of the catalogue entry (e.g. counter-proposed)"
+          "description": "Event schema name in kebab-case, as a typed event's dataschema URI names it (e.g. counter-proposed)"
         },
         {
           "name": "version",
@@ -270,7 +270,7 @@
       "get": {
         "operationId": "getEventSchema",
         "summary": "Get a versioned event schema",
-        "description": "Returns the JSON Schema document for a specific event type and version. Mirrors GET /commands/{schema}/{version}. The full URL of this endpoint is the canonical value for the dataschema URI in an event catalogue entry.",
+        "description": "Returns the JSON Schema document for a specific event type and version. Mirrors GET /commands/{schema}/{version}. The full URL of this endpoint is the canonical value of a typed event's dataschema; there is no event catalogue.",
         "tags": [
           "Events"
         ],

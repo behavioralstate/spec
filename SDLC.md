@@ -94,8 +94,8 @@
     `@behavioralstate/best-validate`.
   - The commits these scripts make hold nothing but the version (and, for the specification, the README's table of
     the documents at that version), and are the ones that skip the gates. A release
-    gathers every change since the previous one; before 1.0 the minor goes up with a new obligation or capability,
-    and the patch with a clarification or a fix.
+    gathers every change since the previous one, and is a patch: the minor or the major goes up only when the owner
+    asks for it. A *Required from* version in the spec text dates when an obligation binds; it plans no release.
   - The one exception is the legacy `@behavioralstate/bsp-mcp` 1.x line, kept on a branch cut from `mcp/v1.7.1`
     for deployments still pinned to it: its fixes are committed on that branch and released by a tag made by hand,
     as the README says, since `release-mcp.sh` would publish best-mcp from `main`. That branch predates the gate

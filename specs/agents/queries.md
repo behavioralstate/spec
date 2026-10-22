@@ -24,7 +24,7 @@ The canonical use: an AI agent needs to know which broker accounts exist before 
 
 **Schema document** (`GET /queries/{schema}/{version}`) — three sections: optional `description`, optional `parameters` (JSON Schema for accepted query-string parameters), required `response` (JSON Schema for the response body), plus the optional `workflows` cross-link array when the service publishes [workflows](workflows.md). `404` for unknown name or version.
 
-**Execution** (`GET /queries/{schema}`) — `200` with a body matching the `response` schema; `400` for missing/invalid parameters; `404` for an unknown schema name.
+**Execution** (`GET /queries/{schema}`) — `200` with a body matching the `response` schema; `400` for missing/invalid parameters, whose details name the parameter; `404` for an unknown schema name. The `parameters` schema governs: the query string is validated against it, each value a string, and a parameter it does not declare is refused only when it says `additionalProperties: false`.
 
 ## Usage pattern
 

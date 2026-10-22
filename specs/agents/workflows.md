@@ -19,6 +19,8 @@ The canonical use: an agent connects to a service, reads the command catalogue, 
 | GET | `/workflows` | Workflow index — `id`, `name`, `description` per recipe, **never the steps** |
 | GET | `/workflows/{id}` | One full recipe with its ordered steps; `404` for an unknown id |
 
+A service declares the capability `active` only while it publishes at least one recipe, and `planned` with none.
+
 **Index** (`GET /workflows`) — deliberately shallow so a consumer can hold the entire list in one read and choose. Each entry: `id` (stable, service-defined, URL-path-safe — reverse-domain such as `io.example.workflows.onboard-a-worker`, or kebab-case), `name`, `description`. Renaming an id is a breaking change for anything linking to it.
 
 **Recipe** (`GET /workflows/{id}`) — `id`, `name`, `description`, and the ordered `steps`. Each step:

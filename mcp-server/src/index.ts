@@ -1396,7 +1396,7 @@ const ALL_TOOLS: Tool[] = [
       "Query the service's historical event log (GET /events) — immutable facts already published, " +
       'as CloudEvents. Standard parameters (all optional, combinable): correlationId (events for one ' +
       'command submission or stream key), type (CloudEvent type, PascalCase), source, from / to ' +
-      '(ISO 8601 window), limit, after (pagination cursor from a previous response\'s nextCursor). ' +
+      '(RFC 3339 window), limit, after (pagination cursor from a previous response\'s nextCursor). ' +
       'Turn-based polling loop: call with your filters, remember the newest event id / the response ' +
       'cursor, pass it back next turn, dedupe by event id. For events produced from now FORWARD in a ' +
       'short window, use sample_event_stream instead. Services may support extra vendor parameters — ' +
