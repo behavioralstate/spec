@@ -624,7 +624,7 @@ Responses are an `eventList`: `{ "events": [...], "nextCursor": "..." }` — `ne
 
 ### SSE Stream (`GET /events/stream`)
 
-Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection.
+Request with `Accept: text/event-stream` plus credentials; optional filters `correlationId`, `type`, `source`. Each event arrives as an SSE `data` field with the envelope JSON; the envelope `id` is echoed as the SSE event `id`. On reconnect, clients send `Last-Event-ID` and the server replays anything produced after it. A `Last-Event-ID` the server never told, or no longer holds, is no position in its log: the server **should** then deliver from now on, as for a new connection, and the client reads what it missed from `GET /events`. Servers **should** send `: keepalive` comments and **may** close after inactivity or a terminal event; clients **must** handle reconnection.
 
 ### Event Catalogue
 
