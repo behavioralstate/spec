@@ -55,7 +55,10 @@ Read `SDLC.md` section 2, the design rules every change is held to, and `.github
 If a commit message or the pull request body links an issue or an entry on the spec follow-ups issue, read it with
 `gh issue view <n> --repo behavioralstate/spec` (an entry's own comment with `gh issue view 37 --comments`): its
 decisions, its "Done when" list and the sentence the entry asked for are part of the review. A rule added to the
-spec must name the entry or issue that proved the need; one that does not is a finding.
+spec must name the entry or issue it settles, and that entry must show an interop failure between two independent
+implementations or a client that cannot be written from the text (SDLC.md section 2); a rule that names none, or
+whose entry shows only what one implementation does, is a finding: a mechanism one implementation needs is that
+implementation's own until a second needs it.
 
 If the arguments include findings already reported on this change (a previous run), do not report them again;
 report only what is new since, or what the fix for a previous finding broke.

@@ -49,9 +49,10 @@ For every finding, in order:
    reason, not fixed.
 2. **Fix** a real defect on `main`: in best-mcp or best-validate, a smoke test that fails without the fix where one
    applies, then the fix, matching the surrounding code and comments; in the spec, the text, schema or example made
-   right with everything that states the same rule. A finding that reveals a design error, or a rule no
-   implementation has proven a need for with no entry on the spec follow-ups issue (#37), is not patched: say so in
-   the chat and stop before the push; that goes back to the issue first.
+   right with everything that states the same rule. A finding that reveals a design error, or a rule that does
+   not pass SDLC.md section 2's bar (no interop failure between two implementations and no client that cannot be
+   written from the text, whatever its entry on #37 says), is not patched: say so in the chat and stop before the
+   push; that goes back to the issue, where it closes as the implementation's own or waits for a second one.
 3. **The local gate** after the fixes, as SDLC.md section 4 gate 1 asks: `scripts/gate.sh all` (in Git Bash on
    Windows) must end in `GATE GREEN`. A red gate is reported as red, with the step that failed.
 4. **Commit** once for all the fixes (or once per finding when they are unrelated), the subject one plain sentence

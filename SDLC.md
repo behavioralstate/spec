@@ -11,8 +11,7 @@
   problem, the outcome from the agent's side, numbered decisions, and a "Done when" list. A gap an implementation met
   in the spec is first an entry on the spec follow-ups issue,
   [#37](https://github.com/behavioralstate/spec/issues/37): the entry says what the implementation does and the
-  sentence the spec could gain, and the spec change that settles it names the entry. Most entries close as the
-  implementation's own; section 2's first rule says which become text.
+  sentence the spec could gain, and the spec change that settles it names the entry, and section 2's first rule says which entries become text.
 - Ambiguity is resolved by reading the spec and the implementations that run it, never by guessing.
 - The board's Status says where each issue is:
   - **Backlog** until its first change.
