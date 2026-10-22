@@ -27,9 +27,11 @@
 - The board's labels say which epic an issue belongs to, and only that one:
   - An epic carries `epic` and one label of its own, the product's name with a number in the order its epics were
     made (`best-peer-01`, `windlet-01`, `windlet-02`), described as the epic it stands for.
-  - Every issue of the epic, a sub-issue of it, carries that label, open or closed; no issue carries two epics'
-    labels, and an issue that moves to another epic changes its label with its parent.
-  - `bug` marks a bug beside its epic's label. `enhancement` is never used: an issue that is not a bug is one.
+  - Every issue of the epic carries that label, open or closed: an issue filed for the epic's work, next to it, is
+    made its sub-issue. No issue carries two epics' labels, and an issue that moves to another epic changes its label
+    with its parent.
+  - `bug` marks a bug beside its epic's label. `enhancement` is never used, since an issue that is not a bug is an
+    enhancement by default.
 
 ## 2. Design rules every change is held to
 
