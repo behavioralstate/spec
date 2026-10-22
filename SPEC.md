@@ -759,6 +759,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 | 404 | Unknown route, schema name, or version |
 | 409 | Conflict — duplicate command `id` with different payload |
 | 413 | Request body exceeds server limits |
+| 415 | `POST /commands` with a `Content-Type` the server does not take; the error says which it takes |
 | 422 | Semantic error (capability not supported) |
 | 500 | Internal error |
 
