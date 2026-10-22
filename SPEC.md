@@ -760,6 +760,7 @@ HTTP is the **baseline transport** — every conformant service exposes it. All 
 | 409 | Conflict — duplicate command `id` with different payload |
 | 413 | Request body exceeds server limits |
 | 422 | Semantic error (capability not supported) |
+| 429 | A command past the server's pace; `Retry-After` says when to send again |
 | 500 | Internal error |
 
 ## MCP Transport

@@ -150,7 +150,7 @@ For implementations that serve multiple tenants:
 
 Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
 
-Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission.
+Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission. A server that limits it **MUST** answer a command past the limit with `429` and a `Retry-After` header, **MUST NOT** count a retry of a command it accepted or a command it refused, and **SHOULD** count a client once across the tenants it opens.
 
 ## Manifest Content
 
