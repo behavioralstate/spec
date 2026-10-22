@@ -1284,7 +1284,8 @@ const ALL_TOOLS: Tool[] = [
         correlation_id: {
           type: 'string',
           description: 'Optional correlation ID (spec 0.9.2+) — same semantics as on send_command: omit for ' +
-            'a fresh chain, pass an existing correlation ID to join one. Pre-0.9.2 servers ignore it.'
+            'a fresh chain, or pass a correlation ID this connection first used to join its own chain; ' +
+            "another sender's is refused (400). Pre-0.9.2 servers ignore it."
         },
         data: {
           type: 'object',

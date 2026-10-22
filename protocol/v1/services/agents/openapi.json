@@ -163,13 +163,13 @@
             "name": "from",
             "in": "query",
             "schema": { "type": "string", "format": "date-time" },
-            "description": "Return only events published at or after this RFC 3339 timestamp (e.g. 2025-07-01T00:00:00Z); any other form is a 400 naming the parameter."
+            "description": "Return only events published at or after this RFC 3339 timestamp (e.g. 2025-07-01T00:00:00Z); any other form is a 400 naming the parameter (required from 0.10.0)."
           },
           {
             "name": "to",
             "in": "query",
             "schema": { "type": "string", "format": "date-time" },
-            "description": "Return only events published at or before this RFC 3339 timestamp; any other form is a 400 naming the parameter."
+            "description": "Return only events published at or before this RFC 3339 timestamp; any other form is a 400 naming the parameter (required from 0.10.0)."
           },
           {
             "name": "limit",

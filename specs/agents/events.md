@@ -47,7 +47,7 @@ Events ride the same CloudEvents 1.0 envelope as commands. Two event-specific ru
 | `type` | Filter by envelope `type` (PascalCase), across all interactions |
 | `correlationId` | Only events whose `correlationid` envelope attribute matches |
 | `source` | Filter by publishing service |
-| `from` / `to` | Time-range bounds (inclusive), as RFC 3339 timestamps; any other form is a `400` naming the parameter |
+| `from` / `to` | Time-range bounds (inclusive), as RFC 3339 timestamps; any other form is a `400` naming the parameter (required from 0.10.0) |
 | `limit` | Max results; servers may apply a lower ceiling |
 | `after` | Opaque pagination cursor — pass the previous response's `nextCursor`, preserving all other parameters; absent `nextCursor` means last page |
 
