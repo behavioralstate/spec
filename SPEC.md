@@ -284,9 +284,9 @@ A service that lets an agent obtain its own credential declares `deviceAuthoriza
 | `name` | yes | The connection's name: the `connection` the agent sent to `deviceAuthorizationUrl`, else the address of the sign-in manifest (its host, and its path when it is not at the root). The credential is kept under it, and the `mcp` entry is keyed by it |
 | `endpoint` | yes | The surface the credential opens (the tenant endpoint on a multi-tenant host), on the canonical endpoint host |
 | `manifest` | no | That surface's manifest |
-| `ready_check` | no | A read that answers `200` once the credential works |
-| `mcp` | no | This connection as an MCP client's configuration (for the reference MCP server: `command`, `args`, `env`) — the credential in its `env` — as **one entry keyed by `name`**. Two sign-ins are two names the person gives ([Name Resolution](#name-resolution)), so two entries: neither overwrites the other |
-| `http` | no | The surface for direct calls: the header with a **placeholder** for the credential (`X-Api-Key: <access_token>`), and the catalogue URLs, on the canonical endpoint host |
+| `ready_check` | no | A URL on the credential's host whose `GET`, with the credential, answers `200` once the credential works |
+| `mcp` | no | This connection as an MCP client's configuration: an object with **one member keyed by `name`**, whose value is the client's server entry (for the reference MCP server: `command`, `args`, `env`), the credential in its `env`. Two sign-ins are two names the person gives ([Name Resolution](#name-resolution)), so two entries: neither overwrites the other |
+| `http` | no | The surface for direct calls: an object with `header`, the header line with a **placeholder** for the credential (`X-Api-Key: <access_token>`), and `commands`, `queries` and `events`, the catalogue URLs, on the canonical endpoint host |
 
 The consumer chooses: an MCP-capable client writes `mcp` into its own configuration, one without MCP keeps the credential for direct calls, and a client with its own store keeps it there and redacts it from everything the model sees, as always ([Credentials stay out of transcripts](#security-requirements)). The credential appears only in `access_token` and in `mcp` — never in `note`, `http` or any example.
 
