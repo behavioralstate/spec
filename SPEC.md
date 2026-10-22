@@ -652,6 +652,8 @@ Queries are **synchronous reads** of current state — the read-before-write com
 
 The schema document has up to three sections: `description`, `parameters` (JSON Schema for accepted query-string parameters — omitted when the query takes none), and `response` (JSON Schema for the result body; required) — plus the optional `workflows` cross-link array when the service publishes [workflows](#workflows--iobestagentsworkflows).
 
+The `parameters` schema governs what an execution accepts: the query string is validated against it, each value a string, and a failure is a `400` whose details name the parameter. A parameter the schema does not declare is refused only when it says `additionalProperties: false`; a query whose document has no `parameters` ignores any it is sent.
+
 ```
 GET /queries                    → discover available queries
 GET /queries/list-brokers/1.0   → learn parameters and response shape
