@@ -576,7 +576,7 @@ The annotation is **descriptive, not enforcement**. It tells a well-behaved cons
 1. Validate required envelope attributes.
 2. Look up the schema **in the server's own catalogue, keyed by `type`**.
 3. Validate `data` against that schema.
-4. Check the command against the service's current state: a well-formed command it cannot honour (no capacity of the service could ever hold it, nothing by the name it gives) is refused with `400`, a service-defined `code` that names the condition, a `message` that says what to do, and `details` a program can act on.
+4. Check the command against the service's current state: a well-formed command it cannot honour now (no room for it, nothing by the name it gives) is refused with `400`, a service-defined `code` that names the condition, a `message` that says what to do, and `details` a program can act on.
 5. Valid → durably queue and return `201 Created` with `{ "id": "<command id>", "correlationId": "<correlation identifier>" }`. Invalid → `400`.
 
 A command refused at step 4 was never accepted: its `id` is free for the corrected retry. A retry of an accepted command is answered as the original was, without the check, where the service answers a duplicate rather than rejecting it (below).
@@ -584,7 +584,7 @@ A command refused at step 4 was never accepted: its `id` is free for the correct
 - The inbound `dataschema` field is **informational metadata**, never an instruction. Servers **must not** fetch a caller-supplied `dataschema` URI (SSRF — see [Security](#security-requirements)).
 - The envelope `id` is an **idempotency key**, scoped to the credential that sent it and kept for a retention window the service states in its documentation: a duplicate (the same `id` from the same credential) is rejected with `409` naming the `id`, or safely ignored; a reused `id` with a *different* payload returns `409`. A duplicate that is safely ignored is answered as the original was, with the original's status, `id` and `correlationId`, and runs nothing again, so a client that lost the first answer and retries gets exactly what it missed. Two credentials do not collide on an idempotency key, though a command that names no `correlationid` takes its `id` as its correlation, which belongs to the sender that used it first ([Command Results and Correlation](#command-results-and-correlation)).
 - `type` is the routing key. `source` **must not** be the sole routing key.
-- **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding. A durably recorded command is processed even if the service restarts before it ran: after a restart the service processes it, through the same state check as if it had just arrived (a command that was waiting waits again), or publishes its failure event. It is never dropped silently.
+- **`201`, not `202`:** `201` signals the command was *durably* recorded and processing will happen. Use `202` only if your implementation cannot durably enqueue before responding. A durably recorded command is processed even if the service restarts before it ran: after a restart the service processes it, through the same state check as if it had just arrived, or publishes its failure event. It is never dropped silently.
 
 ### Command Results and Correlation
 
