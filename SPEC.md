@@ -438,7 +438,7 @@ The root manifest of a multi-tenant host declares a **URI template** (RFC 6570, 
 
 Rules (normative — see also [Conformance](#conformance)):
 
-1. The root manifest **must** include `tenants.manifest` if tenant-scoped capabilities exist, and **must not** declare tenant-scoped capabilities itself — they appear only in tenant manifests. Root-level capabilities the host can fulfil without tenant context may stay.
+1. The root manifest **must** include `tenants.manifest` if tenant-scoped capabilities exist, and **must not** declare tenant-scoped capabilities itself — they appear only in tenant manifests. Root-level capabilities the host can fulfil without tenant context may stay; such a capability's service declares an `authentication` block of its own, even one identical to the root's, which is how a consumer and a validator tell it from a tenant-scoped capability left at the root.
 2. The expanded URI returns a **fully self-contained** tenant manifest: its `http.endpoint` is pre-scoped (e.g. `https://api.example.com/api/best/tenants/acme`), every `dataschema` URI fully resolved, no `{tenantId}` placeholders anywhere, no `tenants` block of its own.
 3. Fetching `/.well-known/best/{tenantId}` requires at most the API key declared in the root `authentication` block — never a tenant ID header (the path already carries it).
 4. URI templating is valid **only** in `tenants.manifest`. Everywhere else, URIs are fully resolved.
