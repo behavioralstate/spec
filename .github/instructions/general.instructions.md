@@ -1,7 +1,8 @@
 # BEST � Behavioral State Protocol (spec repo)
 
 The authoritative protocol documentation lives in `specs/`. Do not duplicate it here.
-Read `specs/` to understand the protocol. These instructions cover only repo conventions and tooling.
+Read `specs/` to understand the protocol. These instructions cover only repo conventions and tooling. How a change is made, reviewed and shipped is
+`SDLC.md`: every change on `main`, after `scripts/gate.sh all` ends in `GATE GREEN` and `/spec-review` has run.
 
 ## Repo Layout
 

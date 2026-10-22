@@ -153,7 +153,7 @@ Fixes that apply to both lines get released on both. Verify either release by pa
 
 - [Website & Documentation](https://behavioralstate.io/)
 - [GitHub Issues](https://github.com/behavioralstate/spec/issues) — bug reports & feature requests
-- [Contributing](https://github.com/behavioralstate/spec/blob/main/CONTRIBUTING.md) — how to contribute
+- [How this repository is built and shipped](https://github.com/behavioralstate/spec/blob/main/SDLC.md) — how to contribute
 
 ## License
 

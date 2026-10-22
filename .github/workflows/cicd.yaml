@@ -19,11 +19,9 @@ jobs:
         with:
           node-version: '20.x'
 
-      - name: Validate protocol schemas
-        run: node scripts/validate-schemas.mjs
-
-      - name: Validate example payloads
-        run: node scripts/validate-examples.mjs
+      # The local gate of SDLC.md section 3, the same script a maintainer runs before every push.
+      - name: Gate
+        run: bash scripts/gate.sh all
 
   build:
     needs: validate
