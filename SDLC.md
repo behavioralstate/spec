@@ -2,16 +2,15 @@
 
 > This is the one place the lifecycle of this repository is written down. It holds the specification (`SPEC.md` and
 > `specs/`), its schemas and examples (`protocol/`), the website that renders them, the reference connector
-> `best-mcp` (`mcp-server/`) and the validator `best-validate` (`validate-cli/`). Open work of any kind (a spec gap, a
-> bug, a decision) is an issue on the Behavioralstate board, never a file.
+> `best-mcp` (`mcp-server/`) and the validator `best-validate` (`validate-cli/`). Open work of any kind (a bug, a
+> decision) is an issue on the Behavioralstate board, never a file.
 
 ## 1. Intake
 
 - Work is an issue on the [Behavioralstate board](https://github.com/orgs/Amarcode-Studios/projects/4), with the
-  problem, the outcome from the agent's side, numbered decisions, and a "Done when" list. A gap an implementation met
-  in the spec is first an entry on the spec follow-ups issue,
-  [#37](https://github.com/behavioralstate/spec/issues/37): the entry says what the implementation does and the
-  sentence the spec could gain, and the spec change that settles it names the entry, and section 2's first rule says which entries become text.
+  problem, the outcome from the agent's side, numbered decisions, and a "Done when" list. What an implementation does
+  that the spec does not mention is never work here: it is that implementation's own, in its README (section 2's
+  first rule, and [#37](https://github.com/behavioralstate/spec/issues/37), which holds it).
 - Ambiguity is resolved by reading the spec and the implementations that run it, never by guessing.
 - The board's Status says where each issue is:
   - **Backlog** until its first change.
@@ -35,13 +34,22 @@
 
 ## 2. Design rules every change is held to
 
-- **The spec is stable, and changes only for a very good reason.** The text changes when two independent
-  implementations read a sentence differently and interop fails between them, or when a client cannot be written
-  from the text alone; the entry on #37 shows which, with the failure. A mechanism one implementation needs is that
-  implementation's own, documented in its README, until a second implementation needs it: the spec does not
-  generalise one service's way of running, however well it works. Every other entry closes as the implementation's
-  own. A change that passes the bar is additive where it can be (a may, a should, an optional member), names the
-  entry it settles, and never invents a surface no implementation has asked for.
+- **The spec is stable, and almost nothing an implementation builds belongs in it**
+  ([#37](https://github.com/behavioralstate/spec/issues/37) holds the rule).
+  - **The only reason the text changes:** two independent implementations read the same sentence differently and a
+    real client failed against one of them, or a client was attempted and could not be written from the text alone.
+    The proof names both implementations, the sentence, and the request that failed.
+  - **Not a reason:**
+    - the spec saying nothing about what an implementation does;
+    - a sentence that "could be written";
+    - one implementation's need, however general it looks;
+    - completeness or symmetry.
+  - **The rest is the implementation's own,** documented in its README: the spec does not generalise one service's
+    way of running, however well it works.
+  - **The owner alone decides.** No session, agent or reviewer adds to #37, files a spec-gap issue or opens a change
+    to the text on its own. One that believes it holds the proof brings it to the owner in the chat and stops.
+  - **A change the owner accepts** is additive where it can be (a may, a should, an optional member), names the proof,
+    and never invents a surface no implementation has asked for.
 - `SPEC.md` and `specs/` are the source of truth, and nothing of them is copied elsewhere in the repository: the
   website renders them, and every other file links to them. A link from `specs/` to `SPEC.md` is the absolute GitHub
   URL, which the website keeps.

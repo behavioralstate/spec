@@ -52,13 +52,12 @@ Then, for every file the diff touches, read around it: the whole section of the 
 other place that states the same rule (`SPEC.md`, the documents in `specs/`, `specs/conformance.md`, the schemas in
 `protocol/v1/schemas` and their examples); for code, the whole function or module and the smoke test that covers it.
 Read `SDLC.md` section 2, the design rules every change is held to, and `.github/instructions/general.instructions.md`.
-If a commit message or the pull request body links an issue or an entry on the spec follow-ups issue, read it with
-`gh issue view <n> --repo behavioralstate/spec` (an entry's own comment with `gh issue view 37 --comments`): its
-decisions, its "Done when" list and the sentence the entry asked for are part of the review. A rule added to the
-spec must name the entry or issue it settles, and that entry must show an interop failure between two independent
-implementations or a client that cannot be written from the text (SDLC.md section 2); a rule that names none, or
-whose entry shows only what one implementation does, is a finding: a mechanism one implementation needs is that
-implementation's own until a second needs it.
+If a commit message or the pull request body links an issue, read it with `gh issue view <n> --repo
+behavioralstate/spec`: its decisions and its "Done when" list are part of the review. A rule added to the spec must
+name the owner's acceptance and its proof: two independent implementations that read the same sentence differently
+and a client that failed, or a client that could not be written from the text (SDLC.md section 2, held on #37). A
+rule that names neither, or whose proof shows only what one implementation does, is a finding: a mechanism one
+implementation needs is that implementation's own.
 
 If the arguments include findings already reported on this change (a previous run), do not report them again;
 report only what is new since, or what the fix for a previous finding broke.
