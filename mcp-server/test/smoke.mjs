@@ -37,18 +37,20 @@ const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'inde
 const oneWord = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'best';
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
 const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
+const REFRESH_TOKEN = 'rt_9d1e_refresh_by_the_mock';
 // Stand-ins for the spec's sign-in guidance: written for a consumer that signs in by hand, never for best-mcp's model.
 const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
 const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
-function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '' } = {}) {
+function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '', otherService = '', registrationAt = '', tenantCatalogues = false } = {}) {
   const modern = mode === 'modern';
   // `seen.key` is the account's ONE key: a scenario replaces it to play "another assistant was approved".
-  const seen = { posts: [], tokenPolls: 0, deviceRequests: [], key: initialKey };
+  const seen = { posts: [], tokenPolls: 0, deviceRequests: [], paths: [], key: initialKey };
   const key = () => seen.key;
   let origin = '';
   const server = createServer((req, res) => {
     const path = new URL(req.url, origin).pathname;
+    seen.paths.push(req.url);
     const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
     let raw = '';
     req.on('data', c => { raw += c; });
@@ -57,8 +59,9 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
         return json(200, { best: {
           version: modern ? '0.9.11' : '0.9.8',
           authentication: { type: 'apiKey', scheme: 'X-Api-Key', in: 'header',
-            ...(modern ? { tokenUrl: `${origin}/auth/token`, deviceAuthorizationUrl: `${origin}/auth/device`, note: MANIFEST_GUIDANCE } : {}) },
-          services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api${tenants ? '/tenants' : ''}` } } },
+            ...(modern ? { tokenUrl: `${registrationAt || origin}/auth/token`, deviceAuthorizationUrl: `${registrationAt || origin}/auth/device`, note: MANIFEST_GUIDANCE } : {}) },
+          services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: `${origin}/api${tenants ? '/tenants' : ''}` } },
+            ...(otherService ? { 'com.example.other': { version: '1.0.0', description: 'A service on another host.', http: { endpoint: otherService } } } : {}) },
           ...(tenants ? { tenants: { manifest: `${origin}/.well-known/best/{tenantId}` } } : {}),
           capabilities: []
         } });
@@ -84,7 +87,7 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
         if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
         seen.tokenPolls++;
         if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
-        return json(200, { access_token: key(), token_type: 'apikey', auth_header: 'X-Api-Key', ...(tokenTenant ? { tenant_id: tokenTenant } : {}), echo: `your key is ${key()}`,
+        return json(200, { access_token: key(), refresh_token: REFRESH_TOKEN, token_type: 'apikey', auth_header: 'X-Api-Key', ...(tokenTenant ? { tenant_id: tokenTenant } : {}), echo: `your key is ${key()}`,
           endpoint: `${origin}/api/tenants/acme`, note: 'The key is a SECRET. Store it and never repeat it in the conversation.',
           mcp: { mcpServers: { example: { command: 'npx', args: ['-y', '@behavioralstate/best-mcp'], env: { BEST_EXAMPLE_API_KEY: key() } } } },
           http: { header: 'X-Api-Key: <access_token>' } });
@@ -97,6 +100,10 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
         seen.posts.push({ path, contentType: req.headers['content-type'], type: body.type, key: req.headers['x-api-key'] });
         if (strictKey && req.headers['x-api-key'] !== key()) return json(401, { error: { code: 'INVALID_API_KEY', message: 'That X-Api-Key is not a key of this tenant.' } });
         return json(201, { id: body.id, correlationId: body.id });
+      }
+      const tenantCatalogue = tenantCatalogues && /^\/api\/tenants\/([^/]+)\/commands$/.exec(path)?.[1];
+      if (tenantCatalogue && req.method === 'GET') {
+        return json(200, { commands: [{ schema: 'place-order', version: '1.0', commandType: `PlaceOrderIn${tenantCatalogue}`, dataschema: `${origin}${path}/place-order/1.0` }] });
       }
       if (path.endsWith('/commands') && req.method === 'GET') return json(200, { commands: [] });
       return json(404, { error: { code: 'NOT_FOUND', message: `Unknown route ${path}` } });
@@ -184,6 +191,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const done = await call(client, 'exchange_device_code', { connection: platform });
   expect(!done.isError && done.text.includes('acme'), `modern: second exchange should succeed, got: ${done.text}`);
   expect(!done.text.includes(ISSUED_KEY), 'modern: exchange_device_code LEAKED the issued key to the model');
+  expect(!done.text.includes(REFRESH_TOKEN), 'modern: exchange_device_code LEAKED the refresh token to the model');
   expect(!done.text.includes('mcpServers') && !done.text.includes('"http"') && !done.text.includes('SECRET'), `modern: the credential block's mcp/http/note reached the model — best-mcp is already the client: ${done.text}`);
   expect(existsSync(credentialsFile) && readFileSync(credentialsFile, 'utf-8').includes(ISSUED_KEY), 'modern: the issued key was not stored');
   const again = await call(client, 'exchange_device_code', { connection: platform });
@@ -253,6 +261,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   };
   const w = await signIn('whatever', `${a.origin}/.well-known/best`, a);
   expect(!w.text.includes('key_for_whatever'), 'named: exchange LEAKED the issued key');
+  expect(!w.text.includes(REFRESH_TOKEN), 'named: exchange LEAKED the refresh token');
   expect(!w.text.includes('mcpServers') && !w.text.includes('"http"') && !w.text.includes('SECRET'), `named: the credential block's mcp/http/note reached the model: ${w.text}`);
   await signIn('ciccio-live', `${b.origin}/.well-known/best`, b);
   await signIn('whatever-2', `${a.origin}/`, a);   // same host, another name; a bare origin means its well-known path
@@ -454,6 +463,77 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const unnamed = await call(client, 'get_command_catalogue', {});
   expect(!unnamed.isError, `tenant: using a tenant ended the one sign-in's being the default: ${unnamed.text.slice(0, 300)}`);
   await client.close(); solo.server.close(); thief.close();
+}
+
+// ── a configured app, hardening — a service on another host, registration elsewhere, a path that climbs ───
+{
+  // A host that takes anything sent to it: where the app's key or a device code would land if it were sent.
+  const stolen = [];
+  const thief = createServer((req, res) => {
+    let raw = '';
+    req.on('data', c => { raw += c; });
+    req.on('end', () => { stolen.push({ url: req.url, key: req.headers['x-api-key'] ?? '', body: raw }); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); });
+  });
+  await new Promise(r => thief.listen(0, '127.0.0.1', r));
+  const thiefOrigin = `http://127.0.0.1:${thief.address().port}`;
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+
+  // A service the root manifest names on another host never gets the app's key.
+  const m = await mock('modern', { otherService: `${thiefOrigin}/api` });
+  let client = await connectApp(m.origin, credentialsFile, { BEST_EXAMPLE_API_KEY: 'key_configured', BEST_EXAMPLE_AUTH_TYPE: 'apikey' });
+  const other = await call(client, 'get_command_catalogue', { connection: 'example/com.example.other' });
+  expect(other.isError && other.text.includes('another host') && stolen.length === 0, `configured: a service on another host was sent the app's key: ${other.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
+  const listed = (await call(client, 'list_connections')).text;
+  expect(!listed.includes(thiefOrigin), `configured: a service on another host is offered as a connection: ${listed}`);
+
+  // A schema or version that would climb the path is refused, and nothing outside the capability's path is asked.
+  const before = m.seen.paths.length;
+  const climbs = [
+    ['get_command_schema', { schema: '..', version: '1.0' }],
+    ['get_command_schema', { schema: 'place-order', version: '..' }],
+    ['get_query_schema', { schema: '.', version: '1.0' }],
+    ['execute_query', { schema: '..' }],
+    ['get_event_schema', { schema: 'x', version: '..' }],
+    ['send_command', { schema: '..', version: '1.0', data: {} }],
+  ];
+  for (const [tool, args] of climbs) {
+    const r = await call(client, tool, args);
+    expect(r.isError && r.text.includes('Nothing was sent'), `configured: ${tool} ${JSON.stringify(args)} was not refused: ${r.text.slice(0, 300)}`);
+  }
+  await call(client, 'get_command_schema', { schema: '../../admin', version: '1.0' });
+  const asked = m.seen.paths.slice(before);
+  expect(asked.every(p => p.startsWith('/api/commands/') || p === '/api/commands'), `configured: a tool argument moved the request's path: ${JSON.stringify(asked)}`);
+  await client.close(); m.server.close();
+
+  // Registration endpoints the manifest puts on another host, over plain http: nothing is sent there.
+  const r = await mock('modern', { registrationAt: thiefOrigin });
+  client = await connectApp(r.origin, credentialsFile, {});
+  const reg = await call(client, 'register_agent', {});
+  expect(reg.isError && reg.text.includes('Nothing was sent') && stolen.length === 0, `configured: a device request went to another host over http: ${reg.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
+  const byHand = await call(client, 'exchange_device_code', { device_code: DEVICE_CODE });
+  expect(byHand.isError && byHand.text.includes('Nothing was sent') && stolen.length === 0, `configured: a device code was posted to another host over http: ${byHand.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
+  await client.close(); r.server.close(); thief.close();
+}
+
+// ── hosted, two callers — what one caller's catalogue says is never used for another ───
+{
+  const { server, origin, seen } = await mock('modern', { tenantCatalogues: true });
+  const port = await new Promise(resolve => { const probe = createServer(); probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); }); });
+  const child = spawn(process.execPath, [SERVER], {
+    env: { ...process.env, MCP_TRANSPORT: 'http', MCP_HTTP_PORT: String(port), BEST_EXAMPLE_BASE_URL: `${origin}/api`, BEST_EXAMPLE_TENANT_ID: 'acme' },
+    stdio: 'ignore'
+  });
+  const base = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 50; i++) { try { if ((await fetch(`${base}/health`)).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+  for (const tenant of ['acme', 'beta']) {
+    const client = new Client({ name: 'best-mcp-smoke', version: '0.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(base), { requestInit: { headers: { 'X-Api-Key': `key-of-${tenant}`, 'X-Tenant-Id': tenant } } }));
+    const sent = await call(client, 'send_command', { connection: 'example/tenant', schema: 'place-order', version: '1.0', data: {} });
+    const post = seen.posts.at(-1);
+    expect(!sent.isError && post?.path === `/api/tenants/${tenant}/commands` && post?.type === `PlaceOrderIn${tenant}`, `hosted: tenant ${tenant} sent type ${post?.type} to ${post?.path} — another caller's catalogue was used: ${sent.text.slice(0, 200)}`);
+    await client.close();
+  }
+  child.kill(); server.close();
 }
 
 // ── http — the endpoint is the origin itself; /mcp stays as an alias ────────

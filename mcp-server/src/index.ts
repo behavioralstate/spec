@@ -640,6 +640,17 @@ async function fetchManifestAt(url: string): Promise<RootManifest> {
   return manifest;
 }
 
+/** A URL's host (with its port), or '' when it does not parse. */
+function hostOf(url: string): string {
+  try { return new URL(url).host; } catch { return ''; }
+}
+
+/** True when `url` is on the very host (and port) of `trusted`. */
+function onHostOf(url: string, trusted: string): boolean {
+  const host = hostOf(url);
+  return host !== '' && host === hostOf(trusted);
+}
+
 /** The connection that owns an app's root manifest: `<app>/platform`, else the bare `<app>`. */
 function rootConnectionOf(app: string): BestConnection | undefined {
   return CONNECTIONS.find(c => c.name === `${app}/platform`) ?? CONNECTIONS.find(c => c.name === app);
@@ -664,6 +675,12 @@ async function resolveServiceConnection(name: string): Promise<BestConnection | 
   const service = manifest?.best?.services?.[serviceId];
   const endpoint = service?.http?.endpoint;
   if (typeof endpoint !== 'string' || !endpoint) return undefined;
+  // SPEC Name Resolution: the app's credential goes to the host the operator configured it for, never to another
+  // host a manifest names.
+  if (!onHostOf(endpoint, root.endpoint)) {
+    throw new Error(`'${name}' is on another host than '${root.name}' (${hostOf(endpoint) || endpoint}, not ` +
+      `${hostOf(root.endpoint)}); the app's credential is not sent there. Nothing was sent.`);
+  }
   const conn: BestConnection = {
     ...root,
     name,
@@ -730,6 +747,8 @@ async function listServiceConnections(): Promise<{ name: string; endpoint: strin
       // Already configured, or merely the parent of a configured surface (a tenant service whose
       // endpoint is the bare `/tenants` collection) — listing it would invite calls to a non-surface.
       if (known.some(k => k === endpoint || k.startsWith(`${endpoint}/`))) continue;
+      // A service on another host is no connection of the app's: its credential is never sent there.
+      if (!onHostOf(endpoint, root.endpoint)) continue;
       out.push({
         name: `${app}/${serviceId}`,
         endpoint,
@@ -854,7 +873,12 @@ async function sendWithCredential(url: string, init: RequestInit): Promise<Respo
     // Never the error's own words, which can echo a header value (the credential) or the URL: its code alone.
     const cause = e instanceof Error ? (e.cause as { code?: string; errors?: { code?: string }[] } | undefined) : undefined;
     const code = cause?.code ?? cause?.errors?.[0]?.code ?? (e instanceof Error ? e.name : 'an error');
-    throw new Error(`${init.method ?? 'GET'} ${where} could not be sent (${code}).`, { cause: e });
+    // Certificates are always checked (SPEC Name Resolution): a development server's own certificate is trusted by
+    // naming it to Node, never by turning the check off, which would turn it off for every connection.
+    const certificate = /CERT|SELF_SIGNED/.test(code)
+      ? ' Its certificate is not trusted; for a development server, set NODE_EXTRA_CA_CERTS to that certificate.'
+      : '';
+    throw new Error(`${init.method ?? 'GET'} ${where} could not be sent (${code}).${certificate}`, { cause: e });
   }
   if (response.status >= 300 && response.status < 400) {
     let target = 'nowhere said';
@@ -937,15 +961,6 @@ function applyRequestOverrides(conn: BestConnection, headers: IncomingHttpHeader
     apiKey: requestApiKey ?? conn.apiKey,
     endpoint,
   };
-}
-
-// Disable TLS verification for localhost dev endpoints
-for (const conn of CONNECTIONS) {
-  if (/^https:\/\/localhost(:\d+)?/.test(conn.endpoint)) {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    process.stderr.write(`[best-mcp] WARNING: TLS verification disabled for localhost (connection: ${conn.name})\n`);
-    break;
-  }
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -1611,6 +1626,15 @@ function redactSecret(value: unknown, secret: string): unknown {
 }
 
 /**
+ * The token answer as the model may see it: the credential, and every other token RFC 6749 lets the answer carry (a
+ * refresh token, an OpenID id token), redacted wherever they appear — each one is a secret as much as the credential.
+ */
+function redactTokenAnswer(json: Record<string, unknown>, credential: string): Record<string, unknown> {
+  const secrets = [credential, json.refresh_token, json.id_token].filter((s): s is string => typeof s === 'string' && s !== '');
+  return secrets.reduce<unknown>((value, secret) => redactSecret(value, secret), json) as Record<string, unknown>;
+}
+
+/**
  * The token answer's credential block (BEST 0.9.13) offers the consumer the ways to use the credential — `mcp`, a
  * configuration to write into an MCP client, `http`, direct calls — and `note`, the rule for keeping it. best-mcp has
  * already chosen: it is the MCP client, it stored the credential and redacted it. Those three are not the model's to
@@ -1635,6 +1659,7 @@ function isPerRequestCaller(headers?: IncomingHttpHeaders): boolean {
 
 interface PendingRegistration {
   deviceCode: string; tokenUrl: string; intervalMs: number; expiresAt: number; lastPollAt: number;
+  trusted: string;        // the address the sign-in started at: its host is the one a registration endpoint may share
   manifestUrl?: string;   // named registrations: the canonical manifest the sign-in started at
 }
 const pendingRegistrations = new Map<string, PendingRegistration>();
@@ -1672,15 +1697,15 @@ async function startDeviceAuthorization(
   agentLabel: unknown,
   connection: string,
   key: string,
+  trusted: string,
   manifestUrl?: string,
 ): Promise<{ user_code: string; verification_uri: string; verification_uri_complete?: string; expires_in: number; interval: number }> {
+  // Both ends are checked before anything is sent: the device code this opens is only ever posted to tokenUrl.
+  const deviceUrl = await registrationEndpoint(block.deviceAuthorizationUrl, trusted);
+  const tokenUrl = await registrationEndpoint(block.tokenUrl, trusted);
   const form = new URLSearchParams({ client_id: REGISTRATION_CLIENT_ID, connection });
   if (typeof agentLabel === 'string' && agentLabel.trim()) form.set('agent_label', agentLabel.trim());
-  const response = await fetch(block.deviceAuthorizationUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body: form.toString(),
-  });
+  const response = await postForm(deviceUrl, form);
   const text = await response.text();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let json: any;
@@ -1691,7 +1716,7 @@ async function startDeviceAuthorization(
   const interval = typeof json.interval === 'number' && json.interval > 0 ? json.interval : 5;
   const expiresIn = typeof json.expires_in === 'number' && json.expires_in > 0 ? json.expires_in : 900;
   pendingRegistrations.set(key, {
-    deviceCode: json.device_code, tokenUrl: block.tokenUrl,
+    deviceCode: json.device_code, tokenUrl: tokenUrl.toString(), trusted,
     intervalMs: interval * 1000, expiresAt: Date.now() + expiresIn * 1000, lastPollAt: 0, manifestUrl,
   });
   return {
@@ -1749,7 +1774,7 @@ function isNonPublicAddress(ip: string): boolean {
 function assertScheme(url: URL, given: string): void {
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   if (url.protocol !== 'https:' && !(DEVELOPMENT && url.protocol === 'http:' && loopback)) {
-    throw new Error(`'${given}' is not an https address. A BEST manifest is fetched over https only (plain http only on this machine's loopback, in development use: BEST_MCP_ALLOW_LOCAL=true). Nothing was sent.`);
+    throw new Error(`'${given}' is not an https address. A BEST service is reached over https only (plain http only on this machine's loopback, in development use: BEST_MCP_ALLOW_LOCAL=true). Nothing was sent.`);
   }
 }
 
@@ -1763,6 +1788,34 @@ async function assertPublicHost(url: URL): Promise<void> {
   const addresses = await lookup(host, { all: true });
   const local = addresses.find(a => isNonPublicAddress(a.address));
   if (local) throw new Error(`${url.host} resolves to ${local.address}, a loopback, link-local or private address.${hint}`);
+}
+
+/**
+ * A registration endpoint a manifest names (`deviceAuthorizationUrl`, `tokenUrl`): the device code is a secret, so it
+ * goes only to the host the sign-in started at, or to an https address on a public host — never in cleartext, never
+ * to this machine or a private network a manifest points at (SPEC Name Resolution).
+ */
+async function registrationEndpoint(raw: string, trusted: string): Promise<URL> {
+  let url: URL;
+  try { url = new URL(raw); } catch { throw new Error(`'${raw}' is not an address. Nothing was sent.`); }
+  if (onHostOf(url.toString(), trusted)) return url;
+  assertScheme(url, raw);
+  await assertPublicHost(url);
+  return url;
+}
+
+/** POSTs a form to a registration endpoint, following no redirect: the device code is never sent on to another place. */
+async function postForm(url: URL, form: URLSearchParams): Promise<Response> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: form.toString(),
+    redirect: 'manual',
+  });
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error(`POST ${url.origin}${url.pathname} → ${response.status}, a redirect: a registration is not sent on a redirect.`);
+  }
+  return response;
 }
 
 /** The manifest address a person gave, as a URL: a bare site name means its well-known path (SPEC Name Resolution). */
@@ -1899,7 +1952,7 @@ async function handleNamedRegistration(args: Record<string, unknown>, perRequest
             'belongs in the client configuration.',
     }, null, 2);
   }
-  const shown = await startDeviceAuthorization(block, args.agent_label, connectionName(name), namedKey(name), url);
+  const shown = await startDeviceAuthorization(block, args.agent_label, connectionName(name), namedKey(name), url, url);
   return JSON.stringify({
     name,
     resolved: url,    // SPEC Name Resolution: say what was resolved before the first credentialed interaction
@@ -1923,11 +1976,8 @@ async function handleNamedExchange(name: string, perRequestCaller: boolean): Pro
   if (wait > 0) await new Promise(resolve => setTimeout(resolve, Math.min(wait, 15_000)));
   pending.lastPollAt = Date.now();
 
-  const response = await fetch(pending.tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body: new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: pending.deviceCode, client_id: REGISTRATION_CLIENT_ID }).toString(),
-  });
+  const response = await postForm(await registrationEndpoint(pending.tokenUrl, pending.trusted),
+    new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: pending.deviceCode, client_id: REGISTRATION_CLIENT_ID }));
   const text = await response.text();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let json: any;
@@ -1950,7 +2000,7 @@ async function handleNamedExchange(name: string, perRequestCaller: boolean): Pro
   const apiKey = typeof json?.access_token === 'string' ? json.access_token : undefined;
   if (!apiKey) return JSON.stringify(json ?? text, null, 2);
   pendingRegistrations.delete(key); // a device code is redeemed once
-  const redacted = redactSecret(json, apiKey) as Record<string, unknown>;
+  const redacted = redactTokenAnswer(json, apiKey);
   if (perRequestCaller) return JSON.stringify({ ...redacted, session: JSON.parse(NOT_AVAILABLE_HERE) }, null, 2);
 
   const tenantId = typeof json?.tenant_id === 'string' ? json.tenant_id : undefined;
@@ -2013,7 +2063,7 @@ async function handleRegisterAgent(args: Record<string, unknown>, conn: BestConn
     }, null, 2);
   }
 
-  const shown = await startDeviceAuthorization(block, args.agent_label, connectionName(conn.name), registrationKey(conn));
+  const shown = await startDeviceAuthorization(block, args.agent_label, connectionName(conn.name), registrationKey(conn), registrationKey(conn));
   return JSON.stringify({
     ...shown,
     next: showLinkAndCode(!!shown.verification_uri_complete, 'exchange_device_code with no device_code'),
@@ -2046,12 +2096,8 @@ async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: Bes
       `this service offers no token exchange.`
     );
   }
-  const body = new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: deviceCode, client_id: REGISTRATION_CLIENT_ID }).toString();
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body,
-  });
+  const response = await postForm(await registrationEndpoint(tokenUrl, pending?.trusted ?? registrationKey(conn)),
+    new URLSearchParams({ grant_type: DEVICE_CODE_GRANT, device_code: deviceCode, client_id: REGISTRATION_CLIENT_ID }));
   const text = await response.text();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let json: any;
@@ -2076,7 +2122,7 @@ async function handleExchangeDeviceCode(args: Record<string, unknown>, conn: Bes
   if (!apiKey) return JSON.stringify(json ?? text, null, 2);
   if (!explicit) pendingRegistrations.delete(registrationKey(conn)); // a device code is redeemed once
   const tenantId = typeof json?.tenant_id === 'string' ? json.tenant_id : undefined;
-  const redacted = redactSecret(json, apiKey) as Record<string, unknown>;
+  const redacted = redactTokenAnswer(json, apiKey);
 
   // A per-request caller (HTTP multi-user backend) owns its own credentials: this process must not
   // adopt them, and this model must not be handed them either — the backend mints its own key.
@@ -2167,10 +2213,22 @@ async function handleGetCommandCatalogue(args: Record<string, unknown>, conn: Be
   return renderCatalogue(data.commands, args);
 }
 
+/**
+ * A tool argument as one path segment: encoded, and never `.` or `..`, which a URL resolves, so no argument moves a
+ * request off the capability's path to another route of the host, carrying the credential there.
+ */
+function segment(value: unknown, what: string): string {
+  const raw = typeof value === 'string' ? value : String(value ?? '');
+  if (raw === '' || raw === '.' || raw === '..') {
+    throw new Error(`'${raw}' is not a ${what}: it would move the request off its path. Nothing was sent.`);
+  }
+  return encodeURIComponent(raw);
+}
+
 async function handleGetCommandSchema(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await bestGet<unknown>(`/commands/${schema}/${version}`, conn);
+  const doc = await bestGet<unknown>(`/commands/${segment(schema, 'schema name')}/${segment(version, 'version')}`, conn);
   return JSON.stringify(doc, null, 2) + await workflowNote(doc, 'commands', schema, conn) + await impactNote(doc, schema, conn);
 }
 
@@ -2248,7 +2306,9 @@ const catalogueMetaCache = new Map<string, { at: number; byName: Map<string, Cat
 const CATALOGUE_META_TTL_MS = 5 * 60_000;
 
 async function catalogueEntryMeta(kind: 'commands' | 'queries', conn: BestConnection): Promise<Map<string, CatalogueEntryMeta>> {
-  const key = `${conn.name}:${kind}`;
+  // Keyed by where it was read and with which credential, not by the connection's name: over HTTP one connection
+  // serves every caller, each with its own key and tenant, and one caller's catalogue never answers for another's.
+  const key = `${kind} ${conn.endpoint} ${sha256(`${conn.authType}:${conn.apiKey ?? ''}`)}`;
   const hit = catalogueMetaCache.get(key);
   if (hit && Date.now() - hit.at < CATALOGUE_META_TTL_MS) return hit.byName;
 
@@ -2275,6 +2335,8 @@ async function catalogueEntryMeta(kind: 'commands' | 'queries', conn: BestConnec
   } catch {
     // Catalogue unreadable — cache the empty map so a broken endpoint is not re-hit per schema fetch.
   }
+  // Per caller, entries would otherwise pile up over HTTP: an expired one is dropped whenever one is written.
+  for (const [k, v] of catalogueMetaCache) if (Date.now() - v.at >= CATALOGUE_META_TTL_MS) catalogueMetaCache.delete(k);
   catalogueMetaCache.set(key, { at: Date.now(), byName });
   return byName;
 }
@@ -2285,6 +2347,7 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
   const source  = (args.source as string | undefined) ?? CLIENT_SOURCE;
   const correlationId = args.correlation_id as string | undefined;
   const data    = args.data as Record<string, unknown>;
+  const dataschema = `${conn.endpoint.replace(/\/+$/, '')}/commands/${segment(schema, 'schema name')}/${segment(version, 'version')}`;
 
   // The envelope type is what the catalogue entry states (commandType, spec 0.9.11). Where it states
   // none, the PascalCase form of the schema name is the fallback — a guess: my-command → MyCommand.
@@ -2301,7 +2364,7 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
     type,
     datacontenttype: 'application/json',
     // Absolute catalogue URI — BEST is a conformant CloudEvents 1.0 profile
-    dataschema:      `${conn.endpoint.replace(/\/+$/, '')}/commands/${schema}/${version}`,
+    dataschema,
     time:            new Date().toISOString(),
     // correlationid (spec 0.9.2+): only set when the caller joins an existing chain — omitted,
     // the server defaults it to the command's own id. Pre-0.9.2 servers ignore the attribute.
@@ -2354,7 +2417,7 @@ async function handleGetQueryCatalogue(args: Record<string, unknown>, conn: Best
 async function handleGetQuerySchema(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await bestGet<unknown>(`/queries/${schema}/${version}`, conn);
+  const doc = await bestGet<unknown>(`/queries/${segment(schema, 'schema name')}/${segment(version, 'version')}`, conn);
   return JSON.stringify(doc, null, 2) + await workflowNote(doc, 'queries', schema, conn);
 }
 
@@ -2375,7 +2438,7 @@ function toQueryString(params: Record<string, unknown>): string {
 }
 
 async function handleExecuteQuery(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
-  const schema = args.schema as string;
+  const schema = segment(args.schema, 'schema name');
   const queryString = toQueryString(paramsBag(args));
 
   const path = queryString ? `/queries/${schema}?${queryString}` : `/queries/${schema}`;
@@ -2395,7 +2458,7 @@ async function handleGetEvents(args: Record<string, unknown>, conn: BestConnecti
 async function handleGetEventSchema(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   const schema  = args.schema as string;
   const version = args.version as string;
-  const doc = await bestGet<unknown>(`/events/${schema}/${version}`, conn);
+  const doc = await bestGet<unknown>(`/events/${segment(schema, 'schema name')}/${segment(version, 'version')}`, conn);
   return JSON.stringify(doc, null, 2);
 }
 
@@ -2580,8 +2643,9 @@ async function handleGetWorkflows(args: Record<string, unknown>, conn: BestConne
   const workflowId = args.workflow_id as string | undefined;
 
   if (workflowId) {
+    const recipePath = `/workflows/${segment(workflowId, 'workflow id')}`;
     try {
-      const recipe = await bestGet<unknown>(`/workflows/${encodeURIComponent(workflowId)}`, conn);
+      const recipe = await bestGet<unknown>(recipePath, conn);
       return JSON.stringify(recipe, null, 2);
     } catch {
       // No per-id route (pre-0.9.4) or unknown id — the full list settles which.
