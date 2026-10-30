@@ -38,11 +38,12 @@ const oneWord = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+
 const DEVICE_CODE = 'GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS';
 const ISSUED_KEY = 'key_5f2c9a_issued_by_the_mock';
 const REFRESH_TOKEN = 'rt_9d1e_refresh_by_the_mock';
+const ID_TOKEN = 'eyJ_id_token_by_the_mock';
 // Stand-ins for the spec's sign-in guidance: written for a consumer that signs in by hand, never for best-mcp's model.
 const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
 const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
-function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '', otherService = '', registrationAt = '', tenantCatalogues = false } = {}) {
+function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '', otherService = '', registrationAt = '', registrationRedirectTo = '', tenantCatalogues = false } = {}) {
   const modern = mode === 'modern';
   // `seen.key` is the account's ONE key: a scenario replaces it to play "another assistant was approved".
   const seen = { posts: [], tokenPolls: 0, deviceRequests: [], paths: [], key: initialKey };
@@ -78,6 +79,7 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
         if (seen.tenantManifestGets <= tenantFailures) return json(503, { error: { code: 'UNAVAILABLE', message: 'try again' } });
         return json(200, { best: { version: '0.9.11', services: { 'com.example.app': { version: '1.0.0', description: 'The example application.', http: { endpoint: foreignEndpoint || `${origin}/api/tenants/${tenant}` } } }, capabilities: [] } });
       }
+      if (registrationRedirectTo && path.startsWith('/auth/')) { res.writeHead(307, { Location: `${registrationRedirectTo}${path}` }); return res.end(); }
       if (path === '/auth/device' && req.method === 'POST') {
         seen.deviceRequests.push(Object.fromEntries(new URLSearchParams(raw)));
         return json(200, { device_code: DEVICE_CODE, user_code: 'WDJB-MJHT', verification_uri: 'https://example.com/activate', verification_uri_complete: 'https://example.com/activate?code=WDJB-MJHT', expires_in: 900, interval: 1, note: DEVICE_GUIDANCE });
@@ -87,7 +89,7 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
         if (form.get('device_code') !== DEVICE_CODE) return json(400, { error: 'invalid_grant' });
         seen.tokenPolls++;
         if (seen.tokenPolls === 1) return json(400, { error: 'authorization_pending', interval: 1 });
-        return json(200, { access_token: key(), refresh_token: REFRESH_TOKEN, token_type: 'apikey', auth_header: 'X-Api-Key', ...(tokenTenant ? { tenant_id: tokenTenant } : {}), echo: `your key is ${key()}`,
+        return json(200, { access_token: key(), refresh_token: REFRESH_TOKEN, id_token: ID_TOKEN,token_type: 'apikey', auth_header: 'X-Api-Key', ...(tokenTenant ? { tenant_id: tokenTenant } : {}), echo: `your key is ${key()}`,
           endpoint: `${origin}/api/tenants/acme`, note: 'The key is a SECRET. Store it and never repeat it in the conversation.',
           mcp: { mcpServers: { example: { command: 'npx', args: ['-y', '@behavioralstate/best-mcp'], env: { BEST_EXAMPLE_API_KEY: key() } } } },
           http: { header: 'X-Api-Key: <access_token>' } });
@@ -191,7 +193,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const done = await call(client, 'exchange_device_code', { connection: platform });
   expect(!done.isError && done.text.includes('acme'), `modern: second exchange should succeed, got: ${done.text}`);
   expect(!done.text.includes(ISSUED_KEY), 'modern: exchange_device_code LEAKED the issued key to the model');
-  expect(!done.text.includes(REFRESH_TOKEN), 'modern: exchange_device_code LEAKED the refresh token to the model');
+  expect(!done.text.includes(REFRESH_TOKEN) && !done.text.includes(ID_TOKEN), 'modern: exchange_device_code LEAKED the refresh or id token to the model');
   expect(!done.text.includes('mcpServers') && !done.text.includes('"http"') && !done.text.includes('SECRET'), `modern: the credential block's mcp/http/note reached the model — best-mcp is already the client: ${done.text}`);
   expect(existsSync(credentialsFile) && readFileSync(credentialsFile, 'utf-8').includes(ISSUED_KEY), 'modern: the issued key was not stored');
   const again = await call(client, 'exchange_device_code', { connection: platform });
@@ -261,7 +263,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   };
   const w = await signIn('whatever', `${a.origin}/.well-known/best`, a);
   expect(!w.text.includes('key_for_whatever'), 'named: exchange LEAKED the issued key');
-  expect(!w.text.includes(REFRESH_TOKEN), 'named: exchange LEAKED the refresh token');
+  expect(!w.text.includes(REFRESH_TOKEN) && !w.text.includes(ID_TOKEN), 'named: exchange LEAKED the refresh or id token');
   expect(!w.text.includes('mcpServers') && !w.text.includes('"http"') && !w.text.includes('SECRET'), `named: the credential block's mcp/http/note reached the model: ${w.text}`);
   await signIn('ciccio-live', `${b.origin}/.well-known/best`, b);
   await signIn('whatever-2', `${a.origin}/`, a);   // same host, another name; a bare origin means its well-known path
@@ -512,8 +514,20 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(reg.isError && reg.text.includes('Nothing was sent') && stolen.length === 0, `configured: a device request went to another host over http: ${reg.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
   const byHand = await call(client, 'exchange_device_code', { device_code: DEVICE_CODE });
   expect(byHand.isError && byHand.text.includes('Nothing was sent') && stolen.length === 0, `configured: a device code was posted to another host over http: ${byHand.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
-  await client.close(); r.server.close(); thief.close();
+  await client.close(); r.server.close();
+
+  // Registration endpoints at the app's own origin that redirect: the device request and the device code stay put.
+  const h = await mock('modern', { registrationRedirectTo: thiefOrigin });
+  client = await connectApp(h.origin, credentialsFile, {});
+  const hopReg = await call(client, 'register_agent', {});
+  expect(hopReg.isError && hopReg.text.includes('redirect') && stolen.length === 0, `configured: a device request followed a redirect: ${hopReg.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
+  const hopToken = await call(client, 'exchange_device_code', { device_code: DEVICE_CODE });
+  expect(hopToken.isError && hopToken.text.includes('redirect') && stolen.length === 0, `configured: a device code followed a redirect: ${hopToken.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
+  await client.close(); h.server.close(); thief.close();
 }
+
+// Certificates are checked for every connection: nothing in best-mcp turns the check off for the process.
+expect(!readFileSync(SERVER, 'utf-8').includes('NODE_TLS_REJECT_UNAUTHORIZED'), 'tls: best-mcp turns certificate checking off for the process');
 
 // ── hosted, two callers — what one caller's catalogue says is never used for another ───
 {

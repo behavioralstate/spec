@@ -640,15 +640,18 @@ async function fetchManifestAt(url: string): Promise<RootManifest> {
   return manifest;
 }
 
-/** A URL's host (with its port), or '' when it does not parse. */
-function hostOf(url: string): string {
-  try { return new URL(url).host; } catch { return ''; }
+/** A URL's origin (scheme, host and port), or '' when it does not parse. */
+function originOfUrl(url: string): string {
+  try { return new URL(url).origin; } catch { return ''; }
 }
 
-/** True when `url` is on the very host (and port) of `trusted`. */
-function onHostOf(url: string, trusted: string): boolean {
-  const host = hostOf(url);
-  return host !== '' && host === hostOf(trusted);
+/**
+ * True when `url` is at the very origin of `trusted`: its scheme too, so a manifest cannot move a secret to plain http
+ * on the host it was configured or signed in at over https.
+ */
+function onOriginOf(url: string, trusted: string): boolean {
+  const origin = originOfUrl(url);
+  return origin !== '' && origin !== 'null' && origin === originOfUrl(trusted);
 }
 
 /** The connection that owns an app's root manifest: `<app>/platform`, else the bare `<app>`. */
@@ -677,9 +680,9 @@ async function resolveServiceConnection(name: string): Promise<BestConnection | 
   if (typeof endpoint !== 'string' || !endpoint) return undefined;
   // SPEC Name Resolution: the app's credential goes to the host the operator configured it for, never to another
   // host a manifest names.
-  if (!onHostOf(endpoint, root.endpoint)) {
-    throw new Error(`'${name}' is on another host than '${root.name}' (${hostOf(endpoint) || endpoint}, not ` +
-      `${hostOf(root.endpoint)}); the app's credential is not sent there. Nothing was sent.`);
+  if (!onOriginOf(endpoint, root.endpoint)) {
+    throw new Error(`'${name}' is on another host than '${root.name}' (${originOfUrl(endpoint) || endpoint}, not ` +
+      `${originOfUrl(root.endpoint)}); the app's credential is not sent there. Nothing was sent.`);
   }
   const conn: BestConnection = {
     ...root,
@@ -748,7 +751,7 @@ async function listServiceConnections(): Promise<{ name: string; endpoint: strin
       // endpoint is the bare `/tenants` collection) — listing it would invite calls to a non-surface.
       if (known.some(k => k === endpoint || k.startsWith(`${endpoint}/`))) continue;
       // A service on another host is no connection of the app's: its credential is never sent there.
-      if (!onHostOf(endpoint, root.endpoint)) continue;
+      if (!onOriginOf(endpoint, root.endpoint)) continue;
       out.push({
         name: `${app}/${serviceId}`,
         endpoint,
@@ -1792,13 +1795,13 @@ async function assertPublicHost(url: URL): Promise<void> {
 
 /**
  * A registration endpoint a manifest names (`deviceAuthorizationUrl`, `tokenUrl`): the device code is a secret, so it
- * goes only to the host the sign-in started at, or to an https address on a public host — never in cleartext, never
+ * goes only to the origin the sign-in started at, or to an https address on a public host — never in cleartext, never
  * to this machine or a private network a manifest points at (SPEC Name Resolution).
  */
 async function registrationEndpoint(raw: string, trusted: string): Promise<URL> {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error(`'${raw}' is not an address. Nothing was sent.`); }
-  if (onHostOf(url.toString(), trusted)) return url;
+  if (onOriginOf(url.toString(), trusted)) return url;
   assertScheme(url, raw);
   await assertPublicHost(url);
   return url;
