@@ -43,7 +43,8 @@
 #     identifiers are not secrets; credentials stay out of transcripts; the
 #     person approves in their own browser; query-string credentials;
 #     request records; pacing and event-stream bounds (0.9.8 to 0.9.18).
-#   - Implementation Status updated.
+#   - Implementation Status updated, with the first independent
+#     implementation, in progress.
 ###
 title: "BEST: The Behavioral State Protocol"
 abbrev: "BEST"
@@ -859,7 +860,7 @@ This document establishes no new IANA registries (see IANA Considerations).
 
 This section records the implementation status at the time of writing, per {{RFC7942}}; it is to be removed by the RFC Editor before publication.
 
-Three production deployments of BEST exist -- a fintech trading platform, a business platform and a video studio, implemented as separate codebases -- each exposing discovery, commands, events, and queries over the HTTP binding; the video studio also offers agent registration through the device authorization grant. A further implementation, best-peer (Rust, a BEST service in front of GPU machines), was written from the specification text alone, and every place the text was silent or ambiguous was recorded against the specification. A generic reference MCP server (@behavioralstate/best-mcp, npm) adapts any BEST endpoint for MCP-capable LLM clients and performs agent registration itself, keeping the credential out of the model's view, and a conformance validator (@behavioralstate/best-validate, npm) executes this document's conformance checklist against a live endpoint, including the sign-in guidance. All of these are by the specification's author or the author's organisation; no implementation independent of the author is known yet.
+Three production deployments of BEST exist -- a fintech trading platform, a business platform and a video studio, implemented as separate codebases -- each exposing discovery, commands, events, and queries over the HTTP binding; the video studio also offers agent registration through the device authorization grant. A further implementation, best-peer (Rust, a BEST service in front of GPU machines), was written from the specification text alone, and every place the text was silent or ambiguous was recorded against the specification. A generic reference MCP server (@behavioralstate/best-mcp, npm) adapts any BEST endpoint for MCP-capable LLM clients and performs agent registration itself, keeping the credential out of the model's view, and a conformance validator (@behavioralstate/best-validate, npm) executes this document's conformance checklist against a live endpoint, including the sign-in guidance. All of these are by the specification's author or the author's organisation. The first implementation independent of the author is in progress: belmontcottage.co.uk, a holiday-rental website whose maintainer is adding a BEST surface to it; it was not yet serving a manifest at the time of writing.
 
 # Security Considerations
 

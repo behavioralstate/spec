@@ -100,11 +100,11 @@ Table of Contents
    11. Implementation Status . . . . . . . . . . . . . . . . . . . .  40
    12. Security Considerations . . . . . . . . . . . . . . . . . . .  40
    13. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  44
-   14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  44
-     14.1.  Normative References . . . . . . . . . . . . . . . . . .  44
+   14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  45
+     14.1.  Normative References . . . . . . . . . . . . . . . . . .  45
      14.2.  Informative References . . . . . . . . . . . . . . . . .  46
-   Acknowledgments . . . . . . . . . . . . . . . . . . . . . . . . .  46
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  46
+   Acknowledgments . . . . . . . . . . . . . . . . . . . . . . . . .  47
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  47
 
 
 
@@ -2214,12 +2214,34 @@ Internet-Draft                    BEST                      October 2026
    the model's view, and a conformance validator (@behavioralstate/best-
    validate, npm) executes this document's conformance checklist against
    a live endpoint, including the sign-in guidance.  All of these are by
-   the specification's author or the author's organisation; no
-   implementation independent of the author is known yet.
+   the specification's author or the author's organisation.  The first
+   implementation independent of the author is in progress:
+   belmontcottage.co.uk, a holiday-rental website whose maintainer is
+   adding a BEST surface to it; it was not yet serving a manifest at the
+   time of writing.
 
 12.  Security Considerations
 
    TLS:  Endpoints MUST be served over HTTPS, but for the cleartext this
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 40]
+
+Internet-Draft                    BEST                      October 2026
+
+
       paragraph allows.  Cleartext HTTP MAY be used only where both ends
       are the same machine's loopback, judged on the address a service
       listens on and the host of the endpoint it advertises, or where
@@ -2233,14 +2255,6 @@ Internet-Draft                    BEST                      October 2026
       equivalent confidentiality.  Clients and servers MUST validate
       certificates and host names and MUST NOT send credentials over a
       transport this paragraph does not allow.
-
-
-
-
-Di Nuzzo                   Expires 3 May 2027                  [Page 40]
-
-Internet-Draft                    BEST                      October 2026
-
 
    Authentication surface:  "GET /.well-known/best" is always
       unauthenticated.  Beyond it, only two things are reachable without
@@ -2276,6 +2290,14 @@ Internet-Draft                    BEST                      October 2026
       person signing in to the platform and approving, in their own
       browser, is the out-of-band confirmation, and the agent cannot
       perform it.  Servers SHOULD declare the "impact" annotation
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 41]
+
+Internet-Draft                    BEST                      October 2026
+
+
       (Section 5.2) on such commands so consumers can discover the
       obligation; the annotation is advisory to consumers and never
       substitutes for the server-side control.
@@ -2288,16 +2310,6 @@ Internet-Draft                    BEST                      October 2026
       entry.
 
    Replay protection:  The envelope "id" is an idempotency key.  Servers
-
-
-
-
-
-Di Nuzzo                   Expires 3 May 2027                  [Page 41]
-
-Internet-Draft                    BEST                      October 2026
-
-
       MUST detect and reject or safely ignore duplicates (the same "id"
       from the same credential) within a retention window, scoped to the
       authenticated tenant and to the sending credential, and SHOULD
@@ -2334,6 +2346,14 @@ Internet-Draft                    BEST                      October 2026
       (Section 4.4): the consumer is often a model with nothing else to
       tell it.
 
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 42]
+
+Internet-Draft                    BEST                      October 2026
+
+
    The person approves in their own browser:  The agent gives the person
       the verification link and MUST NOT open it itself or in a browser
       it controls: approving is the person's act, and a page the agent
@@ -2346,14 +2366,6 @@ Internet-Draft                    BEST                      October 2026
       resolved, refusing loopback, link-local and private targets
       outside development use, binding each credential to its name, and
       giving a newly resolved service's text no authority -- are what
-
-
-
-Di Nuzzo                   Expires 3 May 2027                  [Page 42]
-
-Internet-Draft                    BEST                      October 2026
-
-
       keep a service from redirecting an agent to another one or
       instructing its client.  A name that resolves is a service that
       exists, not one that is safe; the person's confirmation of the
@@ -2382,6 +2394,22 @@ Internet-Draft                    BEST                      October 2026
       exchanged token.  (Required from 0.10.0.)
 
    Input limits:  Servers MUST bound request body size, JSON nesting
+
+
+
+
+
+
+
+
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 43]
+
+Internet-Draft                    BEST                      October 2026
+
+
       depth, collection sizes, string lengths, and attribute counts.  A
       body over the limit SHOULD be refused with 413 carrying
       "details.limit_bytes", the largest body the endpoint accepts, and
@@ -2401,15 +2429,6 @@ Internet-Draft                    BEST                      October 2026
       streams SHOULD state the bound in its documentation.
 
    Manifest content:  The manifest is publicly retrievable by design.
-
-
-
-
-Di Nuzzo                   Expires 3 May 2027                  [Page 43]
-
-Internet-Draft                    BEST                      October 2026
-
-
       Its content, extension content included, MUST be limited to
       information intended for unauthenticated disclosure: no internal
       addresses, credential material, or sensitive integration names.
@@ -2440,6 +2459,13 @@ Internet-Draft                    BEST                      October 2026
    pursue registration again should this specification be adopted within
    the IETF.
 
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 44]
+
+Internet-Draft                    BEST                      October 2026
+
+
    The protocol also uses the underscored DNS node name "_best" for the
    TXT record of Section 3.2.  It is not registered in the "Underscored
    and Globally Scoped DNS Node Names" registry.
@@ -2457,14 +2483,6 @@ Internet-Draft                    BEST                      October 2026
    [RFC3339]  Klyne, G. and C. Newman, "Date and Time on the Internet:
               Timestamps", RFC 3339, DOI 10.17487/RFC3339, July 2002,
               <https://www.rfc-editor.org/info/rfc3339>.
-
-
-
-
-Di Nuzzo                   Expires 3 May 2027                  [Page 44]
-
-Internet-Draft                    BEST                      October 2026
-
 
    [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
               Resource Identifier (URI): Generic Syntax", STD 66,
@@ -2494,6 +2512,16 @@ Internet-Draft                    BEST                      October 2026
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
+
+
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 45]
+
+Internet-Draft                    BEST                      October 2026
+
+
    [RFC8615]  Nottingham, M., "Well-Known Uniform Resource Identifiers
               (URIs)", RFC 8615, DOI 10.17487/RFC8615, May 2019,
               <https://www.rfc-editor.org/info/rfc8615>.
@@ -2513,14 +2541,6 @@ Internet-Draft                    BEST                      October 2026
               1.0.2", n.d.,
               <https://github.com/cloudevents/spec/blob/v1.0.2/
               cloudevents/spec.md>.
-
-
-
-
-Di Nuzzo                   Expires 3 May 2027                  [Page 45]
-
-Internet-Draft                    BEST                      October 2026
-
 
    [CLOUDEVENTS-HTTP]
               Cloud Native Computing Foundation, "HTTP Protocol Binding
@@ -2549,6 +2569,15 @@ Internet-Draft                    BEST                      October 2026
               RFC 7942, DOI 10.17487/RFC7942, July 2016,
               <https://www.rfc-editor.org/info/rfc7942>.
 
+
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 46]
+
+Internet-Draft                    BEST                      October 2026
+
+
    [MCP]      "Model Context Protocol", n.d.,
               <https://modelcontextprotocol.io/>.
 
@@ -2573,4 +2602,31 @@ Author's Address
 
 
 
-Di Nuzzo                   Expires 3 May 2027                  [Page 46]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Di Nuzzo                   Expires 3 May 2027                  [Page 47]
