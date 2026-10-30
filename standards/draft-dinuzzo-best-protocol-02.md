@@ -683,7 +683,7 @@ There is no listing of events: "GET /events" is the log, and nothing else. A typ
 
 ## Live Stream
 
-"GET /events/stream" is requested with "Accept: text/event-stream" plus credentials; optional filters are "correlationId", "type", and "source". Each event arrives as an SSE "data" field containing the envelope JSON, with the envelope "id" echoed as the SSE event id. On reconnection, clients send "Last-Event-ID" and the server replays anything produced after it. A "Last-Event-ID" the server never told, or no longer holds, is no position in its log: the server SHOULD then deliver from now on, as for a new connection, and the client reads what it missed from "GET /events". Servers SHOULD send keepalive comments and MAY close the stream after inactivity or a terminal event; clients MUST handle reconnection: the stream is not lossless.
+"GET /events/stream" is requested with "Accept: text/event-stream" plus credentials; optional filters are "correlationId", "type", and "source". Each event arrives as an SSE "data" field containing the envelope JSON, with the envelope "id" echoed as the SSE event id. On reconnection, clients send "Last-Event-ID" and the server replays anything produced after it. A "Last-Event-ID" the server never told, or no longer holds, is no position in its log: the server SHOULD then deliver from now on, as for a new connection, and the client reads what it missed from "GET /events". Servers SHOULD send keepalive comments and MAY close the stream after inactivity or a terminal event; clients MUST handle reconnection.
 
 ## Delivery Channels
 
