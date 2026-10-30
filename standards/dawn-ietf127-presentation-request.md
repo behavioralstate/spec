@@ -27,7 +27,9 @@ Plain-text email, sent from the subscribed address.
 > fetches https://example.com/.well-known/best, learns what the service
 > offers, gets its own credential through the OAuth device flow
 > (RFC 8628) while the person approves in their own browser, and starts
-> working. It runs in production on three services today.
+> working: it sends commands, reads current state through queries, and
+> follows what happens as events, live over an SSE stream. It runs in
+> production on three services today.
 >
 > I would like to show how exposing behaviours can make a service's API
 > ready to be used by agents.
