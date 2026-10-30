@@ -34,8 +34,7 @@ Plain-text email, sent from the subscribed address.
 > I would like to show how exposing behaviours can make a service's API
 > ready to be used by agents.
 >
-> Current implementations are mine or my organisation's; the first
-> independent one is being built now.
+> More implementations, independent of mine, are on the way.
 >
 > Thanks,
 > Riccardo Di Nuzzo
