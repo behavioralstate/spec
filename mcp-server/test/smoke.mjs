@@ -15,6 +15,8 @@
  *            assistant's) are one credential: a replaced configured key heals from the stored sign-in on
  *            its first 401 and the next start needs no 401 at all; a key issued on the named entry lands
  *            on the configured app too. (A real two-assistant replay, 2026-10-02.)
+ *   cleartext — a credential or a device code goes over plain http only on loopback, or where
+ *            BEST_MCP_CLEARTEXT=vpn states a VPN encrypts the hop; elsewhere nothing is sent.
  *
  * What must hold: the device code and the issued key never appear in a tool result; the key is stored;
  * the next call already uses it.
@@ -26,7 +28,7 @@ import { createHash } from 'crypto';
 import { createServer as createHttpsServer } from 'https';
 import { spawn, spawnSync } from 'child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'fs';
-import { tmpdir } from 'os';
+import { tmpdir, networkInterfaces } from 'os';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -44,15 +46,16 @@ const ID_TOKEN = 'eyJ_id_token_by_the_mock';
 const MANIFEST_GUIDANCE = 'BY-HAND SIGN-IN: POST a form to deviceAuthorizationUrl yourself';
 const DEVICE_GUIDANCE = 'BY-HAND POLLING: poll tokenUrl yourself';
 
-function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '', otherService = '', registrationAt = '', registrationRedirectTo = '', tenantCatalogues = false } = {}) {
+function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds = ['acme'], tokenTenant = 'acme', tenantFailures = 0, foreignEndpoint = '', strictKey = false, redirectTenantTo = '', otherService = '', registrationAt = '', registrationRedirectTo = '', tenantCatalogues = false, host = '127.0.0.1' } = {}) {
   const modern = mode === 'modern';
   // `seen.key` is the account's ONE key: a scenario replaces it to play "another assistant was approved".
-  const seen = { posts: [], tokenPolls: 0, deviceRequests: [], paths: [], key: initialKey };
+  const seen = { posts: [], tokenPolls: 0, deviceRequests: [], paths: [], keys: [], key: initialKey };
   const key = () => seen.key;
   let origin = '';
   const server = createServer((req, res) => {
     const path = new URL(req.url, origin).pathname;
     seen.paths.push(req.url);
+    if (req.headers['x-api-key']) seen.keys.push(req.headers['x-api-key']);
     const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
     let raw = '';
     req.on('data', c => { raw += c; });
@@ -112,8 +115,8 @@ function mock(mode, { key: initialKey = ISSUED_KEY, tenants = false, tenantIds =
       return json(404, { error: { code: 'NOT_FOUND', message: `Unknown route ${path}` } });
     });
   });
-  return new Promise(resolve => server.listen(0, '127.0.0.1', () => {
-    origin = `http://127.0.0.1:${server.address().port}`;
+  return new Promise(resolve => server.listen(0, host, () => {
+    origin = `http://${host}:${server.address().port}`;
     resolve({ server, origin, seen });
   }));
 }
@@ -532,6 +535,71 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const hopToken = await call(client, 'exchange_device_code', { device_code: DEVICE_CODE });
   expect(hopToken.isError && hopToken.text.includes('redirect') && stolen.length === 0, `configured: a device code followed a redirect: ${hopToken.text.slice(0, 300)} ${JSON.stringify(stolen)}`);
   await client.close(); h.server.close(); thief.close();
+}
+
+// ── cleartext — a credential or a device code goes over plain http only on loopback, or where the operator states a VPN carries it ───
+{
+  // This machine's own address on a network: plain http there is off loopback, though the mock still answers.
+  const lan = Object.values(networkInterfaces()).flat().find(a => a.family === 'IPv4' && !a.internal)?.address;
+  expect(!!lan, 'cleartext: this machine has no IPv4 address off loopback to serve the off-loopback mock on');
+  const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
+  const keyed = { BEST_EXAMPLE_API_KEY: 'key_configured', BEST_EXAMPLE_AUTH_TYPE: 'apikey' };
+  if (lan) {
+    const off = await mock('modern', { host: lan });
+    let client = await connectApp(off.origin, credentialsFile, { ...keyed, BEST_MCP_CLEARTEXT: '' });
+    const read = await call(client, 'get_command_catalogue', {});
+    const sent = await call(client, 'send_command', { schema: 'place-order', version: '1.0', data: {} });
+    for (const r of [read, sent]) {
+      expect(r.isError && r.text.includes('BEST_MCP_CLEARTEXT=vpn') && r.text.includes('https://') && r.text.includes('Nothing was sent'),
+        `cleartext: a credential to ${off.origin} was not refused with the setting and the fix: ${r.text.slice(0, 300)}`);
+    }
+    // Only the public manifest, which carries no credential, is read there.
+    expect(off.seen.keys.length === 0 && off.seen.paths.every(p => p === '/.well-known/best'),
+      `cleartext: the app's key went over http off loopback: ${JSON.stringify(off.seen.paths)} ${JSON.stringify(off.seen.keys)}`);
+    await client.close();
+
+    // A sign-in at that origin: the manifest carries no secret, the device request and the device code do.
+    client = await connectApp(off.origin, credentialsFile, { BEST_MCP_CLEARTEXT: '' });
+    const reg = await call(client, 'register_agent', {});
+    const byHand = await call(client, 'exchange_device_code', { device_code: DEVICE_CODE });
+    for (const r of [reg, byHand]) {
+      expect(r.isError && r.text.includes('BEST_MCP_CLEARTEXT=vpn') && r.text.includes('Nothing was sent'),
+        `cleartext: a registration at ${off.origin} was not refused with the setting and the fix: ${r.text.slice(0, 300)}`);
+    }
+    expect(off.seen.paths.every(p => !p.startsWith('/auth/')), `cleartext: a device request or a device code went over http off loopback: ${JSON.stringify(off.seen.paths)}`);
+    await client.close();
+
+    // A connection with no credential has nothing to protect: it is read over http wherever it is.
+    client = await connectApp(off.origin, credentialsFile, { BEST_EXAMPLE_AUTH_TYPE: 'none', BEST_MCP_CLEARTEXT: '' });
+    const open = await call(client, 'get_command_catalogue', {});
+    expect(!open.isError, `cleartext: a connection with no credential was refused over http: ${open.text.slice(0, 300)}`);
+    await client.close();
+
+    // The operator states a VPN encrypts the hop: the key goes, and the sign-in completes.
+    const before = off.seen.paths.length;
+    client = await connectApp(off.origin, credentialsFile, { ...keyed, BEST_MCP_CLEARTEXT: 'vpn' });
+    const vpnRead = await call(client, 'get_command_catalogue', {});
+    const vpnSent = await call(client, 'send_command', { schema: 'place-order', version: '1.0', data: {} });
+    expect(!vpnRead.isError && !vpnSent.isError && off.seen.posts.at(-1)?.key === 'key_configured',
+      `cleartext: BEST_MCP_CLEARTEXT=vpn did not let the key through: ${vpnRead.text.slice(0, 200)} ${vpnSent.text.slice(0, 200)}`);
+    expect(off.seen.paths.length > before, 'cleartext: under BEST_MCP_CLEARTEXT=vpn nothing reached the service');
+    await client.close();
+    client = await connectApp(off.origin, credentialsFile, { BEST_MCP_CLEARTEXT: 'vpn' });
+    const vpnReg = await call(client, 'register_agent', {});
+    expect(!vpnReg.isError && off.seen.deviceRequests.length === 1, `cleartext: BEST_MCP_CLEARTEXT=vpn did not let the device request through: ${vpnReg.text.slice(0, 300)}`);
+    await client.close(); off.server.close();
+  }
+
+  // Loopback is this machine: the key goes over http there with nothing stated.
+  const local = await mock('modern');
+  const client = await connectApp(local.origin, credentialsFile, { ...keyed, BEST_MCP_CLEARTEXT: '' });
+  const sent = await call(client, 'send_command', { schema: 'place-order', version: '1.0', data: {} });
+  expect(!sent.isError && local.seen.posts.at(-1)?.key === 'key_configured', `cleartext: the key was not sent over http on loopback: ${sent.text.slice(0, 300)}`);
+  await client.close(); local.server.close();
+
+  // A value that is not vpn is refused at start, naming the setting, rather than read as either.
+  const wrong = spawnSync(process.execPath, [SERVER], { env: { ...process.env, BEST_MCP_CLEARTEXT: 'yes', MCP_TRANSPORT: 'stdio' }, input: '', encoding: 'utf-8', timeout: 10000 });
+  expect(wrong.status === 1 && wrong.stderr.includes('BEST_MCP_CLEARTEXT must be vpn'), `cleartext: BEST_MCP_CLEARTEXT=yes did not stop the start: ${wrong.status} ${wrong.stderr}`);
 }
 
 // ── certificates — always checked; a development certificate is trusted by naming it, never by turning the check off ───

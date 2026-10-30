@@ -89,7 +89,7 @@ import { createRequire } from 'module';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 import { lookup } from 'dns/promises';
-import { isIP } from 'net';
+import { BlockList, isIP } from 'net';
 import { join } from 'path';
 
 // The real published version, surfaced to hosts in the initialize result — a hardcoded constant
@@ -158,6 +158,19 @@ interface BestConnection {
   if (legacyVarsUsed) {
     process.stderr.write('[best-mcp] WARNING: BSP_* environment variables are deprecated — rename them to BEST_*.\n');
   }
+}
+
+// specs/security.md: a credential goes in cleartext only to this machine's loopback, or over a hop the operator
+// states the network already encrypts. BEST_MCP_CLEARTEXT=vpn states it, as BEST_PEER_CLEARTEXT=vpn does for a peer.
+const CLEARTEXT_VPN = ((): boolean => {
+  const value = (process.env.BEST_MCP_CLEARTEXT ?? '').trim();
+  if (value === '') return false;
+  if (value === 'vpn') return true;
+  process.stderr.write(`[best-mcp] ERROR: BEST_MCP_CLEARTEXT must be vpn, when a VPN already encrypts every hop to the services, or unset, not '${value}'.\n`);
+  process.exit(1);
+})();
+if (CLEARTEXT_VPN) {
+  process.stderr.write('[best-mcp] WARNING: BEST_MCP_CLEARTEXT=vpn: a credential is sent over plain http to any host, and only the VPN protects it.\n');
 }
 
 const TRANSPORT = process.env.MCP_TRANSPORT ?? 'stdio';
@@ -875,19 +888,46 @@ const isSafeTenantId = (id: string): boolean => SAFE_TENANT_ID.test(id) && id !=
  * Resolution: a credential is never sent to a host other than the one its name resolved to).
  */
 async function fetchWithCredential(url: string, conn: BestConnection): Promise<Response> {
-  return sendWithCredential(url, { headers: { Accept: 'application/json', ...authHeaders(conn) } });
+  return sendWithCredential(url, { headers: { Accept: 'application/json', ...authHeaders(conn) } }, carriesCredential(conn));
+}
+
+/** Whether a request on this connection carries its credential: one with none to send may go in cleartext. */
+const carriesCredential = (conn: BestConnection): boolean => conn.authType !== 'none' && !!conn.apiKey;
+
+const LOOPBACK = new BlockList();
+LOOPBACK.addSubnet('127.0.0.0', 8, 'ipv4');
+LOOPBACK.addAddress('::1', 'ipv6');
+
+/** This machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), an IPv4-mapped one included. */
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  const family = isIP(host);
+  return host === 'localhost' || (family !== 0 && LOOPBACK.check(host, family === 4 ? 'ipv4' : 'ipv6'));
 }
 
 /**
- * Any request that carries a credential, in a header or in its query: it follows no redirect, and refuses one, so
- * the credential never reaches a host or a path it was not sent to (a BEST service's paths are fixed, so a redirect
- * is never the expected answer). What is said names the target's origin and path only, and an error of the request
- * itself is told without the query, which may carry the credential.
+ * Refuses, before anything is sent, a secret over plain http off this machine's loopback (specs/security.md), unless
+ * BEST_MCP_CLEARTEXT=vpn states that the network already encrypts the hop.
  */
-async function sendWithCredential(url: string, init: RequestInit): Promise<Response> {
+function assertNotCleartext(url: URL, secret: string): void {
+  if (url.protocol !== 'http:' || CLEARTEXT_VPN || isLoopbackHost(url.hostname)) return;
+  throw new Error(`${url.origin} is plain http off this machine's loopback, where ${secret} would travel unencrypted. ` +
+    `Name the service by its https:// address, or set BEST_MCP_CLEARTEXT=vpn when a VPN already encrypts the hop. Nothing was sent.`);
+}
+
+/**
+ * Any request that carries a credential, in a header or in its query: never in cleartext off loopback (unless the
+ * operator stated the hop encrypted), and it follows no redirect, and refuses one, so the credential never reaches a
+ * host or a path it was not sent to (a BEST service's paths are fixed, so a redirect is never the expected answer).
+ * What is said names the target's origin and path only, and an error of the request itself is told without the
+ * query, which may carry the credential. `carries` is false only for a connection with no credential to send.
+ */
+async function sendWithCredential(url: string, init: RequestInit, carries = true): Promise<Response> {
   // The origin and path only: never a query, a username or a password.
   let where = 'the endpoint';
-  try { const u = new URL(url); where = `${u.origin}${u.pathname}`; } catch { /* said as the endpoint */ }
+  let target: URL | undefined;
+  try { target = new URL(url); where = `${target.origin}${target.pathname}`; } catch { /* said as the endpoint */ }
+  if (carries && target) assertNotCleartext(target, 'the credential');
   let response: Response;
   try {
     response = await fetch(url, { ...init, redirect: 'manual' });
@@ -1020,7 +1060,7 @@ async function parseErrorMessage(response: Response): Promise<string> {
 async function bestGet<T>(path: string, conn: BestConnection): Promise<T> {
   const response = await fetchHealing(conn, c => sendWithCredential(`${c.endpoint}${withAuthQuery(path, c)}`, {
     headers: { ...authHeaders(c), Accept: 'application/json' }
-  }));
+  }, carriesCredential(c)));
   if (!response.ok) {
     const message = await parseErrorMessage(response);
     throw new Error(message);
@@ -1058,7 +1098,7 @@ async function bestPost<T>(path: string, body: unknown, conn: BestConnection): P
       Accept: 'application/json'
     },
     body: JSON.stringify(body)
-  });
+  }, carriesCredential(c));
   const contentType = path === '/commands' ? await commandContentType(conn) : 'application/json';
   let response = await fetchHealing(conn, c => send(contentType, c));
   if (response.status === 415 && contentType === CLOUDEVENTS_JSON) {
@@ -1809,11 +1849,14 @@ async function assertPublicHost(url: URL): Promise<void> {
 /**
  * A registration endpoint a manifest names (`deviceAuthorizationUrl`, `tokenUrl`): the device code is a secret, so it
  * goes only to the origin the sign-in started at, or to an https address on a public host — never in cleartext, never
- * to this machine or a private network a manifest points at (SPEC Name Resolution).
+ * to this machine or a private network a manifest points at (SPEC Name Resolution). The sign-in's own origin is held
+ * to the cleartext rule too (specs/security.md): plain http only on this machine's loopback, or under
+ * BEST_MCP_CLEARTEXT=vpn.
  */
 async function registrationEndpoint(raw: string, trusted: string): Promise<URL> {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error(`'${raw}' is not an address. Nothing was sent.`); }
+  assertNotCleartext(url, 'the device code');
   if (onOriginOf(url.toString(), trusted)) return url;
   assertScheme(url, raw);
   await assertPublicHost(url);
@@ -2520,7 +2563,7 @@ async function handleSampleEventStream(args: Record<string, unknown>, conn: Best
         ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {})
       },
       signal: controller.signal
-    });
+    }, carriesCredential(conn));
     if (!response.ok) {
       const message = await parseErrorMessage(response);
       throw new Error(message);
