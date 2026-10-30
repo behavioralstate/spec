@@ -638,7 +638,7 @@ function failureOf(e: unknown): string {
   const code = cause?.code ?? cause?.errors?.[0]?.code ?? (e instanceof Error ? e.name : 'an error');
   // Only an issuer Node does not know: an expired certificate or one for another name is not fixed by trusting one.
   const certificate = /^(DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_VERIFY_LEAF_SIGNATURE|UNABLE_TO_GET_ISSUER_CERT(_LOCALLY)?)$/.test(code)
-    ? '; its certificate is not trusted: for a development server, set NODE_EXTRA_CA_CERTS to that certificate'
+    ? '; its certificate is not trusted: for a development server, set NODE_EXTRA_CA_CERTS to that certificate, or reach it over http on this machine\'s loopback'
     : '';
   return `${code}${certificate}`;
 }
