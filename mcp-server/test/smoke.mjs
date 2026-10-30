@@ -23,7 +23,8 @@
  */
 import { createServer } from 'http';
 import { createHash } from 'crypto';
-import { spawn } from 'child_process';
+import { createServer as createHttpsServer } from 'https';
+import { spawn, spawnSync } from 'child_process';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -506,6 +507,9 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     expect(r.isError && r.text.includes('Nothing was sent'), `configured: ${tool} ${JSON.stringify(args)} was not refused: ${r.text.slice(0, 300)}`);
   }
   expect(m.seen.posts.length === postsBefore, `configured: a command was sent although its arguments were refused: ${JSON.stringify(m.seen.posts.slice(postsBefore))}`);
+  // An empty poll query is no polling, as it always was: the command is sent and answered at once.
+  const unpolled = await call(client, 'send_command_and_wait', { schema: 'place-order', version: '1.0', data: {}, poll_query: '' });
+  expect(!unpolled.isError && m.seen.posts.length === postsBefore + 1, `configured: an empty poll_query refused the command: ${unpolled.text.slice(0, 300)}`);
   await call(client, 'get_command_schema', { schema: '../../admin', version: '1.0' });
   const asked = m.seen.paths.slice(before);
   expect(asked.every(p => p.startsWith('/api/commands/') || p === '/api/commands'), `configured: a tool argument moved the request's path: ${JSON.stringify(asked)}`);
@@ -530,8 +534,32 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   await client.close(); h.server.close(); thief.close();
 }
 
-// Certificates are checked for every connection: nothing in best-mcp turns the check off for the process.
-expect(!readFileSync(SERVER, 'utf-8').includes('NODE_TLS_REJECT_UNAUTHORIZED'), 'tls: best-mcp turns certificate checking off for the process');
+// ── certificates — always checked; a development certificate is trusted by naming it, never by turning the check off ───
+{
+  expect(!readFileSync(SERVER, 'utf-8').includes('NODE_TLS_REJECT_UNAUTHORIZED'), 'tls: best-mcp turns certificate checking off for the process');
+  const dir = mkdtempSync(join(tmpdir(), 'best-mcp-tls-'));
+  const [keyFile, certFile] = [join(dir, 'key.pem'), join(dir, 'cert.pem')];
+  const made = spawnSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-days', '1',
+    '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1', '-keyout', keyFile, '-out', certFile], { stdio: 'ignore' });
+  expect(made.status === 0, 'tls: openssl could not make the development certificate this test serves');
+  if (made.status === 0) {
+    const dev = createHttpsServer({ key: readFileSync(keyFile), cert: readFileSync(certFile) }, (req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ commands: [] }));
+    });
+    await new Promise(r => dev.listen(0, '127.0.0.1', r));
+    const origin = `https://127.0.0.1:${dev.address().port}`;
+    const credentialsFile = join(dir, 'credentials.json');
+    let client = await connectApp(origin, credentialsFile, { NODE_EXTRA_CA_CERTS: '' });
+    const untrusted = await call(client, 'get_command_catalogue', {});
+    expect(untrusted.isError && untrusted.text.includes('DEPTH_ZERO_SELF_SIGNED_CERT') && untrusted.text.includes('NODE_EXTRA_CA_CERTS'), `tls: a development certificate was not refused with the way to trust it: ${untrusted.text.slice(0, 300)}`);
+    await client.close();
+    client = await connectApp(origin, credentialsFile, { NODE_EXTRA_CA_CERTS: certFile });
+    const trusted = await call(client, 'get_command_catalogue', {});
+    expect(!trusted.isError, `tls: a development certificate named in NODE_EXTRA_CA_CERTS was not trusted: ${trusted.text.slice(0, 300)}`);
+    await client.close(); dev.close();
+  }
+}
 
 // ── hosted, two callers — what one caller's catalogue says is never used for another ───
 {

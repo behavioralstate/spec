@@ -636,7 +636,8 @@ async function fetchRootManifest(conn: BestConnection): Promise<RootManifest> {
 function failureOf(e: unknown): string {
   const cause = e instanceof Error ? (e.cause as { code?: string; errors?: { code?: string }[] } | undefined) : undefined;
   const code = cause?.code ?? cause?.errors?.[0]?.code ?? (e instanceof Error ? e.name : 'an error');
-  const certificate = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|UNABLE_TO_GET_ISSUER/.test(code)
+  // Only an issuer Node does not know: an expired certificate or one for another name is not fixed by trusting one.
+  const certificate = /^(DEPTH_ZERO_SELF_SIGNED_CERT|SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_VERIFY_LEAF_SIGNATURE|UNABLE_TO_GET_ISSUER_CERT(_LOCALLY)?)$/.test(code)
     ? '; its certificate is not trusted: for a development server, set NODE_EXTRA_CA_CERTS to that certificate'
     : '';
   return `${code}${certificate}`;
@@ -2403,7 +2404,7 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
 async function handleSendCommandAndWait(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
   // A poll query that would climb the path is refused before the command is sent: inside the poll loop its refusal
   // would read as a transient failure, and the command would be sent with nothing ever said about why it was not followed.
-  if (args.poll_query !== undefined) segment(args.poll_query, 'query schema name');
+  if (typeof args.poll_query === 'string' && args.poll_query !== '') segment(args.poll_query, 'query schema name');
   const commandResult = await handleSendCommand(args, conn);
 
   const pollQuery = args.poll_query as string | undefined;
