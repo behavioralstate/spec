@@ -1,6 +1,6 @@
 # dawn — presentation request for IETF 127
 
-**DRAFT, not sent.** Answers the chairs' Call for Presentations (Frank Brockners, 2026-10-26): requests to
+**Sent 2026-10-30**, from riccardo@dinuzzo.it, as plain text, with the body below. Answers the chairs' Call for Presentations (Frank Brockners, 2026-10-26): requests to
 dawn-chairs@ietf.org by **2026-11-02**, each giving the title and document, why and how it fits the charter, the
 deliverable, the time requested, and whether it is presented in person or remotely. The meeting is the WG's first,
 Thursday 2026-11-19, two hours.
@@ -45,8 +45,7 @@ Sending it, and what follows, is [#183](https://github.com/behavioralstate/spec/
 - **The draft:** -02, posted 2026-10-30, is a snapshot of the spec at 0.9.19, so the slides match the cited document.
 - **"More implementations … on the way", if the chairs ask:** one is being built, belmontcottage.co.uk, which -02 names
   as the first independent implementation, in progress; two more people the owner knows intend to build one and are
-  not named here. If Belmont Cottage is live before sending, the body's sentence becomes "One implementation independent
-  of mine is live, and more are on the way." (#183).
+  not named here. Belmont Cottage was not live when the request was sent (its `/.well-known/best` answered 404).
 - **The services, if the chairs ask:** the three production hosts are the owner's to name in the reply (SDLC.md
   section 2 keeps them out of the repository), plus best-peer (Rust, written from the text). The body leaves the
   names out to stay short.
