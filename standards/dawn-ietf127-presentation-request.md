@@ -40,8 +40,8 @@ Plain-text email, sent from the subscribed address.
 > The talk would show that boundary as deployed, and what we found
 > missing at it, which is input to the architecture rather than a
 > request for adoption: no integrity for the discovery document beyond
-> TLS, and nothing that helps a client which does not already know the
-> host.
+> TLS, and nothing that helps a client find a service it cannot already
+> name.
 >
 > Implementation status, stated plainly: three production services and
 > one implementation written from the specification text alone, sharing
@@ -53,21 +53,15 @@ Plain-text email, sent from the subscribed address.
 > Riccardo Di Nuzzo
 > riccardo@dinuzzo.it
 
-## Before sending
+## Notes
 
-- **Remote:** register for IETF 127 as a remote participant (Meetecho) before the meeting; a remote presenter
-  shares slides through the session's Meetecho room, and the chairs usually want the slides uploaded to the
-  meeting materials a few days ahead.
+Sending it, and what follows, is [#183](https://github.com/behavioralstate/spec/issues/183).
+
 - **The draft:** -02, posted 2026-10-30, is a snapshot of the spec at 0.9.19, so the slides match the cited document.
-  Its Implementation Status names belmontcottage.co.uk, a third-party site, as the first independent implementation,
-  in progress. Before sending, check whether `https://belmontcottage.co.uk/.well-known/best` answers and passes
-  best-validate; if it does, say in the body that the first independent implementation is live.
 - **The services, if the chairs ask:** the three production hosts are the owner's to name in the reply (SDLC.md
   section 2 keeps them out of the repository), plus best-peer (Rust, written from the text). The body leaves the
   names out to stay short.
 - **Tone:** the chairs asked for requests that are "short, crisp and on-topic", and several requests on the list were
   questioned on scope. That is why the body offers BEST as an example of the boundary, not as a solution for DAWN to
   adopt.
-- **The follow-up in person:** IETF 129, Berlin, 17–23 July 2027 (InterContinental Berlin, Budapester Str. 2), once
-  dawn's architecture has settled and there is more implementation experience to show.
 - The earlier list post, [dawn-landscape-email.md](dawn-landscape-email.md) (2026-08-24), had no replies on-list.
