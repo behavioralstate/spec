@@ -1723,8 +1723,8 @@ Internet-Draft                    BEST                      October 2026
    deliver from now on, as for a new connection, and the client reads
    what it missed from "GET /events".  Servers SHOULD send keepalive
    comments and MAY close the stream after inactivity or a terminal
-   event; clients MUST handle reconnection and MUST NOT assume the
-   stream is lossless.
+   event; clients MUST handle reconnection: the stream is not lossless.
+
 
 
 
@@ -2200,10 +2200,10 @@ Internet-Draft                    BEST                      October 2026
    writing, per [RFC7942]; it is to be removed by the RFC Editor before
    publication.
 
-   Three production deployments of BEST exist -- dotquant.io (fintech
-   trading platform), remundo.com (business platform) and sudio.io
-   (video studio) -- each exposing discovery, commands, events, and
-   queries over the HTTP binding; sudio.io also offers agent
+   Three production deployments of BEST exist -- a fintech trading
+   platform, a business platform and a video studio, implemented as
+   separate codebases -- each exposing discovery, commands, events, and
+   queries over the HTTP binding; the video studio also offers agent
    registration through the device authorization grant.  A further
    implementation, best-peer (Rust, a BEST service in front of GPU
    machines), was written from the specification text alone, and every
