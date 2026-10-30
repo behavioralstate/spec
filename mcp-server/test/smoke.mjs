@@ -541,7 +541,9 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
 {
   // This machine's own address on a network: plain http there is off loopback, though the mock still answers.
   const lan = Object.values(networkInterfaces()).flat().find(a => a.family === 'IPv4' && !a.internal)?.address;
-  expect(!!lan, 'cleartext: this machine has no IPv4 address off loopback to serve the off-loopback mock on');
+  // CI always has one; a machine with none (offline) says it skipped rather than turning the gate red.
+  if (!lan && process.env.CI) expect(false, 'cleartext: this CI machine has no IPv4 address off loopback to serve the off-loopback mock on');
+  else if (!lan) console.warn('smoke: skipped the off-loopback cleartext checks: this machine has no IPv4 address off loopback');
   const credentialsFile = join(mkdtempSync(join(tmpdir(), 'best-mcp-smoke-')), 'credentials.json');
   const keyed = { BEST_EXAMPLE_API_KEY: 'key_configured', BEST_EXAMPLE_AUTH_TYPE: 'apikey' };
   if (lan) {
