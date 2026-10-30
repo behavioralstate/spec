@@ -29,12 +29,11 @@ Plain-text email, sent from the subscribed address.
 > (RFC 8628) while the person approves in their own browser, and starts
 > working: it sends commands, reads current state through queries, and
 > follows what happens as events, live over an SSE stream. It runs in
-> production on three services today.
+> production on three services today. More implementations, independent
+> of mine, are on the way.
 >
 > I would like to show how exposing behaviours can make a service's API
 > ready to be used by agents.
->
-> More implementations, independent of mine, are on the way.
 >
 > Thanks,
 > Riccardo Di Nuzzo
@@ -46,7 +45,7 @@ Sending it, and what follows, is [#183](https://github.com/behavioralstate/spec/
 - **The draft:** -02, posted 2026-10-30, is a snapshot of the spec at 0.9.19, so the slides match the cited document.
 - **"More implementations … on the way", if the chairs ask:** one is being built, belmontcottage.co.uk, which -02 names
   as the first independent implementation, in progress; two more people the owner knows intend to build one and are
-  not named here. If Belmont Cottage is live before sending, the body's line becomes "One implementation independent
+  not named here. If Belmont Cottage is live before sending, the body's sentence becomes "One implementation independent
   of mine is live, and more are on the way." (#183).
 - **The services, if the chairs ask:** the three production hosts are the owner's to name in the reply (SDLC.md
   section 2 keeps them out of the repository), plus best-peer (Rust, written from the text). The body leaves the
