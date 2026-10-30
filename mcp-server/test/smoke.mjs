@@ -497,11 +497,15 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     ['execute_query', { schema: '..' }],
     ['get_event_schema', { schema: 'x', version: '..' }],
     ['send_command', { schema: '..', version: '1.0', data: {} }],
+    ['send_command_and_wait', { schema: 'place-order', version: '1.0', data: {}, poll_query: '..', timeout_seconds: 2 }],
+    ['get_workflows', { workflow_id: '..' }],
   ];
+  const postsBefore = m.seen.posts.length;
   for (const [tool, args] of climbs) {
     const r = await call(client, tool, args);
     expect(r.isError && r.text.includes('Nothing was sent'), `configured: ${tool} ${JSON.stringify(args)} was not refused: ${r.text.slice(0, 300)}`);
   }
+  expect(m.seen.posts.length === postsBefore, `configured: a command was sent although its arguments were refused: ${JSON.stringify(m.seen.posts.slice(postsBefore))}`);
   await call(client, 'get_command_schema', { schema: '../../admin', version: '1.0' });
   const asked = m.seen.paths.slice(before);
   expect(asked.every(p => p.startsWith('/api/commands/') || p === '/api/commands'), `configured: a tool argument moved the request's path: ${JSON.stringify(asked)}`);

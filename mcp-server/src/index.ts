@@ -627,10 +627,30 @@ async function fetchRootManifest(conn: BestConnection): Promise<RootManifest> {
   return fetchManifestAt(conn.manifestUrl ?? `${new URL(conn.endpoint).origin}/.well-known/best`);
 }
 
+/**
+ * Why a request could not be sent, as its code alone: never the error's own words, which can echo a header value (the
+ * credential) or the URL. Certificates are always checked (SPEC Name Resolution), so a certificate failure says how a
+ * development server's own certificate is trusted: by naming it to Node, never by turning the check off, which would
+ * turn it off for every connection.
+ */
+function failureOf(e: unknown): string {
+  const cause = e instanceof Error ? (e.cause as { code?: string; errors?: { code?: string }[] } | undefined) : undefined;
+  const code = cause?.code ?? cause?.errors?.[0]?.code ?? (e instanceof Error ? e.name : 'an error');
+  const certificate = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|UNABLE_TO_GET_ISSUER/.test(code)
+    ? '; its certificate is not trusted: for a development server, set NODE_EXTRA_CA_CERTS to that certificate'
+    : '';
+  return `${code}${certificate}`;
+}
+
 async function fetchManifestAt(url: string): Promise<RootManifest> {
   const cached = rootManifestCache.get(url);
   if (cached) return cached;
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  let response: Response;
+  try {
+    response = await fetch(url, { headers: { Accept: 'application/json' } });
+  } catch (e) {
+    throw new Error(`GET ${url} could not be sent (${failureOf(e)}).`, { cause: e });
+  }
   if (!response.ok) {
     const message = await parseErrorMessage(response);
     throw new Error(`GET ${url} → ${response.status}: ${message}`);
@@ -873,15 +893,7 @@ async function sendWithCredential(url: string, init: RequestInit): Promise<Respo
   } catch (e) {
     // An abort is the caller's own (a stream's window ending): it goes on as it was.
     if (e instanceof Error && e.name === 'AbortError') throw e;
-    // Never the error's own words, which can echo a header value (the credential) or the URL: its code alone.
-    const cause = e instanceof Error ? (e.cause as { code?: string; errors?: { code?: string }[] } | undefined) : undefined;
-    const code = cause?.code ?? cause?.errors?.[0]?.code ?? (e instanceof Error ? e.name : 'an error');
-    // Certificates are always checked (SPEC Name Resolution): a development server's own certificate is trusted by
-    // naming it to Node, never by turning the check off, which would turn it off for every connection.
-    const certificate = /CERT|SELF_SIGNED/.test(code)
-      ? ' Its certificate is not trusted; for a development server, set NODE_EXTRA_CA_CERTS to that certificate.'
-      : '';
-    throw new Error(`${init.method ?? 'GET'} ${where} could not be sent (${code}).${certificate}`, { cause: e });
+    throw new Error(`${init.method ?? 'GET'} ${where} could not be sent (${failureOf(e)}).`, { cause: e });
   }
   if (response.status >= 300 && response.status < 400) {
     let target = 'nowhere said';
@@ -1809,12 +1821,17 @@ async function registrationEndpoint(raw: string, trusted: string): Promise<URL> 
 
 /** POSTs a form to a registration endpoint, following no redirect: the device code is never sent on to another place. */
 async function postForm(url: URL, form: URLSearchParams): Promise<Response> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body: form.toString(),
-    redirect: 'manual',
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: form.toString(),
+      redirect: 'manual',
+    });
+  } catch (e) {
+    throw new Error(`POST ${url.origin}${url.pathname} could not be sent (${failureOf(e)}).`, { cause: e });
+  }
   if (response.status >= 300 && response.status < 400) {
     throw new Error(`POST ${url.origin}${url.pathname} → ${response.status}, a redirect: a registration is not sent on a redirect.`);
   }
@@ -2384,6 +2401,9 @@ async function handleSendCommand(args: Record<string, unknown>, conn: BestConnec
 }
 
 async function handleSendCommandAndWait(args: Record<string, unknown>, conn: BestConnection): Promise<string> {
+  // A poll query that would climb the path is refused before the command is sent: inside the poll loop its refusal
+  // would read as a transient failure, and the command would be sent with nothing ever said about why it was not followed.
+  if (args.poll_query !== undefined) segment(args.poll_query, 'query schema name');
   const commandResult = await handleSendCommand(args, conn);
 
   const pollQuery = args.poll_query as string | undefined;
