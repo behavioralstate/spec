@@ -44,6 +44,9 @@ Plain-text email, sent from the subscribed address.
 Sending it, and what follows, is [#183](https://github.com/behavioralstate/spec/issues/183).
 
 - **The draft:** -02, posted 2026-10-30, is a snapshot of the spec at 0.9.19, so the slides match the cited document.
+- **"More implementations … on the way", if the chairs ask:** one is being built, belmontcottage.co.uk, which -02 names
+  as the first independent implementation, in progress; two more people the owner knows intend to build one and have
+  not yet agreed to be named.
 - **The services, if the chairs ask:** the three production hosts are the owner's to name in the reply (SDLC.md
   section 2 keeps them out of the repository), plus best-peer (Rust, written from the text). The body leaves the
   names out to stay short.
