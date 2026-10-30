@@ -22,8 +22,8 @@ Plain-text email, sent from the subscribed address.
 >   https://datatracker.ietf.org/doc/draft-dinuzzo-best-protocol/
 > Deliverable: Discovery Architecture
 >
-> A BEST-compliant service lets a person tell an AI agent "sign me in to
-> example.com", even if the agent has never seen that service. The agent
+> A BEST-compliant service can let a person tell an AI agent "sign me in
+> to example.com", even if the agent has never seen that service. The agent
 > fetches https://example.com/.well-known/best, learns what the service
 > offers, gets its own credential through the OAuth device flow
 > (RFC 8628) while the person approves in their own browser, and starts
