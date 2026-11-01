@@ -109,6 +109,10 @@
     release, publishes the website image and opens the pull request that deploys it on the infrastructure
     repository. The notes, `RELEASE_NOTES/v<version>.md`, are written first, in a commit that passes the gates like
     any other.
+  - The website between releases: `gh workflow run cicd.yaml --ref main` runs the same gate, publishes the image of
+    `main`'s head and opens the same pull request, with no tag and no version. It is for a change to the website
+    alone, while `specs/` and `protocol/` are as the last release left them: other text would go live under a version
+    that does not hold it.
   - best-mcp: `scripts/release-mcp.sh <version>` tags `mcp/v<version>`, and CI publishes `@behavioralstate/best-mcp`.
   - best-validate: `scripts/release-validate.sh <version>` tags `validate/v<version>`, and CI publishes
     `@behavioralstate/best-validate`.

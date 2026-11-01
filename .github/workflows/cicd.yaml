@@ -6,6 +6,8 @@ on:
     tags: ['spec/v*', 'mcp/v*', 'validate/v*']
   pull_request:
     branches: [main]
+  # Publishes the website from main between releases (SDLC.md section 4): gh workflow run cicd.yaml --ref main
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -100,7 +102,7 @@ jobs:
           fi
 
   docker-publish:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/spec/v')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/spec/v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -193,7 +195,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   update-iac:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/spec/v')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/spec/v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: docker-publish
     runs-on: ubuntu-latest
     steps:
