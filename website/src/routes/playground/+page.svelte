@@ -97,7 +97,11 @@
 	// Fall back to the URL-bar value if neither names a service with an endpoint.
 	function resolveEndpointBase(cap) {
 		const services = manifest?.services ?? {};
-		const key = cap?.service ?? Object.keys(services).find((k) => cap?.name?.startsWith(`${k}.`));
+		const key =
+			cap?.service ??
+			Object.keys(services)
+				.filter((k) => cap?.name === k || cap?.name?.startsWith(`${k}.`))
+				.sort((a, b) => b.length - a.length)[0];
 		const endpoint = key ? services[key]?.http?.endpoint : null;
 		return endpoint ? endpoint.replace(/\/+$/, '') : normalizedBase;
 	}
