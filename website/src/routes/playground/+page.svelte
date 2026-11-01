@@ -92,15 +92,14 @@
 	}
 
 	// Resolve the REST base URL for a capability.
-	// Use cap.service to look up the service's http.endpoint.
-	// Fall back to the URL-bar value if the field is absent or the service is not found.
+	// Use cap.service, or the service whose key prefixes the capability's name when the
+	// field is absent (SPEC.md, Agent Navigation Guide), to look up its http.endpoint.
+	// Fall back to the URL-bar value if neither names a service with an endpoint.
 	function resolveEndpointBase(cap) {
-		if (cap?.service) {
-			const svcEntry = manifest?.services?.[cap.service];
-			const endpoint = svcEntry?.http?.endpoint;
-			if (endpoint) return endpoint.replace(/\/+$/, '');
-		}
-		return normalizedBase;
+		const services = manifest?.services ?? {};
+		const key = cap?.service ?? Object.keys(services).find((k) => cap?.name?.startsWith(`${k}.`));
+		const endpoint = key ? services[key]?.http?.endpoint : null;
+		return endpoint ? endpoint.replace(/\/+$/, '') : normalizedBase;
 	}
 
 	// Accept both the canonical lowercase "best" envelope and the legacy
