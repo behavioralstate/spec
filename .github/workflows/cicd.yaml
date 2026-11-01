@@ -36,7 +36,7 @@ jobs:
 
       - name: Get git tag
         id: git_tag
-        run: echo "tag=$(git describe --tags --always)" >> $GITHUB_OUTPUT
+        run: echo "tag=$(git describe --tags --always --match 'spec/v*')" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -126,7 +126,7 @@ jobs:
           REPO_OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE=ghcr.io/${REPO_OWNER_LC}/spec:${{ github.sha }}
           docker build \
-            --build-arg VITE_GIT_TAG=$(git describe --tags --always) \
+            --build-arg VITE_GIT_TAG=$(git describe --tags --always --match 'spec/v*') \
             -t $IMAGE .
           docker push $IMAGE
 
