@@ -141,7 +141,7 @@ BEST uses **semantic versioning** (`MAJOR.MINOR.PATCH`). Consumers should ignore
 
 ## Quick Start for Implementers
 
-Getting a minimal BEST endpoint running takes three steps.
+Getting a BEST endpoint running takes three steps. The example exposes all three primitives; a service may expose just one.
 
 **Step 1 — Serve `/.well-known/best`**
 
