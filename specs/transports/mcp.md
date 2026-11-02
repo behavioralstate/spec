@@ -80,10 +80,10 @@ The server-side counterpart is in [`agents/workflows`](../agents/workflows.md): 
 
 ## The `mcp` block's fields
 
-`push` is `true` when the server supports server-to-client push notifications for domain events.
+`push` is `true` when the server supports server-to-client push notifications for events.
 
 `authentication` carries `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus, per type: `headers` (an array of `{ name, description, example }` descriptors), `scheme` for bearer, `tokenUrl`/`scopes` for OAuth2, and `docs` for the human-readable onboarding page.
 
 ## Push Event Delivery
 
-When a caller maintains an active MCP session and `"push": true` is declared, the server **may** push domain events as MCP server-to-client notifications, matched by the **`correlationid`** of a previously submitted command. Callers should prefer this channel over polling `GET /events`. The events capability declares `"push": { "mcp": true }` when this channel is active — see [Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#capability-entries).
+When a caller maintains an active MCP session and `"push": true` is declared, the server **may** push events as MCP server-to-client notifications, matched by the **`correlationid`** of a previously submitted command. Callers should prefer this channel over polling `GET /events`. The events capability declares `"push": { "mcp": true }` when this channel is active — see [Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#capability-entries).

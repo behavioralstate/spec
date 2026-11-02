@@ -68,7 +68,7 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 |---|---|
 | **Service** | A BEST-compliant domain service that accepts commands and publishes events |
 | **Command** | An intent to change the system, sent to a service by any caller |
-| **Event** | An immutable domain fact published by a service as the result of processing |
+| **Event** | An immutable fact published by a service as the result of processing |
 | **Query** | A synchronous read of current state (optional capability) |
 
 | Tier | Capabilities | Meaning |

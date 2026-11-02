@@ -51,7 +51,7 @@ Layer 1: Transport
 |---|---|
 | **Service** | A BEST-compliant domain service that accepts commands and publishes events |
 | **Command** | An intent to change the system — sent to a service by any caller (Process Manager, UI, another service) |
-| **Event** | An immutable domain fact published by a service as the result of processing a command |
+| **Event** | An immutable fact published by a service as the result of processing a command |
 
 > **BEST is not REST.** There are no resources to manipulate. There are no `GET /orders/{id}`, `PUT /orders/{id}`, or `DELETE /orders/{id}` endpoints. There are only operations to invoke — commands — and facts to observe — events. If you find yourself thinking in nouns and CRUD verbs, step back: BEST is a behaviour-oriented protocol. Think instead: *what is the caller trying to do?* That is a command. *What happened as a result?* That is an event. See [BEST vs REST](/specs/comparisons/rest) for a full comparison.
 
@@ -168,7 +168,7 @@ The minimum set for a functional agent service:
 |---|---|---|
 | `POST` | `/commands` | Send a command (CloudEvent) |
 | `GET` | `/commands` | Browse accepted command types |
-| `GET` | `/events` | Query published domain events |
+| `GET` | `/events` | Query published events |
 | `GET` | `/queries` | Browse available query types |
 
 **Step 3 — Validate**

@@ -26,7 +26,7 @@ Implementations **SHOULD** define distinct authorisation scopes or roles:
 | Read | `GET /events`, `GET /commands`, `GET /commands/{schema}/{version}`, `GET /queries` |
 | Write | `POST /commands` |
 
-`GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read domain events.
+`GET /events` **MUST** require authentication and tenant-scoped authorisation unless a specific event stream is explicitly designated public. Unauthenticated callers **MUST NOT** be able to read events.
 
 ## Command Authorisation
 

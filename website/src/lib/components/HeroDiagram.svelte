@@ -15,7 +15,7 @@
 			<div class="dn-sub">/.well-known/best</div>
 		</div>
 		<div class="da">
-			<span class="da-lbl">Result</span>
+			<span class="da-lbl">Event</span>
 			<span class="da-sym">→</span>
 		</div>
 		<div class="dn">

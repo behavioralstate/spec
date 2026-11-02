@@ -135,8 +135,8 @@
     "/events": {
       "get": {
         "operationId": "listEvents",
-        "summary": "Query published domain events",
-        "description": "Returns the queryable log of domain events published by this service. Supports filtering by event type, correlation ID, source, and time range, plus cursor-based pagination. All parameters are optional and combinable.",
+        "summary": "Query published events",
+        "description": "Returns the queryable log of events published by this service. Supports filtering by event type, correlation ID, source, and time range, plus cursor-based pagination. All parameters are optional and combinable.",
         "tags": [
           "Events"
         ],
@@ -186,7 +186,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of published domain events, with optional pagination cursor",
+            "description": "List of published events, with optional pagination cursor",
             "content": {
               "application/json": {
                 "schema": {
@@ -575,7 +575,7 @@
     },
     {
       "name": "Events",
-      "description": "io.best.agents.events — Query published domain events (GET /events), subscribe to live events (GET /events/stream), and fetch versioned event schemas (GET /events/{schema}/{version})"
+      "description": "io.best.agents.events — Query published events (GET /events), subscribe to live events (GET /events/stream), and fetch versioned event schemas (GET /events/{schema}/{version})"
     },
     {
       "name": "Queries",

@@ -25,7 +25,7 @@
         },
         "type": {
           "type": "string",
-          "description": "Message type identifier in PascalCase (e.g. ProposeCounter, CounterProposed). For commands this must match a type in the command catalogue. For events this identifies the domain fact."
+          "description": "Message type identifier in PascalCase (e.g. ProposeCounter, CounterProposed). For commands this must match a type in the command catalogue. For events this identifies the fact."
         },
         "datacontenttype": {
           "type": "string",

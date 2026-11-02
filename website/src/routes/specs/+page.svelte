@@ -32,7 +32,7 @@
 		</div>
 
 		<div class="flow-arrow">
-			<div class="arrow-label">Result</div>
+			<div class="arrow-label">Event</div>
 			<div class="arrow-track"><span class="arrow-head">→</span></div>
 		</div>
 
@@ -55,8 +55,8 @@
 		<div class="step">
 			<span class="step-num">2</span>
 			<div class="step-body">
-				<strong>Accept commands, give back results</strong>
-				<p>Callers POST commands to your service, which processes them any way it likes. You decide, case by case, whether callers get the result by polling a query or by subscribing to events.</p>
+				<strong>Accept commands, produce events</strong>
+				<p>Callers POST commands to your service, which processes them any way it likes. The results are events. Callers get them by polling a query or by subscribing to an SSE stream; you decide which, case by case.</p>
 			</div>
 		</div>
 		<div class="step">

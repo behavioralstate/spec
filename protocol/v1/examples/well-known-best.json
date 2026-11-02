@@ -37,12 +37,12 @@
         "name": "io.best.agents.events",
         "version": "{{BEST_VERSION}}",
         "service": "io.best.agents",
-        "description": "List and query domain events, and stream them",
+        "description": "List and query events, and stream them",
         "spec": "https://behavioralstate.io/specs/agents/events",
         "schema": "https://behavioralstate.io/v1/schemas/agents/events.json",
         "endpoints": [
-          { "method": "GET",    "path": "/events",            "description": "List domain events published by this service" },
-          { "method": "GET",    "path": "/events/stream",     "description": "Server-Sent Events stream of domain events" }
+          { "method": "GET",    "path": "/events",            "description": "List events published by this service" },
+          { "method": "GET",    "path": "/events/stream",     "description": "Server-Sent Events stream of events" }
         ],
         "push": {
           "sse": true,
