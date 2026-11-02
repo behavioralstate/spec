@@ -74,8 +74,6 @@ Implementations that manage services dynamically expose that as a domain: see th
 
 **From SPEC.md:** [Multi-Tenancy](https://github.com/behavioralstate/spec/blob/main/SPEC.md#multi-tenancy)
 
-A reserved, privileged tenant ID for the platform's own administrative context keeps the model uniform: no separate "untenanted" surface.
-
 Per-tenant manifests pay off even when all tenants share one capability surface: the tenant's `http.endpoint` structurally encodes the scope into every path (auditable at the infrastructure layer), `dataschema` URIs need no caller-side substitution, and an organisation's members share one manifest and key.
 
 For the first-contact algorithm — what to read, what to collect from the user, and when to fetch the tenant manifest — see [SPEC.md — Agent Navigation Guide](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-navigation-guide).

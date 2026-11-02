@@ -1,14 +1,14 @@
 # BEST � Behavioral State Protocol (spec repo)
 
-The authoritative protocol documentation lives in `specs/`. Do not duplicate it here.
-Read `specs/` to understand the protocol. These instructions cover only repo conventions and tooling. How a change is made, reviewed and shipped is
+The authoritative protocol documentation is `SPEC.md`, with `specs/` beside it for what its sections do not say. Do not duplicate it here.
+Read `SPEC.md` to understand the protocol. These instructions cover only repo conventions and tooling. How a change is made, reviewed and shipped is
 `SDLC.md`: every change on `main`, after `scripts/gate.sh all` ends in `GATE GREEN` and `/spec-review` has run.
 
 ## Repo Layout
 
 | Path | Contents |
 |---|---|
-| `specs/` | Canonical spec documents (Markdown) � the source of truth |
+| `specs/` | The pages of the website (Markdown): each takes its section from `SPEC.md` and holds what the section does not say |
 | `protocol/v1/schemas/` | JSON Schema files for all capabilities |
 | `protocol/v1/services/` | OpenAPI specs for the HTTP transport |
 | `protocol/v1/examples/` | Example manifests and payloads |
