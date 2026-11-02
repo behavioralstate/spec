@@ -357,7 +357,7 @@ So the escape hatch is exactly as large as that residue and no larger. It also g
 
 ### The decision
 
-A BEST service is named by a DNS domain name its operator controls, and a consumer resolves that name to a manifest with a fixed algorithm: `https://{name}/.well-known/best` first, a single `TXT` record at `_best.{name}` only when the name serves no HTTP. BEST defines no registry, no directory and no naming authority of its own. See [SPEC.md — Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution).
+A BEST service is named by a DNS domain name its operator controls, and a consumer resolves that name to a manifest by fetching `https://{name}/.well-known/best`. BEST defines no registry, no directory and no naming authority of its own. See [SPEC.md — Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution).
 
 ### Why
 
@@ -367,7 +367,7 @@ What was missing is what DNS gave hosts: a name anyone can say, and one resolver
 
 A registry was rejected for the reason the registry capability was removed (see [Registry and Lifecycle removed](#registry-and-lifecycle-removed)): it rebuilds what DNS has — uniqueness, ownership, dispute handling — and adds an operator everyone must trust and someone must fund. It would also invite the squatting DNS has spent decades learning to arbitrate.
 
-The well-known path comes before the `TXT` record because many consumers can make HTTPS requests and nothing else. Consulting DNS only when HTTP finds nothing means every consumer resolves a name to the same manifest whenever the well-known path answers; the record is for names whose origin serves no HTTP at all.
+A `TXT` record at `_best.{name}`, for names that serve no HTTP, was part of this rule from 0.9.10 and was taken out: no service published one and no client looked one up. It also rested on less than the path does. The name's TLS certificate stands behind what the well-known path answers, while the record let an unsigned DNS answer decide which host counts as the name. A name a service is known by serves HTTPS, if only to redirect.
 
 ### Why the resolver carries obligations
 
@@ -385,7 +385,7 @@ Resolution lets a model reach a service nobody configured, and hands it that ser
 
 ### The decision
 
-The discovery path is `/.well-known/best` and the DNS label is `_best`. BEST does not adopt a longer or spelled-out name for either — not alongside, and not instead — even though `best` could not be registered in the IANA well-known URI registry when first requested. The path is served unregistered, which [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615) permits, and registration is asked for again once the specification is published in the IETF stream.
+The discovery path is `/.well-known/best`. BEST does not adopt a longer or spelled-out name for it — not alongside, and not instead — even though `best` could not be registered in the IANA well-known URI registry when first requested. The path is served unregistered, which [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615) permits, and registration is asked for again once the specification is published in the IETF stream.
 
 ### Why
 
@@ -395,7 +395,7 @@ The discovery path is `/.well-known/best` and the DNS label is `_best`. BEST doe
 
 **A protocol name that is an ordinary word misleads nobody.** REST is not about resting, SOAP is not about washing, and neither was held back by it. A reader meets the name in a context — a path under `/.well-known/`, a specification title — that says what it is. `best` claims nothing about quality any more than those names claim anything about their ordinary meaning; it is the contraction of **Be**havioral **St**ate, chosen in 0.9.0 because the earlier initials collided with three established computing terms.
 
-**It is already the address.** Name resolution is built on it: a consumer turns `example.com` into `https://example.com/.well-known/best`, and falls back to `_best.example.com`. Production services answer there. A second, registered path would have to be served beside the first and kept in agreement with it for as long as any consumer knew the old one — a second copy of the entry point, which is the kind of duplication the rest of the protocol exists to remove.
+**It is already the address.** Name resolution is built on it: a consumer turns `example.com` into `https://example.com/.well-known/best`. Production services answer there. A second, registered path would have to be served beside the first and kept in agreement with it for as long as any consumer knew the old one — a second copy of the entry point, which is the kind of duplication the rest of the protocol exists to remove.
 
 **The registry's objection is about who is asking, not about the name.** The well-known registry reserves single common words for recognised standards bodies. No argument about the merits of `best` answers that, and none is needed: the objection falls away when the specification is published as an RFC, which is the path BEST is on. Until then RFC 8615 allows an unregistered path, and the practical risk — another party registering `best` first — is small for the same reason the request was refused: the policy admits only a standards body.
 

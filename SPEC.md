@@ -189,16 +189,9 @@ A BEST service is **named by a DNS domain name its operator controls** (`example
 **Resolving a name.** Given a name `N`, a consumer:
 
 1. **Normalises it.** A URL is reduced to its host; the result is lower-cased and an internationalised name converted to its A-label form. `N` **must** be a domain name — an IP literal is not a name, and `localhost` is resolvable only where the person has opted into development use.
-2. **Fetches `https://N/.well-known/best`**, following redirects as [Origin Discovery](#origin-discovery) requires. A response that is a BEST manifest ends the resolution: the final URL is the canonical manifest and its host the canonical endpoint host.
-3. **Only if step 2 found no manifest** (no HTTPS service on `N`, or a `404`) **and the consumer can query DNS**, looks up `TXT` at `_best.N`. Exactly one record of the form below names the manifest; zero, several, or a malformed one means `N` does not resolve.
+2. **Fetches `https://N/.well-known/best`**, following redirects as [Origin Discovery](#origin-discovery) requires. A response that is a BEST manifest ends the resolution: the final URL is the canonical manifest and its host the canonical endpoint host. Otherwise `N` does not resolve.
 
-   ```
-   _best.example.com.  IN TXT  "v=BEST1; manifest=https://api.example.com/.well-known/best"
-   ```
-
-   `manifest` **must** be an absolute `https` URL. The record exists for names whose origin serves no HTTP at all; it is never consulted when the well-known path answers, so every consumer — including one that can only make HTTPS requests — reaches the same manifest whenever step 2 succeeds.
-
-A service **must** be resolvable from every name it is publicly known by, through step 2 wherever that name serves HTTPS. A service that publishes both **must** make them agree. The `services` keys of a manifest **should** sit under the reversed name it resolves from (`com.example.*` for `example.com`); conversely, the owning name of a service id is found by reversing its labels and resolving the longest suffix that resolves — never a public suffix.
+A service **must** be resolvable from every name it is publicly known by, if only through a redirect. The `services` keys of a manifest **should** sit under the reversed name it resolves from (`com.example.*` for `example.com`); conversely, the owning name of a service id is found by reversing its labels and resolving the longest suffix that resolves — never a public suffix.
 
 **What a resolver owes the person.** Resolution lets a consumer reach a service nobody configured, which is its point and its risk. A consumer acting for a person — a model behind an MCP client above all — **must**:
 
