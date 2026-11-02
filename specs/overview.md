@@ -49,7 +49,7 @@ Layer 1: Transport
 
 | Primitive | Description |
 |---|---|
-| **Service** | A BEST-compliant domain service that accepts commands and publishes events |
+| **Service** | A BEST-compliant service, exposing whichever of the primitives below it chooses |
 | **Command** | An intent to change the system — sent to a service by any caller (Process Manager, UI, another service) |
 | **Event** | An immutable fact published by a service as the result of processing a command |
 
@@ -86,14 +86,15 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
 
 | Tier | Capabilities | What it means |
 |---|---|---|
-| **Core** | `/.well-known/best` discovery · `io.best.agents.commands` · `io.best.agents.events` | Required for any functional BEST endpoint. A service that implements only these three is fully BEST-compliant. |
-| **Extended** | `io.best.agents.queries` · `io.best.agents.workflows` | Optional. Declared in the manifest so consumers discover them at runtime. Omitting them does not affect core compliance. |
+| **Core** | `/.well-known/best` discovery | Required. |
+| **Primitives** | `io.best.agents.commands` · `io.best.agents.queries` · `io.best.agents.events` | The implementor decides which to expose: just commands, just queries, just events, or any mix. Declared in the manifest; consumers discover them at runtime. |
+| **Extended** | `io.best.agents.workflows` | Optional. Declared in the manifest; consumers discover it at runtime. |
 | **Out of scope** | Execution runtime · workflow execution · durable execution · memory contracts · retry policies · checkpointing | BEST never owns these. They belong to the service's internal implementation or a separate execution layer (e.g. Temporal, Durable Functions, an actor runtime). |
 
 <div class="BEST-diagram">
   <div class="BEST-node">
     <div class="BEST-node-title">Core</div>
-    <div class="BEST-node-box accent">Discovery<br/>Commands<br/>Events</div>
+    <div class="BEST-node-box accent">Discovery</div>
     <div class="BEST-node-sub">required</div>
   </div>
   <div class="BEST-arrow">
@@ -101,8 +102,8 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
   </div>
   <div class="BEST-node">
     <div class="BEST-node-title">Extended</div>
-    <div class="BEST-node-box">Queries<br/>Workflows</div>
-    <div class="BEST-node-sub">optional — declared in manifest</div>
+    <div class="BEST-node-box">Commands · Queries · Events<br/>Workflows</div>
+    <div class="BEST-node-sub">the implementor's choice — declared in manifest</div>
   </div>
   <div class="BEST-arrow">
     <div class="BEST-arrow-track">+</div>
@@ -114,7 +115,7 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
   </div>
 </div>
 
-> **The core is intentionally small.** A minimal BEST endpoint is three things: a discovery manifest, a command entry point, and an event log. Everything else is additive. Start there.
+> **The core is intentionally small.** A minimal BEST endpoint is two things: a discovery manifest and one primitive. Everything else is additive. Start there.
 
 ## Comparison to Google UCP
 

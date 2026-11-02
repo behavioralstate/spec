@@ -66,18 +66,19 @@ Anyone with something to offer — a business, a service, a sensor, an AI agent 
 
 | Primitive | Description |
 |---|---|
-| **Service** | A BEST-compliant domain service that accepts commands and publishes events |
+| **Service** | A BEST-compliant service, exposing whichever of the primitives below it chooses |
 | **Command** | An intent to change the system, sent to a service by any caller |
 | **Event** | An immutable fact published by a service as the result of processing |
-| **Query** | A synchronous read of current state (optional capability) |
+| **Query** | A synchronous read of current state |
 
 | Tier | Capabilities | Meaning |
 |---|---|---|
-| **Core** | `/.well-known/best` discovery · `io.best.agents.commands` · `io.best.agents.events` | Required. A service implementing only these three is fully BEST-compliant. |
-| **Extended** | `io.best.agents.queries` · `io.best.agents.workflows` | Optional. Declared in the manifest; consumers discover them at runtime. |
+| **Core** | `/.well-known/best` discovery | Required. |
+| **Primitives** | `io.best.agents.commands` · `io.best.agents.queries` · `io.best.agents.events` | The implementor decides which to expose: just commands, just queries, just events, or any mix. Declared in the manifest; consumers discover them at runtime. |
+| **Extended** | `io.best.agents.workflows` | Optional. Declared in the manifest; consumers discover it at runtime. |
 | **Out of scope** | Execution runtimes, workflow execution, durable execution, retries, checkpointing, memory contracts, domain models, identity providers | Never owned by BEST. These belong to the service's internals or a separate execution layer. |
 
-> **The core is intentionally small.** A minimal BEST endpoint is three things: a discovery manifest, a command entry point, and an event log. Everything else is additive.
+> **The core is intentionally small.** A minimal BEST endpoint is two things: a discovery manifest and one primitive. Everything else is additive.
 
 ## Wire Format — the BEST Envelope
 
@@ -588,7 +589,7 @@ A command refused at step 4 was never accepted: its `id` is free for the correct
 
 ### Command Results and Correlation
 
-BEST defines **no synchronous command response**. The result of processing is one or more published events, tied to the command by the first-class **`correlationid`** envelope attribute:
+BEST defines **no synchronous command response**. The result of processing is one or more events, tied to the command by the first-class **`correlationid`** envelope attribute. How a client gets them is the implementor's decision: from a query, or by subscribing to the SSE stream of the events capability:
 
 ```
 POST /commands                       → 201 { "id": "abc123", "correlationId": "abc123" }
@@ -832,16 +833,16 @@ The canonical first-contact algorithm for an AI agent or automated client:
 
 | Root manifest shows | Meaning | Collect from the user |
 |---|---|---|
-| `capabilities` contains `io.best.agents.commands` | Direct service | Nothing, if you hold a credential or the surface is public. Otherwise register through `authentication.deviceAuthorizationUrl`; ask the person for a credential only when it is absent |
-| `tenants.manifest` present, no commands capability | Multi-tenant router | Same. A completed registration yields the credential **and** the tenant ID together — never ask the person for a tenant ID the registration can give you. A token answer with no `tenant_id` means the credential opens no single account: it works at the root and finds its tenants listed there ([Agent Registration](#agent-registration)). Only where no `deviceAuthorizationUrl` is declared: credentials and tenant ID, in one prompt |
-| Commands capability with `status: "planned"` | Not implemented yet | — (report to user) |
+| `capabilities` contains `io.best.agents.commands`, `io.best.agents.queries` or `io.best.agents.events` | Direct service | Nothing, if you hold a credential or the surface is public. Otherwise register through `authentication.deviceAuthorizationUrl`; ask the person for a credential only when it is absent |
+| `tenants.manifest` present, none of those capabilities | Multi-tenant router | Same. A completed registration yields the credential **and** the tenant ID together — never ask the person for a tenant ID the registration can give you. A token answer with no `tenant_id` means the credential opens no single account: it works at the root and finds its tenants listed there ([Agent Registration](#agent-registration)). Only where no `deviceAuthorizationUrl` is declared: credentials and tenant ID, in one prompt |
+| Only those capabilities with `status: "planned"` | Not implemented yet | — (report to user) |
 | Empty `capabilities`, no `tenants.manifest` | No discoverable surface | — (report to user) |
 
 **3. Multi-tenant only:** expand the template with the tenant ID, fetch the tenant manifest with credentials, then treat it exactly like a direct service manifest. With no tenant ID, use the root's services and expand the template with a `tenant_id` the root lists for the credential, once it lists one.
 
 **4. Read the capability's `endpoints` array** and resolve each path against the `http.endpoint` of the service named in the capability's `service` field (or the matching-prefix service if absent).
 
-**5. Fetch the catalogues** — `GET /commands` (and `GET /queries` if declared) is the definitive answer to "what can I do here." Then: fetch the schema for the chosen operation, execute, and observe results via `?correlationId=`.
+**5. Fetch the catalogues** — `GET /commands` and `GET /queries`, whichever are declared, are the definitive answer to "what can I do here." Then: fetch the schema for the chosen operation, execute, and get the result as the service offers it: `?correlationId=` on its events, or a query.
 
 > **Never fall back to external OpenAPI/Swagger documents.** The BEST manifest is the canonical discovery surface; an implementer's Swagger describes their application API, not the BEST catalogue.
 
