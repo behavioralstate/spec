@@ -154,6 +154,9 @@ export function insertSections(markdown: string, slug: string, spec: Spec): stri
 		return mapOutsideFences(section.lines, (l) =>
 			l
 				.replace(/^###(?=\s)/, '##')
+				// SPEC.md's pointer to the page being built is its text alone: the reader is on it.
+				.replaceAll(`](specs/${slug}.md)`, '](#)')
+				.replace(/\[([^\]]*)\]\(#\)/g, '$1')
 				.replace(/\]\(([^)\s]+)\)/g, (_m, target: string) => `](${hrefOfSpecLink(target, spec, where)})`)
 		).join('\n');
 	}).join('\n');

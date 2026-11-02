@@ -12,13 +12,7 @@ For a tenant's address, see [Multi-Tenancy](../discovery.md#multi-tenancy).
 
 ## Sending credentials
 
-| Type | How to send |
-|---|---|
-| `bearer` | `Authorization: Bearer <token>` header |
-| `apiKey` (header) | Custom header named in `authentication.scheme` |
-| `apiKey` (query) | Query parameter named in `authentication.scheme` — short-lived exchanged tokens only, never long-lived keys |
-| `oauth2` | Obtain a token from `authentication.tokenUrl`, then `Authorization: Bearer <token>` |
-| `none` | No credentials required |
+For `oauth2`, obtain a token from `authentication.tokenUrl`, then send `Authorization: Bearer <token>`. An `apiKey` in a query parameter carries short-lived exchanged tokens only, never long-lived keys.
 
 The security schemes are formally declared in the OpenAPI `securitySchemes` component. The constraints on the exchange are in [Security — Token Exchange and Query-String Credentials](../security.md#token-exchange-and-query-string-credentials).
 

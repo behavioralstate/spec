@@ -28,10 +28,6 @@
 
 **From SPEC.md:** [MCP Transport](https://github.com/behavioralstate/spec/blob/main/SPEC.md#mcp-transport)
 
-## Choosing a Transport
-
-Off-the-shelf MCP-capable clients use MCP because it is the only plug-in mechanism they offer. Rule of thumb: **never put `best-mcp` between a first-party client and a BEST service.**
-
 ## Further tools
 
 `best-mcp` also exposes the discovery manifest (`get_manifest`), event history and schemas (`get_events`, `get_event_schema`) and a bounded sample of the live stream (`sample_event_stream`).
@@ -84,16 +80,9 @@ The server-side counterpart is in [`agents/workflows`](../agents/workflows.md): 
 
 ## The `mcp` block's fields
 
-MCP is **optional** — HTTP is the baseline.
+`push` is `true` when the server supports server-to-client push notifications for domain events.
 
-| Field | Required | Description |
-|---|---|---|
-| `transport` | yes | `"stdio"`, `"sse"`, or `"http"` |
-| `server` | yes | MCP server identifier or URL |
-| `push` | no | `true` when the server supports server-to-client push notifications for domain events |
-| `authentication` | no | Credentials for connecting to this MCP server — independent of the manifest's root `authentication` block (which covers the HTTP API); each transport declares its own requirements |
-
-`authentication` carries `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus, per type: `headers` (an array of `{ name, description, example }` descriptors — use it when more than one header is needed, e.g. API key + tenant ID; the `example` field lets tooling like VS Code pre-fill a ready-to-use MCP config from a per-tenant manifest), `scheme` for bearer, `tokenUrl`/`scopes` for OAuth2, and `docs` for the human-readable onboarding page.
+`authentication` carries `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus, per type: `headers` (an array of `{ name, description, example }` descriptors), `scheme` for bearer, `tokenUrl`/`scopes` for OAuth2, and `docs` for the human-readable onboarding page.
 
 ## Push Event Delivery
 
