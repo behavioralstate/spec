@@ -28,7 +28,7 @@ two answers, and they are not mutually exclusive.
 
 | Pattern | Who decides the next step | What the service exposes |
 |---|---|---|
-| **Choreography** | The caller reacts to each event and sends the next command | Nothing extra — just commands and events |
+| **Choreography** | The caller reacts to each event and sends the next command | Nothing extra — commands and a way to read their events |
 | **Published workflows** | The caller still drives, but follows a published recipe | The optional, read-only [workflows capability](./agents/workflows.md) |
 
 Neither pattern lets the *service* run the workflow for you. In both, the caller

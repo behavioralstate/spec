@@ -163,7 +163,8 @@ GET /.well-known/best
     },
     "capabilities": [
       { "name": "io.best.agents.events",   "version": "{{BEST_VERSION}}" },
-      { "name": "io.best.agents.commands", "version": "{{BEST_VERSION}}" }
+      { "name": "io.best.agents.commands", "version": "{{BEST_VERSION}}" },
+      { "name": "io.best.agents.queries",  "version": "{{BEST_VERSION}}" }
     ]
   }
 }
