@@ -150,6 +150,8 @@ Content-Type: application/json
 
 This endpoint is **always public** — an implementation that requires auth on it is non-conformant. The path is canonical; `/.well-known/best.json` may be served as an optional alias, but consumers must not rely on it.
 
+A server **should** send an `ETag` and a `Cache-Control` other than `no-store` on this response, as HTTP defines them ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110), [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)), so a consumer can tell that the manifest changed without reading it again: the manifest's `version` is the protocol version and does not change with the document. A `304` answering a consumer's conditional request is conformant.
+
 Schema: [`discovery.json`](protocol/v1/schemas/discovery.json) · Full example: [`well-known-best.json`](protocol/v1/examples/well-known-best.json)
 
 ### Origin Discovery

@@ -40,7 +40,7 @@ best-validate https://api.example.com --api-key $KEY --json
 
 ## What is checked
 
-- **Discovery** — `GET /.well-known/best` returns `200` without credentials, `application/json`, root key present, full JSON-Schema validation against [`discovery.json`](../protocol/v1/schemas/discovery.json), semver version, `io.best.*` capabilities carry `spec`+`schema` URLs, valid `status` values.
+- **Discovery** — `GET /.well-known/best` returns `200` without credentials, `application/json`, root key present, an `ETag` and a `Cache-Control` other than `no-store` (a warning, the spec says should), full JSON-Schema validation against [`discovery.json`](../protocol/v1/schemas/discovery.json), semver version, `io.best.*` capabilities carry `spec`+`schema` URLs, valid `status` values.
 - **Multi-tenancy** (when `tenants.manifest` is declared) — template has `{tenantId}`, root capabilities sit on services that declare their own `authentication`, tenant manifest is fully resolved, self-contained, and schema-valid. The root's own capabilities are probed whether or not `--tenant` is given.
 - **Manifest Discipline** — every service is the implementing service of a capability (a multi-tenant root may announce a service its tenant manifest declares — confirmed with `--tenant`); no URI template outside `tenants.manifest`; no surface under a pseudo-tenant (`public`, `default`, `anonymous`); manifest descriptions within 500 characters and free of URLs, templates, header names, credential formats and catalogue operation names.
 - **Access** — a service that declares `"type": "none"` answers without credentials; a surface that answers without credentials says so in its manifest.

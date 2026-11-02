@@ -95,7 +95,7 @@ function serve(mode) {
     let raw = '';
     req.on('data', c => { raw += c; });
     req.on('end', () => {
-      if (path === '/.well-known/best') return json(200, root);
+      if (path === '/.well-known/best') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': good ? 'max-age=300' : 'no-store', ...(good ? { ETag: '"manifest-1"' } : {}) }); return res.end(JSON.stringify(root)); }
       if (path === '/.well-known/best/acme') return authed ? json(200, tenant) : error(401, 'NO_API_KEY', 'A credential is required');
       if (path === '/llms.txt') {
         if (good) return error(404, 'NOT_FOUND', 'Unknown route');
@@ -191,7 +191,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const noisy = report.checks.filter(c => c.level === 'fail' || c.level === 'warn');
   expect(code === 0, `good: exit code ${code}`);
   expect(noisy.length === 0, `good: expected a clean report, got:\n${noisy.map(c => `  ${c.level} [${c.section}] ${c.message} ${c.detail ?? ''}`).join('\n')}`);
-  for (const needle of ['public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'refuses a connection of another shape', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
+  for (const needle of ['carries an ETag', 'public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'refuses a connection of another shape', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
     expect(report.checks.some(c => c.level === 'pass' && c.message.includes(needle)), `good: no passing check mentions "${needle}"`);
   }
 }
@@ -206,7 +206,8 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     'no authentication block of its own', 'pseudo-tenant', 'characters — the limit is 500', 'carries mechanics',
     'names catalogue operations', 'no authentication.deviceAuthorizationUrl', 'without credentials, but the governing',
     'does not resolve in the live catalogue', 'instructs the consumer', "named after the person's acts", 'no commandType',
-    'internal routing members', 'mint or keep a secret', 'refuses Content-Type application/cloudevents+json', '/llms.txt restates'
+    'internal routing members', 'mint or keep a secret', 'refuses Content-Type application/cloudevents+json', '/llms.txt restates',
+    'no ETag and Cache-Control: no-store'
   ]) expect(said(needle), `bad: nothing reported "${needle}"`);
 }
 

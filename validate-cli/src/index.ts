@@ -122,7 +122,7 @@ function record(section: string, level: Level, message: string, detail?: string)
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 
-interface Resp { status: number; contentType: string; text: string; json?: unknown; error?: string; }
+interface Resp { status: number; contentType: string; text: string; json?: unknown; error?: string; headers?: Headers; }
 
 interface HttpExtra { contentType?: string; form?: Record<string, string>; accept?: string; }
 
@@ -148,7 +148,7 @@ async function http(method: string, url: string, opts: Options, auth: AuthPlan |
     const text = await res.text();
     let json: unknown;
     try { json = JSON.parse(text); } catch { /* not JSON */ }
-    return { status: res.status, contentType: res.headers.get('content-type') ?? '', text, json };
+    return { status: res.status, contentType: res.headers.get('content-type') ?? '', text, json, headers: res.headers };
   } catch (e) {
     return { status: 0, contentType: '', text: '', error: e instanceof Error ? e.message : String(e) };
   }
@@ -293,6 +293,14 @@ async function checkDiscovery(base: string, opts: Options, ajv: Ajv2020): Promis
   if (!res.contentType.includes('application/json')) {
     record(S, 'warn', `Content-Type is "${res.contentType}" — must be application/json`);
   } else record(S, 'pass', 'Content-Type: application/json');
+
+  const cacheControl = res.headers?.get('cache-control') ?? '';
+  const unsent = [
+    ...(res.headers?.get('etag') ? [] : ['no ETag']),
+    ...(!cacheControl ? ['no Cache-Control'] : /\bno-store\b/i.test(cacheControl) ? ['Cache-Control: no-store'] : [])
+  ];
+  if (unsent.length) record(S, 'warn', `Manifest response has ${unsent.join(' and ')} — a server should send an ETag and a Cache-Control other than no-store, so a consumer can tell the manifest changed without reading it again`);
+  else record(S, 'pass', 'Manifest response carries an ETag and a Cache-Control other than no-store');
 
   if (res.json === undefined) { record(S, 'fail', 'Response body is not valid JSON'); return undefined; }
 
