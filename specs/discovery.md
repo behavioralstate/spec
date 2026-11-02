@@ -47,6 +47,8 @@ The manifest describes the services, capabilities, transport bindings, and authe
 
 The four standard capabilities are `io.best.agents.commands`, `io.best.agents.events`, `io.best.agents.queries`, and `io.best.agents.workflows`.
 
+The events capability's entry declares its push channels:
+
 ```json
 "push": { "sse": true, "mcp": true }
 ```
@@ -56,7 +58,7 @@ The four standard capabilities are `io.best.agents.commands`, `io.best.agents.ev
 | `push.sse` | SSE stream supported at `GET /events/stream` |
 | `push.mcp` | Server-to-client MCP notifications supported — see [MCP transport](transports/mcp.md) |
 
-Implementations that manage services dynamically expose that as a domain: see the [registry worked example](composing-processes.md#worked-example-a-service-registry-with-heartbeat).
+For a registry built as an ordinary domain, see the [worked example](composing-processes.md#worked-example-a-service-registry-with-heartbeat).
 
 ## Who uses each transport
 

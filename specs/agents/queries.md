@@ -12,4 +12,4 @@ Unlike commands (queued, results observed afterwards), a query returns its resul
 | `agents.events` | `GET /events` | Event history | No |
 | `agents.queries` | `GET /queries/{schema}` | Current state (sync) | **No** |
 
-Queries are not a replacement for OpenAPI either: BEST queries are a single, fixed GET pattern with catalogue-driven discovery, and the two can coexist.
+BEST queries are a single, fixed GET pattern with catalogue-driven discovery, and do not replace OpenAPI: a service's own API can have both.
