@@ -799,7 +799,7 @@ The reference server [`@behavioralstate/best-mcp`](mcp-server/README.md) exposes
 | `get_workflows` | `GET /workflows` (index), or `GET /workflows/{id}` when `workflow_id` is passed — the optional [workflows capability](#workflows--iobestagentsworkflows); returns a note when the service publishes none |
 | *(push)* | Server-to-client MCP notifications deliver correlated events when `"push": true` |
 
-`send_command` derives the envelope `type` by PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`), sets `dataschema` to the absolute catalogue URI (`{endpoint}/commands/{schema}/{version}`), and requires the caller to supply `source` — the expected value is documented in the schema description, never invented.
+`send_command` derives the envelope `type` by PascalCase conversion of the schema name (`configure-broker → ConfigureBroker`), sets `dataschema` to the absolute catalogue URI (`{endpoint}/commands/{schema}/{version}`), and, when the caller supplies no `source`, sets it to `urn:best-mcp`, the client's own identity. On the wire `source` is always present.
 
 ### Manifest Declaration
 

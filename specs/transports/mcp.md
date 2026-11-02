@@ -30,7 +30,7 @@
 
 ## Further tools
 
-`best-mcp` also exposes the discovery manifest (`get_manifest`), event history and schemas (`get_events`, `get_event_schema`) and a bounded sample of the live stream (`sample_event_stream`). Its `send_command` defaults `source` to the client's own identity (`urn:best-mcp`) unless the caller sets it.
+`best-mcp` also exposes the discovery manifest (`get_manifest`), event history and schemas (`get_events`, `get_event_schema`) and a bounded sample of the live stream (`sample_event_stream`).
 
 > **Streams are sampled, not held.** An MCP tool call is request/response, and the LLM host's loop is turn-based — nothing re-invokes the model when an event arrives between turns. `sample_event_stream` therefore opens the SSE stream, collects until a `max_events`/`max_seconds` bound (enforced client-side, so any conformant endpoint works), and returns what arrived; the previous sample's `lastEventId` is passed as `Last-Event-ID` to resume without gaps where the server supports it. For past events, `get_events` polling with the response cursor is the turn-based drain. For standing reactions ("when X happens, do Y"), neither is right — agents should configure the service's own alerting/webhook commands instead.
 
