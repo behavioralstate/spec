@@ -1,59 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { docsNav } from '$lib/docsNav';
 
 	let {
 		open = false
 	}: { open?: boolean } = $props();
-
-	const nav = [
-		{
-			label: 'Getting Started',
-			items: [
-				{ label: 'Overview', href: '/specs/overview' },
-				{ label: 'Discovery', href: '/specs/discovery' },
-				{ label: 'Quick start with AI', href: '/specs/quickstart' }
-			]
-		},
-		{
-			label: 'Services',
-			items: [
-				{ label: 'Commands', href: '/specs/agents/commands' },
-				{ label: 'Events', href: '/specs/agents/events' },
-				{ label: 'Queries', href: '/specs/agents/queries' },
-				{ label: 'Workflows', href: '/specs/agents/workflows' }
-			]
-		},
-		{
-			label: 'Transports',
-			items: [
-				{ label: 'HTTP', href: '/specs/transports/http' },
-				{ label: 'MCP', href: '/specs/transports/mcp' }
-			]
-		},
-		{
-			label: 'Reference',
-			items: [
-				{ label: 'Versioning', href: '/specs/versioning' },
-				{ label: 'Conformance', href: '/specs/conformance' },
-				{ label: 'Security', href: '/specs/security' },
-				{ label: 'Design Decisions', href: '/specs/design-decisions' }
-			]
-		},
-		{
-			label: 'Guides',
-			items: [
-				{ label: 'Composing Processes', href: '/specs/composing-processes' },
-				{ label: 'Identity and Registration', href: '/specs/identity-and-registration' }
-			]
-		},
-		{
-			label: 'Comparisons',
-			items: [
-				{ label: 'BEST vs REST', href: '/specs/comparisons/rest' },
-				{ label: 'BEST vs UCP', href: '/specs/comparisons/ucp' }
-			]
-		}
-	];
 
 	function isActive(href: string) {
 		return page.url.pathname === href;
@@ -66,7 +17,7 @@
 			All Docs
 		</a>
 
-		{#each nav as group}
+		{#each docsNav as group}
 			<div class="nav-group">
 				<p class="nav-group-label">{group.label}</p>
 				<ul>

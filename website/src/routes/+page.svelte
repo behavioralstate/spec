@@ -35,13 +35,13 @@
 			/>
 			<FeatureCard
 				icon="📡"
-				title="Observable Event Log"
-				description="Every BEST service exposes a queryable event log — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
+				title="Observable Events"
+				description="A service that publishes events lets callers query them — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
 			/>
 			<FeatureCard
 				icon="🔍"
 				title="Queries"
-				description="Read the current state of a service without sending a command. GET /queries returns the query catalogue — each query is self-documenting with a JSON Schema for its parameters and response. Reads and writes are cleanly separated at the protocol level."
+				description="Read the current state of a service without sending a command. GET /queries returns the query catalogue — each query is self-documenting with a JSON Schema for its parameters and response. Reads and writes are cleanly separated at the protocol level, and a caller can poll a query for the result of a command."
 			/>
 			<FeatureCard
 				icon="🤖"
@@ -51,7 +51,7 @@
 			<FeatureCard
 				icon="🔁"
 				title="Live Events & History"
-				description="Subscribe to events the moment they are produced — or query what already happened. GET /events/stream opens a live SSE connection for real-time results. GET /events queries the historical log. Together they give you the complete picture, past and present."
+				description="Where a service publishes events, subscribe the moment they are produced — or query what already happened. GET /events/stream opens a live SSE connection for real-time results. GET /events lists past events. Together they give you the complete picture, past and present."
 			/>
 		</div>
 	</div>
@@ -108,7 +108,7 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 			<div class="audience-card">
 				<h3>For Developers</h3>
-				<p>Build command-and-event services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement BEST.</p>
+				<p>Build services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement BEST.</p>
 			</div>
 			<div class="audience-card">
 				<h3>For Businesses</h3>

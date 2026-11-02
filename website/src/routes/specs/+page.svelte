@@ -1,3 +1,7 @@
+<script>
+	import { docsNav } from '$lib/docsNav';
+</script>
+
 <svelte:head>
 	<title>Documentation — BEST</title>
 </svelte:head>
@@ -5,10 +9,10 @@
 <div class="index-page">
 	<div class="index-header">
 		<h1>Documentation</h1>
-		<p>Behavioral State Protocol — a standard interaction surface so any caller can send commands to any service, and any observer can consume the events it produces.</p>
+		<p>Behavioral State Protocol — a standard interaction surface so any caller can discover a service, send it commands, and get the results back.</p>
 	</div>
 
-	<!-- Flow diagram — analogous to dotQuant's TradingView → Bridge → Brokers -->
+	<!-- Flow diagram -->
 	<div class="flow-diagram">
 		<div class="flow-node">
 			<div class="node-title">Caller</div>
@@ -28,7 +32,7 @@
 		</div>
 
 		<div class="flow-arrow">
-			<div class="arrow-label">Event</div>
+			<div class="arrow-label">Result</div>
 			<div class="arrow-track"><span class="arrow-head">→</span></div>
 		</div>
 
@@ -45,68 +49,36 @@
 			<span class="step-num">1</span>
 			<div class="step-body">
 				<strong>Expose <code>/.well-known/best</code></strong>
-				<p>Serve a discovery manifest describing your agents, capabilities, and transport bindings. Consumers read it once and know everything.</p>
+				<p>Serve a discovery manifest describing your services, capabilities, and transport bindings. It is where every consumer starts.</p>
 			</div>
 		</div>
 		<div class="step">
 			<span class="step-num">2</span>
 			<div class="step-body">
-				<strong>Accept commands, produce events</strong>
-				<p>Callers POST commands to your service. Your service processes them (any way it likes) and the events it produces are observable via the HTTP or MCP API.</p>
+				<strong>Accept commands, give back results</strong>
+				<p>Callers POST commands to your service, which processes them any way it likes. You decide, case by case, whether callers get the result by polling a query or by subscribing to events.</p>
 			</div>
 		</div>
 		<div class="step">
 			<span class="step-num">3</span>
 			<div class="step-body">
-				<strong>Observe every execution</strong>
-				<p>Every command→event cycle is stored as an execution trace — input, output, duration, and success — giving you a full audit trail.</p>
+				<strong>Tie results to commands</strong>
+				<p>The answer to a command gives back a correlation id, which ties the results to the command that caused them.</p>
 			</div>
 		</div>
 	</div>
 
 	<div class="index-groups">
-		<section class="index-group">
-			<h2>Getting Started</h2>
-			<ul>
-				<li><a href="/specs/overview">Protocol Overview</a><span>What BEST is and how it works</span></li>
-				<li><a href="/specs/discovery">Discovery</a><span>The <code>/.well-known/best</code> manifest</span></li>
-				<li><a href="/specs/quickstart">Quick start with AI</a><span>Copy-paste prompts to get started fast</span></li>
-			</ul>
-		</section>
-
-		<section class="index-group">
-			<h2>Agents</h2>
-			<ul>
-				<li><a href="/specs/agents/commands">Commands</a><span>Accept and catalogue commands</span></li>
-				<li><a href="/specs/agents/events">Events</a><span>Events published by services</span></li>
-				<li><a href="/specs/agents/queries">Queries</a><span>Synchronous reads of current state</span></li>
-				<li><a href="/specs/agents/workflows">Workflows</a><span>Published multi-step recipes, caller-driven</span></li>
-			</ul>
-		</section>
-
-		<section class="index-group">
-			<h2>Transports</h2>
-			<ul>
-				<li><a href="/specs/transports/http">HTTP</a><span>HTTP/JSON API reference</span></li>
-				<li><a href="/specs/transports/mcp">MCP</a><span>Model Context Protocol binding</span></li>
-			</ul>
-		</section>
-
-		<section class="index-group">
-			<h2>Reference</h2>
-			<ul>
-				<li><a href="/specs/versioning">Versioning</a><span>How versions work</span></li>
-				<li><a href="/specs/conformance">Conformance</a><span>What it means to be BEST-compliant</span></li>
-				<li><a href="/specs/design-decisions">Design Decisions</a><span>Why BEST is shaped the way it is</span></li>
-			</ul>
-		</section>
-
-		<section class="index-group">
-			<h2>Comparisons</h2>
-			<ul>
-				<li><a href="/specs/comparisons/ucp">BEST vs UCP</a><span>How BEST relates to Google's Universal Commerce Protocol</span></li>
-			</ul>
-		</section>
+		{#each docsNav as group}
+			<section class="index-group">
+				<h2>{group.label}</h2>
+				<ul>
+					{#each group.items as item}
+						<li><a href={item.href}>{item.label}</a><span>{item.summary}</span></li>
+					{/each}
+				</ul>
+			</section>
+		{/each}
 	</div>
 </div>
 
