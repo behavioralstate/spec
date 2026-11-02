@@ -40,7 +40,7 @@ The canonical use: an agent connects to a service, reads the command catalogue, 
 }
 ```
 
-Both surfaces **must** carry the same ids. Deriving both from the recipe definitions themselves (rather than maintaining them by hand) keeps drift impossible. The recipe carries the ordering and cross-step guidance the individual schemas cannot; a reviewer auditing the surface has one field to check.
+Deriving both from the recipe definitions themselves (rather than maintaining them by hand) keeps drift impossible.
 
 ## Usage pattern
 
@@ -50,9 +50,3 @@ GET /workflows                                    → index: pick the recipe by 
 GET /workflows/io.example.workflows.onboard-a-worker  → the ordered steps
 POST /commands · GET /queries/... per step        → the CALLER drives each one, in order
 ```
-
-## What workflows are not
-
-- **Not a new operation surface** — every step references an operation that already exists in the command or query catalogue; a recipe introduces no new types.
-- **Not a state machine** — a recipe is a linear happy path with optional steps. Branching, conditions, parallel fan-out, and compensation belong to [choreography](../composing-processes.md) or a real orchestrator.
-- **Not required** — a service with no fixed multi-step processes simply omits the capability.

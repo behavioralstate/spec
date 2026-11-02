@@ -6,7 +6,7 @@ Events ride the same CloudEvents 1.0 envelope as commands ([cloudEvent.json](../
 
 ## Reading the log and the stream
 
-To page through `GET /events`, pass the previous response's `nextCursor` as `after`, preserving all other parameters; an absent `nextCursor` means the last page. The stream is not lossless, which is why clients handle reconnection.
+When paging through `GET /events` with `after`, keep all other parameters as they were. The stream is not lossless, which is why clients handle reconnection.
 
 Untyped events suit dynamic payloads: sensor readings, log streams, forwarded third-party events.
 

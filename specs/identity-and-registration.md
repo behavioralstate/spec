@@ -4,10 +4,9 @@ What every platform with accounts has to get right is the first five minutes: a 
 
 **From SPEC.md:** [Identity and Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#identity-and-agent-registration--a-described-pattern)
 
-## Two confusions to avoid
+## What "sign me in" means
 
-- A recipe called "sign in" whose steps register an agent. When the person says "sign me in" they are saying what they want; what the agent *does* is register.
-- An operation called "sign out" that revokes a key. An operation that revokes a key is a revocation.
+A recipe called "sign in" whose steps register an agent is the usual mistake. When the person says "sign me in" they are saying what they want; what the agent *does* is register.
 
 ## The exchange
 
