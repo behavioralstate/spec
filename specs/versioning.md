@@ -1,6 +1,6 @@
 # Versioning
 
-BEST uses **semantic versioning** following [semver.org](https://semver.org) rules.
+Versions follow the [semver.org](https://semver.org) rules.
 
 **From SPEC.md:** [Versioning](https://github.com/behavioralstate/spec/blob/main/SPEC.md#versioning)
 
@@ -27,8 +27,8 @@ The version string (without the `v` prefix) appears in:
 }
 ```
 
-A `MAJOR` bump signals breaking changes; consumers should review the changelog.
+On a `MAJOR` bump, consumers should review the changelog.
 
 ## Namespace Convention
 
-All BEST identifiers follow `io.best.{service}.{capability}`, such as `io.best.agents.commands`. Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).
+The specification's identifiers take the form `io.best.{service}.{capability}`, such as `io.best.agents.commands`. Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).

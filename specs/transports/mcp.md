@@ -69,7 +69,7 @@ For ChatGPT Desktop, run with `MCP_TRANSPORT=http`, expose the port via a tunnel
 
 ### What a conforming MCP client owes the model
 
-A model can only follow what the client lets it reach. Three obligations follow from the manifest itself, and `best-mcp` (2.3.5+) implements each:
+A model can only follow what the client lets it reach. Four obligations follow from the manifest itself, and `best-mcp` (2.3.5+) implements each:
 
 - **Every service the root manifest lists is reachable.** A configuration names one tenant surface, but `/.well-known/best` may list further services — typically an anonymous onboarding surface. The client resolves `<app>/<serviceId>` to that service's `http.endpoint` on demand (root manifest fetched once, then cached) and lists such services next to the configured connections; the model never needs a configuration change to reach a service the manifest already names.
 - **Error bodies arrive whole.** A service's `error.code` and `error.details` are where recovery lives (a rejected key's 401 names the onboarding surface there); a client that forwards only the sentence turns a recoverable state into a dead end.
