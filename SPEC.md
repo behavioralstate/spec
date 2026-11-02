@@ -589,10 +589,11 @@ A command refused at step 4 was never accepted: its `id` is free for the correct
 
 ### Command Results and Correlation
 
-BEST defines **no synchronous command response**. The result of processing is one or more events, tied to the command by the first-class **`correlationid`** envelope attribute. How a client gets them is the implementor's decision: from a query, or by subscribing to the SSE stream of the events capability:
+BEST defines **no synchronous command response**. The result of processing is one or more events, tied to the command by the first-class **`correlationid`** envelope attribute. How a client gets them is the implementor's decision: by polling a query the service defines, or, where it declares the events capability, from `GET /events` and its SSE stream:
 
 ```
 POST /commands                       → 201 { "id": "abc123", "correlationId": "abc123" }
+GET  /queries/{schema}?…                 → a query the service defines
 GET  /events?correlationId=abc123        → what has already happened
 GET  /events/stream?correlationId=abc123 → what happens next (push)
 ```
@@ -652,7 +653,7 @@ The events capability declares supported channels in its `push` block; check it 
 
 ## Queries — `io.best.agents.queries`
 
-Queries are **synchronous reads** of current state — the read-before-write complement to commands (e.g. an agent lists broker accounts before referencing one in a command). Optional capability; declared in the manifest like any other. Schema: [`queries.json`](protocol/v1/schemas/agents/queries.json)
+Queries are **synchronous reads** of current state — the read-before-write complement to commands (e.g. an agent lists broker accounts before referencing one in a command). Declared in the manifest like any other capability. Schema: [`queries.json`](protocol/v1/schemas/agents/queries.json)
 
 | Method | Path | Description |
 |---|---|---|
@@ -731,7 +732,7 @@ Both surfaces carry the same array, so the pointer is present at whichever read 
 
 BEST deliberately owns no orchestration. Two patterns cover multi-step work:
 
-- **Choreography** — the caller sends a command, observes correlated events, decides the next command. Needs nothing beyond the core.
+- **Choreography** — the caller sends a command, observes correlated events, decides the next command. Needs only commands and a way to read events.
 - **Published workflows** — the service publishes the fixed happy-path recipe via the optional [workflows capability](#workflows--iobestagentsworkflows); the caller still drives each step and waits for its outcome before the next.
 
 The moment a service executes, retries, persists, or branches steps on the caller's behalf, it has become an execution runtime — out of BEST scope (put Temporal, Durable Functions, or similar *behind* the service).

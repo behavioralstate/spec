@@ -38,7 +38,7 @@ is discovered from a published recipe or known to the caller in advance.
 
 ## Pattern 1 — Choreography (events drive the sequence)
 
-This is the default, and it requires nothing beyond the core capabilities. The
+This is the default, and it requires only commands and a way to read events. The
 caller sends a command, observes the event it produces, and uses that fact to
 decide — and parameterise — the next command. The thread that ties the steps
 together is the **`correlationid`** envelope attribute: established by the first

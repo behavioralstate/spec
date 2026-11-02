@@ -101,9 +101,17 @@ Not everything in the BEST spec carries equal weight. Understanding which parts 
     <div class="BEST-arrow-track">+</div>
   </div>
   <div class="BEST-node">
+    <div class="BEST-node-title">Primitives</div>
+    <div class="BEST-node-box">Commands<br/>Queries<br/>Events</div>
+    <div class="BEST-node-sub">the implementor's choice</div>
+  </div>
+  <div class="BEST-arrow">
+    <div class="BEST-arrow-track">+</div>
+  </div>
+  <div class="BEST-node">
     <div class="BEST-node-title">Extended</div>
-    <div class="BEST-node-box">Commands · Queries · Events<br/>Workflows</div>
-    <div class="BEST-node-sub">the implementor's choice — declared in manifest</div>
+    <div class="BEST-node-box">Workflows</div>
+    <div class="BEST-node-sub">optional — declared in manifest</div>
   </div>
   <div class="BEST-arrow">
     <div class="BEST-arrow-track">+</div>
@@ -163,7 +171,7 @@ GET /.well-known/best
 
 **Step 2 — Implement the HTTP endpoints**
 
-The minimum set for a functional agent service:
+The endpoints of a service that takes commands, publishes events and offers queries. A service exposes only the primitives it chooses, and declares only those:
 
 | Method | Path | What it does |
 |---|---|---|
