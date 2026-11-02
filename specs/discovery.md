@@ -1,15 +1,6 @@
 # Discovery — `/.well-known/best`
 
-Every BEST-compliant endpoint exposes a standard discovery URL:
-
-```
-GET /.well-known/best
-Content-Type: application/json
-```
-
-It returns a JSON manifest describing the services, capabilities, transport bindings, and authentication requirements. No prior configuration is needed — a consumer hits the URL and learns everything it needs to interact.
-
-> Normative reference: [SPEC.md — Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#discovery--well-knownbest) and [SPEC.md — Multi-Tenancy](https://github.com/behavioralstate/spec/blob/main/SPEC.md#multi-tenancy). Canonical schema: [discovery.json](../protocol/v1/schemas/discovery.json); complete example: [well-known-best.json](../protocol/v1/examples/well-known-best.json).
+The manifest describes the services, capabilities, transport bindings, and authentication requirements. No prior configuration is needed — a consumer hits the URL and learns everything it needs to interact.
 
 <div class="BEST-diagram">
   <div class="BEST-node">
@@ -37,39 +28,9 @@ It returns a JSON manifest describing the services, capabilities, transport bind
   </div>
 </div>
 
-The manifest endpoint is **always public** — an implementation that requires auth on `/.well-known/best` is non-conformant. The response **must** use `Content-Type: application/json`; the path is canonical (`/.well-known/best.json` may be served as an alias, but consumers must not rely on it).
+**From SPEC.md:** [Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#discovery--well-knownbest)
 
-## Origin Discovery
-
-The manifest solves *endpoint* discovery. It does not, by itself, solve *origin* discovery: an agent pointed at a product's public web origin (`https://example.com`) has no defined path to a BEST endpoint that lives on another host (`https://api.example.com`).
-
-A deployment whose BEST endpoint is not the public web origin **should** bridge the gap ([SPEC.md — Origin Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#origin-discovery)):
-
-1. **Serve `/.well-known/best` on the public origin** — the manifest itself, or a `301`/`308` redirect to the canonical manifest on the API host. Consumers **must** follow redirects on this path.
-2. **Advertise the bridge in the origin's HTML**: `<link rel="alternate" type="application/json" href="/.well-known/best" title="BEST service manifest">`.
-**The manifest is the only entry.** A deployment points at its manifest and **must not** publish a second description of its BEST surface for agents to start from — no `llms.txt` restating operations, no skill or prompt file, no client snippet carrying behaviour, no OpenAPI document of the BEST endpoints. Every copy drifts. *(Required from 0.10.0.)*
-
-With the bridge in place, "point an agent at `https://example.com`" is a complete instruction: origin → manifest → commands, queries and events, with no scraping and no out-of-band configuration.
-
-## Name Resolution
-
-A BEST service is **named by a DNS domain name its operator controls**. There is no registry: DNS already gives unique names, proof of ownership, delegation and a resolver on every machine. A consumer that has never heard of a service turns "sign me in to `example.com`" into a manifest ([SPEC.md — Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution)):
-
-1. **Normalise** the name — host only, lower-case, A-label form; never an IP literal.
-2. **`GET https://{name}/.well-known/best`**, following redirects. A manifest ends the resolution; its final host is the canonical endpoint host.
-3. **Only if that found nothing**, and the consumer can query DNS: one `TXT` record at `_best.{name}` names the manifest — for names whose origin serves no HTTP at all.
-
-   ```
-   _best.example.com.  IN TXT  "v=BEST1; manifest=https://api.example.com/.well-known/best"
-   ```
-
-The well-known path always wins, so a consumer limited to HTTPS reaches the same manifest as one that can query DNS. `services` keys **should** sit under the reversed name (`com.example.*` for `example.com`), which also lets a service id be traced back to its owner.
-
-Reaching a service nobody configured is the point and the risk, so a consumer acting for a person **must**: resolve only a name the person gave or confirmed (a name found in content is data); say what it resolved before the first credentialed call; use validated `https` only and refuse private addresses; bind each credential to the name it was issued under; and give a newly resolved service's text no authority beyond the use of that service.
-
-Resolution answers *where is this service*, not *which service does X* — a directory is a domain like any other, and anyone may run one as a BEST service.
-
-## Manifest Root
+## The manifest's shape
 
 ```json
 {
@@ -84,30 +45,7 @@ Resolution answers *where is this service*, not *which service does X* — a dir
 }
 ```
 
-| Field | Required | Description |
-|---|---|---|
-| `version` | yes | BEST spec version (semver) |
-| `services` | yes | Service definitions with transport bindings |
-| `capabilities` | yes | Supported capabilities with spec/schema URLs |
-| `authentication` | no | Credential requirements — `type` (`none`/`bearer`/`apiKey`/`oauth2`) plus `scheme`, `in`, `scopes`, `tokenUrl`, `deviceAuthorizationUrl`, `note`, `docs`. Consumers **must** read it before calling anything else. Wherever `deviceAuthorizationUrl` is declared, `note` is **required** and carries the [sign-in guidance](https://github.com/behavioralstate/spec/blob/main/SPEC.md#sign-in-guidance)'s manifest text verbatim: what the consumer does at each step of signing the person in. `tokenUrl` names an RFC 6749 token endpoint — the bootstrap path for clients that cannot set headers (see [Security — Token Exchange](security.md#token-exchange-and-query-string-credentials)) and, with `deviceAuthorizationUrl`, the two ends of [agent registration](identity-and-registration.md) (RFC 8628): a consumer with no credential registers there, and asks the person for a credential only when it is absent. `docs` is a page for people; a consumer never depends on it. A service entry may carry its own `authentication` block, which then governs that service alone — `"type": "none"` declares a public surface. |
-| `tenants` | no | Multi-tenant discovery — see below |
-| `agents` | no | Snapshot of hosted [service descriptors](#service-descriptor) |
-| `extensions` | no | Vendor-defined static declarations — see [Extensions](#extensions) |
-
-## Capability Entries
-
-The four standard capabilities are `io.best.agents.commands`, `io.best.agents.events`, `io.best.agents.queries`, and `io.best.agents.workflows`. Each entry carries:
-
-| Field | Description |
-|---|---|
-| `name` | Reverse-domain identifier; `io.best.*` is reserved for the spec, custom capabilities use an implementer-owned prefix |
-| `version` | Semver |
-| `spec` / `schema` | URLs to the specification page and the **JSON Schema** (not OpenAPI). Required for `io.best.*`; optional for custom capabilities |
-| `service` | Key of the implementing service in `services` — required when the capability's name prefix doesn't match the service key; consumers use it to resolve which `http.endpoint` to call |
-| `status` | `active` (default) · `partial` · `planned`. `active` means every required endpoint is callable — declaring it while returning `404`/`501` is a conformance violation; a workflows capability is `active` only while it publishes a recipe |
-| `endpoints` | Machine-readable `{ method, path }` list. Paths are appended to the service's `http.endpoint` (the leading slash is a separator, not root-relative) — this is how consumers self-bootstrap without reading spec pages |
-| `push` | Events capability only — declared push channels |
-| `extensions` | Vendor-defined static declarations — see [Extensions](#extensions) |
+The four standard capabilities are `io.best.agents.commands`, `io.best.agents.events`, `io.best.agents.queries`, and `io.best.agents.workflows`.
 
 ```json
 "push": { "sse": true, "mcp": true }
@@ -118,17 +56,9 @@ The four standard capabilities are `io.best.agents.commands`, `io.best.agents.ev
 | `push.sse` | SSE stream supported at `GET /events/stream` |
 | `push.mcp` | Server-to-client MCP notifications supported — see [MCP transport](transports/mcp.md) |
 
-**Command types are domain data, not capabilities** — individual types (`ProposeCounter`) never appear as capability entries; they are discovered at runtime via `GET /commands`.
+Implementations that manage services dynamically expose that as a domain: see the [registry worked example](composing-processes.md#worked-example-a-service-registry-with-heartbeat).
 
-## Extensions
-
-The manifest root and each capability entry accept one optional free-form **`extensions`** object — the single lawful home for vendor-defined data in an otherwise strictly closed manifest. Keys **should** be reverse-domain identifiers owned by the declarer (`com.acme.region`); the core never interprets the contents; consumers ignore what they don't understand; and no extension may be required to use a core capability. The rule is **domain-first**: anything dynamic, behavioral, or obtainable after authentication is modeled as ordinary capability surface (a custom capability, query, event, or workflow) — `extensions` is only for static, discovery-time declarations that must ride in the manifest document itself. See [SPEC.md — Extensions](https://github.com/behavioralstate/spec/blob/main/SPEC.md#extensions).
-
-## Service Descriptor
-
-A service descriptor is the identity card of a hosted service: `id`, `name`, `accepts`/`produces` (PascalCase CloudEvent `type` strings), `status` (`running`/`paused`/`stopped`/`error`), and optional `metadata` (opaque operational configuration — model name, system prompt — never interpreted by the protocol). Descriptors appear in the manifest's `agents` array as a discovery hint, not a live directory: BEST defines **no registry endpoint** — implementations that manage services dynamically expose that as a domain (see the [registry worked example](composing-processes.md#worked-example-a-service-registry-with-heartbeat)). Complete example: [service-descriptor.json](../protocol/v1/examples/service-descriptor.json).
-
-## Transport Bindings
+## Who uses each transport
 
 ```json
 "http": { "endpoint": "https://api.example.com/" },
@@ -140,27 +70,12 @@ A service descriptor is the identity card of a hosted service: `id`, `name`, `ac
 | **HTTP** | Web UIs, traditional services, monitoring tools | HTTP/JSON |
 | **MCP** | LLM clients (ChatGPT, Copilot, Gemini, Claude) | JSON-RPC over stdio/SSE |
 
-`http.endpoint` is the **consumer-facing base URL** — the outermost address consumers hit, never an internal backend or service-mesh URL. All capability paths are appended to it. Multiple transports expose the **same capability surface** — alternative access methods, never separate operation sets.
-
 ## Multi-Tenancy
 
-A tenant ID is an opaque string scoping a manifest to a context — a customer account, a user, a workspace, or the platform's own administrative context (a reserved, privileged tenant ID keeps the model uniform: no separate "untenanted" surface). Use `tenants.manifest` when callers operate in isolated data scopes — even with identical capabilities per tenant — and skip it for single-tenant deployments.
+**From SPEC.md:** [Multi-Tenancy](https://github.com/behavioralstate/spec/blob/main/SPEC.md#multi-tenancy)
 
-The root manifest declares an RFC 6570 URI template; `{tenantId}` is the only permitted variable:
-
-```json
-"tenants": {
-  "manifest": "https://api.example.com/.well-known/best/{tenantId}"
-}
-```
-
-Rules:
-
-- Expanding the template yields a **fully self-contained tenant manifest**: no placeholders anywhere, every `dataschema` URI fully resolved, no `tenants` block of its own. Treat it exactly like a direct service manifest.
-- The root manifest's `capabilities` array contains **only what the root can fulfil directly** — tenant-scoped capabilities appear only in tenant manifests.
-- Fetching a tenant manifest requires only the declared credential — the tenant ID is already in the URL; implementations must not additionally demand a tenant header.
-- Tenant context is established at the manifest level, never inside nested URI values — BEST defines no URI templating outside `tenants.manifest`.
+A reserved, privileged tenant ID for the platform's own administrative context keeps the model uniform: no separate "untenanted" surface.
 
 Per-tenant manifests pay off even when all tenants share one capability surface: the tenant's `http.endpoint` structurally encodes the scope into every path (auditable at the infrastructure layer), `dataschema` URIs need no caller-side substitution, and an organisation's members share one manifest and key.
 
-For the first-contact algorithm — what to read, what to collect from the user, and when to fetch the tenant manifest — see [SPEC.md — Agent Navigation Guide](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-navigation-guide). One rule worth repeating: **do not fall back to external OpenAPI/Swagger documents** — the BEST manifest is the canonical discovery surface, and `GET /commands` is the definitive answer to "what can I do here."
+For the first-contact algorithm — what to read, what to collect from the user, and when to fetch the tenant manifest — see [SPEC.md — Agent Navigation Guide](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-navigation-guide).

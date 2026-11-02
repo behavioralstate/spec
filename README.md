@@ -43,7 +43,7 @@ sequenceDiagram
 
 **[SPEC.md](SPEC.md)** is the consolidated specification — the whole protocol in one document: design, discovery, commands, events, queries, transports, conformance, and security. Start there.
 
-The same content is browsable per-topic at [behavioralstate.io](https://behavioralstate.io/), rendered from the pages under [`specs/`](specs/).
+The same content is browsable per-topic at [behavioralstate.io](https://behavioralstate.io/), rendered from the pages under [`specs/`](specs/), which take their text from `SPEC.md` where they cover one of its sections.
 
 Upgrading an implementation from 0.8.x? See [MIGRATION.md](MIGRATION.md) — 0.9.0 renamed the protocol short name (BSP → BEST) and made the envelope a conformant CloudEvents 1.0 profile.
 

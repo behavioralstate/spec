@@ -1,6 +1,8 @@
 # Versioning
 
-BEST uses **semantic versioning** (`MAJOR.MINOR.PATCH`) following [semver.org](https://semver.org) rules.
+BEST uses **semantic versioning** following [semver.org](https://semver.org) rules.
+
+**From SPEC.md:** [Versioning](https://github.com/behavioralstate/spec/blob/main/SPEC.md#versioning)
 
 ## Release Version
 
@@ -25,25 +27,8 @@ The version string (without the `v` prefix) appears in:
 }
 ```
 
-## Compatibility Rules
-
-| Change type | Bump |
-|---|---|
-| Breaking changes — field removal, type change, semantic change | `MAJOR` |
-| Additive changes — new optional fields, new capabilities | `MINOR` |
-| Documentation, clarifications, non-breaking fixes | `PATCH` |
-
-- Consumers must **ignore unknown fields** — forward compatibility
-- A `MAJOR` bump signals breaking changes; consumers should review the changelog
-- Multiple capabilities can have different versions in the same manifest
+A `MAJOR` bump signals breaking changes; consumers should review the changelog.
 
 ## Namespace Convention
 
-All BEST identifiers use reverse domain notation: `io.best.{service}.{capability}`.
-
-Examples:
-- `io.best.agents.commands`
-- `io.best.agents.events`
-- `io.best.agents.queries`
-
-Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).
+All BEST identifiers follow `io.best.{service}.{capability}`, such as `io.best.agents.commands`. Implementation-specific capabilities use their own namespace (e.g. `com.example.custom-capability`).

@@ -15,7 +15,7 @@ step often depends on a fact established by the previous one.
 The protocol deliberately does **not** own how those steps are sequenced.
 Workflow graphs, durable execution, retries, and checkpointing are execution
 runtime concerns, not protocol concerns
-([Overview — Capability Tiers](./overview.md#capability-tiers-core-vs-extended-vs-out-of-scope)).
+([Overview — Capability Tiers](./overview.md#capability-tiers--core-vs-extended-vs-out-of-scope)).
 What the protocol *does* give you — commands, events, correlation, and push
 channels — is enough to compose processes cleanly. This guide shows the two
 patterns that fall out of those primitives, and where the line to the execution
@@ -133,7 +133,7 @@ GET /workflows/io.example.workflows.onboard-a-worker
 
 Each step's `dataschema` references an operation that already exists in the
 command or query catalogue
-([Commands — the catalogue](./agents/commands.md#the-catalogue-get-commands)).
+([Commands — the catalogue](https://github.com/behavioralstate/spec/blob/main/SPEC.md#command-catalogue)).
 The recipe adds ordering and intent on top of operations the service already
 accepts; it introduces no new command types — and because it links the live
 catalogue instead of duplicating it, it cannot drift from the real contracts.
@@ -201,7 +201,7 @@ endpoints, everything through `/commands`, `/queries`, and `/events`.
 | `Heartbeat` | — | Liveness ping (see below) |
 
 The `RegisterService` `data` payload **is** the
-[service descriptor](./discovery.md#service-descriptor): `id`, `name`, `accepts`,
+[service descriptor](https://github.com/behavioralstate/spec/blob/main/SPEC.md#service-descriptor): `id`, `name`, `accepts`,
 `produces`, `status`, optional `metadata`.
 
 **Queries** (`GET /queries`) — the read side:

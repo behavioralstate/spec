@@ -1,9 +1,5 @@
 # MCP Transport
 
-MCP (Model Context Protocol) lets any off-the-shelf LLM client interact with a BEST-compliant service — discovering commands and queries, reading state, sending commands — without any bespoke integration.
-
-> Normative reference: [SPEC.md — MCP Transport](https://github.com/behavioralstate/spec/blob/main/SPEC.md#mcp-transport).
-
 <div class="BEST-diagram">
   <div class="BEST-node">
     <div class="BEST-node-title">LLM Client</div>
@@ -30,25 +26,17 @@ MCP (Model Context Protocol) lets any off-the-shelf LLM client interact with a B
   </div>
 </div>
 
+**From SPEC.md:** [MCP Transport](https://github.com/behavioralstate/spec/blob/main/SPEC.md#mcp-transport)
+
 ## Choosing a Transport
 
-> **MCP is an adapter for clients you don't control — not the recommended path for code you own.** Every `best-mcp` tool is a thin wrapper over exactly one HTTP endpoint, so placing the MCP server between your own client and the service adds a network hop, flattens structured BEST errors into prose, and widens your supply chain — while providing nothing a small HTTP client in your own codebase wouldn't. Off-the-shelf MCP-capable clients (Claude Desktop, VS Code Copilot, Cursor, ChatGPT Desktop) use MCP because it is the only plug-in mechanism they offer. Rule of thumb: **never put `best-mcp` between a first-party client and a BEST service.**
+Off-the-shelf MCP-capable clients use MCP because it is the only plug-in mechanism they offer. Rule of thumb: **never put `best-mcp` between a first-party client and a BEST service.**
 
-## Mapping
+## Further tools
 
-| BEST Concept | MCP Tool |
-|---|---|
-| Connection list (multi-connection mode) | `list_connections` |
-| Discovery manifest (`GET /.well-known/best`) | `get_manifest` |
-| Command catalogue / schema / ingestion | `get_command_catalogue` · `get_command_schema` · `send_command` |
-| Query catalogue / schema / execution | `get_query_catalogue` · `get_query_schema` · `execute_query` |
-| Event history / schema (`GET /events`, `GET /events/{schema}/{version}`) | `get_events` · `get_event_schema` |
-| Live event stream (`GET /events/stream`) | `sample_event_stream` — a bounded, client-side sample (see below) |
-| Push event delivery | MCP server-to-client notifications |
+`best-mcp` also exposes the discovery manifest (`get_manifest`), event history and schemas (`get_events`, `get_event_schema`) and a bounded sample of the live stream (`sample_event_stream`).
 
 > **Streams are sampled, not held.** An MCP tool call is request/response, and the LLM host's loop is turn-based — nothing re-invokes the model when an event arrives between turns. `sample_event_stream` therefore opens the SSE stream, collects until a `max_events`/`max_seconds` bound (enforced client-side, so any conformant endpoint works), and returns what arrived; the previous sample's `lastEventId` is passed as `Last-Event-ID` to resume without gaps where the server supports it. For past events, `get_events` polling with the response cursor is the turn-based drain. For standing reactions ("when X happens, do Y"), neither is right — agents should configure the service's own alerting/webhook commands instead.
-
-`send_command` builds the CloudEvent envelope automatically: `type` from the schema name via PascalCase conversion, `dataschema` set to the absolute catalogue URI, `source` defaulting to the client's own identity (`urn:best-mcp`) — correct for conformant services, which never route on `source` alone.
 
 ## Reference Implementation — `best-mcp`
 
@@ -94,25 +82,9 @@ A model can only follow what the client lets it reach. Three obligations follow 
 
 The server-side counterpart is in [`agents/workflows`](../agents/workflows.md): a service that offers self-onboarding publishes it as a workflow on an anonymous surface listed in the root manifest.
 
-## Manifest Declaration
+## The `mcp` block's fields
 
-The `mcp` block in a service's transports declares how to reach the MCP server. MCP is **optional** — HTTP is the baseline.
-
-```json
-"mcp": {
-  "transport": "http",
-  "server": "https://mcp.example.com/mcp",
-  "push": true,
-  "authentication": {
-    "type": "apiKey",
-    "headers": [
-      { "name": "X-Api-Key",   "description": "Your API key" },
-      { "name": "X-Tenant-Id", "description": "Your tenant identifier", "example": "acme" }
-    ],
-    "docs": "https://docs.example.com/authentication"
-  }
-}
-```
+MCP is **optional** — HTTP is the baseline.
 
 | Field | Required | Description |
 |---|---|---|
@@ -125,4 +97,4 @@ The `mcp` block in a service's transports declares how to reach the MCP server. 
 
 ## Push Event Delivery
 
-When a caller maintains an active MCP session and `"push": true` is declared, the server **may** push domain events as MCP server-to-client notifications, matched by the **`correlationid`** of a previously submitted command. Callers should prefer this channel over polling `GET /events`. The events capability declares `"push": { "mcp": true }` when this channel is active — see [Discovery](../discovery.md#capability-entries).
+When a caller maintains an active MCP session and `"push": true` is declared, the server **may** push domain events as MCP server-to-client notifications, matched by the **`correlationid`** of a previously submitted command. Callers should prefer this channel over polling `GET /events`. The events capability declares `"push": { "mcp": true }` when this channel is active — see [Discovery](https://github.com/behavioralstate/spec/blob/main/SPEC.md#capability-entries).

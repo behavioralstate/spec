@@ -1,38 +1,13 @@
 # Identity and Agent Registration
 
-*A described pattern — non-normative, except where it points at [SPEC.md — Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration), which is. A service that needs no authentication can ignore this page.*
+What every platform with accounts has to get right is the first five minutes: a person says "sign me in to example.com" to an agent that has never heard of the service, and a few moments later the agent is working in that person's account. This page gives that moment one vocabulary and one flow, so that implementers do not invent either under pressure.
 
-BEST defines no identity provider, no account model and no login, exactly as it defines no registry. A platform that has them keeps them. What every platform with accounts has to get right is the first five minutes: a person says "sign me in to example.com" to an agent that has never heard of the service, and a few moments later the agent is working in that person's account. This page gives that moment one vocabulary and one flow, so that implementers do not invent either under pressure.
+**From SPEC.md:** [Identity and Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#identity-and-agent-registration--a-described-pattern)
 
----
-
-## The flow is one
-
-Whatever the person said — "sign me in", "sign me up", "connect me" — and whether or not they have an account, the same thing happens:
-
-1. The agent registers itself and gives the person **a link and a short code**.
-2. The link opens **a page of the platform**. There the person signs in — or signs up, where the platform offers that — and approves the agent.
-3. The agent collects its credential.
-
-The agent never needs to work out from the person's words whether an account exists. Whether a person without one can get one is the page's business: a self-serve platform offers sign-up there; a platform whose accounts are provisioned offers sign-in only, and its approver may be an administrator rather than the person. The agent's side is identical in both.
-
-## Whose act is whose
-
-| Behaviour | Whose | Where it happens |
-|---|---|---|
-| **Register agent** | the agent's | the device authorization request — not a BEST command |
-| **Sign in** | the person's | the platform's own page, reached from the link the agent shows |
-| **Sign up** *(where offered)* | the person's | the same page; it is also where the account is opened |
-| **Approve agent** | the approver's | the same page, once signed in |
-| **Revoke agent** | the agent's, or the approver's | a command under that credential; or the platform's UI |
-| **Sign out** | the person's | the platform's own UI; it ends the person's browser session and touches no agent credential |
-
-Signing in, up and out belong to the **person** and happen on the platform's pages, with its identity provider. The agent never sees a password, never performs or simulates them, and **no BEST operation or workflow is named after them**. Registering and revoking belong to the **agent** and are named as such.
-
-The two confusions this table exists to prevent:
+## Two confusions to avoid
 
 - A recipe called "sign in" whose steps register an agent. When the person says "sign me in" they are saying what they want; what the agent *does* is register.
-- An operation called "sign out" that revokes a key. Ending the person's session leaves every agent credential alive; revoking a credential leaves the person's session alive. An operation that revokes a key is a revocation.
+- An operation called "sign out" that revokes a key. An operation that revokes a key is a revocation.
 
 ## The exchange
 
@@ -92,34 +67,13 @@ While the person has not acted: `400 { "error": "authorization_pending" }` — n
 }
 ```
 
-`name`, `tenant_id` and `auth_header` are the three members BEST adds to the RFC 6749 token response: the connection's name (the `connection` the agent sent, else the sign-in manifest's address — the credential is kept under it), the account the credential opens, and the header that carries it. With them the agent expands `tenants.manifest`, fetches the account's manifest and is at work. It never asked the person for a key or a tenant ID.
-
-A credential that opens no single account has no `tenant_id`: on a service without tenants, or when it was admitted at the root of a host where one identity may hold several tenants, or none yet (a peer whose workspaces an agent creates and is invited into). The answer's `endpoint` is then the root's; the agent works there, and finds the tenants it opens, once it has any, where the service must list them, at its root: by its tenants root ([SPEC.md](https://github.com/behavioralstate/spec/blob/main/SPEC.md#multi-tenancy) rule 6), or, where the root is itself a surface (a peer is), by a query of the root's own catalogue ([SPEC.md](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration), a credential that opens no single account). A host or a placeholder in `tenant_id` would send it to a tenant manifest that does not exist.
+With `name`, `tenant_id` and `auth_header` the agent keeps the credential under the connection's name, expands `tenants.manifest`, fetches the account's manifest and is at work. It never asked the person for a key or a tenant ID.
 
 ## Why not a BEST command
 
 It is tempting to model registration as a command on a public surface — `request-registration`, then a query to poll, then a claim. It does not work, for one reason: **a command has no synchronous answer**. The service cannot hand an anonymous caller anything at the moment it asks, so the only tie between the caller and its registration is an identifier the caller chose — and that identifier ends up being accepted as the secret when the credential is claimed.
 
 Two things are wrong with that. An identifier is logged, projected and indexed by design; whoever can read those can claim the credential between approval and claim. And when the caller is a model, the "random" identifier is minted by something that cannot produce randomness: models repeat the example values they have seen. RFC 8628's first step is synchronous and its secret is generated by the service, which removes both problems. Hence the rule in the Security Requirements: **identifiers are not secrets**, and every secret a service relies on is generated by the service.
-
-## Where the credential lives
-
-Only the consumer knows what it can keep secret, so the consumer says so.
-
-- **A client with its own store** — the reference MCP server is one — makes the token request itself, keeps the credential where the model never sees it, redacts it from everything it returns to the model, and has it again at every later start. The person registers once.
-- **An agent with no such client** — a model in a chat making HTTP requests — has nowhere to put a secret but the conversation, and a conversation is kept, synced, summarised and shared. It registers with `credential_lifetime=session`. The approval page tells the person what is being granted ("until you revoke it", or "for eight hours"), and what the agent receives is short-lived (`expires_in`), so the next conversation starts with a new link and code rather than with a key left in an old one.
-
-`credential_lifetime` only ever lowers what is issued, so an agent gains nothing by misstating it.
-
-At each step the service speaks to the agent in the words of the [sign-in guidance](https://github.com/behavioralstate/spec/blob/main/SPEC.md#sign-in-guidance): the manifest's `authentication.note`, the device answer's `note`, and the start of the token answer's `note`. Making a connection last is the consumer's decision, and the token answer is where the service equips it: the [credential block](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration) says the credential is a secret that is never repeated in the conversation, and offers both ways to use it — an MCP client's configuration (`mcp`) and direct calls (`http`). A recipe still says nothing about the consumer's client ([Manifest Discipline](https://github.com/behavioralstate/spec/blob/main/SPEC.md#manifest-discipline) rule 5): the credential, and so the choice, only exists in the token answer.
-
-## Revoking
-
-Revoke agent is an ordinary command on the account's surface, sent under the credential being revoked (and, on most platforms, a button in the account's UI). After it, that credential receives `401`; the way back is the one the manifest declares — register again. An event stream open under it delivers the revocation's own event and then ends, and so, within a bounded time, does any stream of a credential revoked another way or run out; an approver who bounded a credential's life finds the bound in `expires_in`, never shortened silently ([SPEC.md — Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration)).
-
-## Optional: an agent that opens accounts
-
-Nothing above depends on it, but a platform **may** let an agent open an account itself. That is an ordinary command, and because it commits the person — terms accepted, personal data created, perhaps billing started — it carries the [`impact` annotation](agents/commands.md#high-impact-annotations-impact) with `categories: ["commitment"]` and `confirmation: "required"`: the agent tells the person what they are agreeing to and gets a yes before it sends anything.
 
 ## One backend, two kinds of person
 
@@ -136,4 +90,4 @@ BEST needs nothing new for it. A service is named by a domain ([Name Resolution]
 
 - [SPEC.md — Agent Registration](https://github.com/behavioralstate/spec/blob/main/SPEC.md#agent-registration) — the normative exchange
 - [Security — Identifiers are not secrets](security.md#identifiers-are-not-secrets) and [Credentials stay out of transcripts](security.md#credentials-stay-out-of-transcripts)
-- [Discovery — Name Resolution](discovery.md#name-resolution) — how the agent got from "example.com" to the manifest in the first place
+- [Discovery — Name Resolution](https://github.com/behavioralstate/spec/blob/main/SPEC.md#name-resolution) — how the agent got from "example.com" to the manifest in the first place

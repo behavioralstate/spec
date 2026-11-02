@@ -14,7 +14,7 @@ tooling (the layout, version stamping, best-mcp's configuration) are in
   that two independent implementations read a sentence differently and a client failed, or that a client could not
   be written from the text. Never add to #37, file a spec-gap issue or draft spec text on your own: bring the proof
   to the owner in the chat and stop. What an implementation does that the spec does not mention is its own, in its
-  README. A new `must` says the version it is required from and is listed in `specs/conformance.md`.
+  README. A new `must` says the version it is required from and is listed in `SPEC.md`'s Conformance section.
 - Every change is made on `main` and pushed there, the owner's and every maintainer's; no branch and no pull request
   is needed. The subject is one plain sentence saying what changed and why, with no type prefix (`feat:`, `fix:`);
   the one prefix is `Review:` on a commit that answers the review. A change never edits a version: the release

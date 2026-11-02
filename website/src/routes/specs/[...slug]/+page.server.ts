@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
-import { readFile, readdir, stat } from 'fs/promises';
+import { readFile, stat } from 'fs/promises';
 import { join, relative, dirname } from 'path';
+import { collectMdFiles, insertSections, loadSpec, localiseSpecLinks, slugify } from '$lib/server/specSections';
 
 const SPECS_DIR = join(process.cwd(), '..', 'specs');
 const VERSION_FILE = join(process.cwd(), '..', 'version.json');
@@ -9,21 +10,6 @@ export interface TocHeading {
 	id: string;
 	text: string;
 	level: number;
-}
-
-/** Recursively collect all .md files under a directory. */
-async function collectMdFiles(dir: string): Promise<string[]> {
-	const entries = await readdir(dir, { withFileTypes: true });
-	const files: string[] = [];
-	for (const entry of entries) {
-		const full = join(dir, entry.name);
-		if (entry.isDirectory()) {
-			files.push(...(await collectMdFiles(full)));
-		} else if (entry.name.endsWith('.md')) {
-			files.push(full);
-		}
-	}
-	return files;
 }
 
 export async function entries() {
@@ -73,17 +59,6 @@ function rewriteLinks(html: string, slug: string): string {
 
 		return `href="${href}"`;
 	});
-}
-
-/** Convert heading text (may contain HTML tags) to a URL-safe id. */
-function slugify(text: string): string {
-	return text
-		.replace(/<[^>]+>/g, '')
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, '')
-		.trim()
-		.replace(/\s+/g, '-')
-		.replace(/-+/g, '-');
 }
 
 /**
@@ -159,8 +134,10 @@ export async function load({ params }) {
 	const markdown = await readFile(filePath, 'utf-8');
 	const { version } = JSON.parse(await readFile(VERSION_FILE, 'utf-8'));
 	const { marked } = await import('marked');
-	let html = await marked(markdown.replaceAll('{{BEST_VERSION}}', version));
+	const spec = await loadSpec();
+	let html = await marked(insertSections(markdown, slug, spec).replaceAll('{{BEST_VERSION}}', version));
 	html = rewriteLinks(html, slug);
+	html = localiseSpecLinks(html, slug, spec);
 	html = classifyBlockquotes(html);
 	const { html: processedHtml, headings } = processHeadings(html);
 

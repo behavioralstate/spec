@@ -49,7 +49,7 @@ The checkout is `main`, not the pull request: read its files at its head with `g
 never from the working tree.
 
 Then, for every file the diff touches, read around it: the whole section of the spec a sentence sits in, and every
-other place that states the same rule (`SPEC.md`, the documents in `specs/`, `specs/conformance.md`, the schemas in
+other place that states the same rule (`SPEC.md`, the documents in `specs/`, the schemas in
 `protocol/v1/schemas` and their examples); for code, the whole function or module and the smoke test that covers it.
 Read `SDLC.md` section 2, the design rules every change is held to, and `.github/instructions/general.instructions.md`.
 If a commit message or the pull request body links an issue, read it with `gh issue view <n> --repo
@@ -71,9 +71,9 @@ allows, a crash, a credential shown.
 - **In the spec text**: a sentence that contradicts another part of the spec, a schema or an example; a rule stated
   in one place and left as it was in another that states it too (the agent navigation guide, the walkthroughs in
   `specs/`, the conformance list); a case the change raises and leaves unanswered; a `must` an existing service could
-  fail with no *Required from* version, or one missing from `specs/conformance.md`; a rule cited to a section that
+  fail with no *Required from* version, or one missing from `SPEC.md`'s Conformance section; a rule cited to a section that
   does not say it on this branch; a broken link or anchor (a link from `specs/` to `SPEC.md` must be the absolute
-  GitHub URL, which the website keeps).
+  GitHub URL); a page in `specs/` restating a section it takes with a `**From SPEC.md:**` line.
 - **In the schemas and examples**: a schema that no longer matches the text that describes it; an example it
   governs left invalid or stale; a version written where `{{BEST_VERSION}}` belongs, or `version.json` edited outside
   a release.

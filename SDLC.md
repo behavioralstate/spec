@@ -52,10 +52,14 @@
     and never invents a surface no implementation has asked for.
 - `SPEC.md` and `specs/` are the source of truth, and nothing of them is copied elsewhere in the repository: the
   website renders them, and every other file links to them. A link from `specs/` to `SPEC.md` is the absolute GitHub
-  URL, which the website keeps.
+  URL, which the website points at the page built from that section where there is one, and keeps where there is none.
+- **A rule is written once.** A page in `specs/` that covers a section of `SPEC.md` does not restate it: it holds a line
+  `**From SPEC.md:** [Name](<the section's URL>)`, where the website's build puts the section's text, and beside it only
+  what the section does not say. A line naming a section `SPEC.md` does not have, or a link to a heading it does not
+  have, fails the build and so the gate.
 - **A new obligation is dated and listed.** A `must` that an existing service could fail says the version it is
-  required from (*Required from x.y.z*), and `specs/conformance.md` lists it, in its section and in the sentence that
-  names what that version makes required, so an implementor and the validator find it there.
+  required from (*Required from x.y.z*), and `SPEC.md`'s Conformance section lists it, in its list and in the sentence
+  that names what that version makes required, so an implementor and the validator find it there.
 - Facts are events; an event is versioned, never mutated; a redelivery is idempotent; nothing is clamped silently. A
   refusal says what to send.
 - **A schema moves with its examples and its prose.** A change to `protocol/v1/schemas` changes the examples it
@@ -111,8 +115,8 @@
     any other.
   - The website between releases: `gh workflow run cicd.yaml --ref main` runs the same gate, publishes the image of
     `main`'s head and opens the same pull request, with no tag and no version. It is for a change to the website
-    alone, while `specs/` and `protocol/` are as the last release left them: other text would go live under a version
-    that does not hold it.
+    alone, while `SPEC.md`, `specs/` and `protocol/` are as the last release left them: other text would go live under
+    a version that does not hold it.
   - best-mcp: `scripts/release-mcp.sh <version>` tags `mcp/v<version>`, and CI publishes `@behavioralstate/best-mcp`.
   - best-validate: `scripts/release-validate.sh <version>` tags `validate/v<version>`, and CI publishes
     `@behavioralstate/best-validate`.

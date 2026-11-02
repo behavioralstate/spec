@@ -2,6 +2,10 @@
 
 BEST is an open protocol with a broad attack surface. This page catalogues the security requirements that every conformant implementation must observe.
 
+## In short
+
+**From SPEC.md:** [Security Requirements](https://github.com/behavioralstate/spec/blob/main/SPEC.md#security-requirements)
+
 ## TLS
 
 All BEST HTTP endpoints **MUST** be served over HTTPS, but for the cleartext this section allows. Cleartext HTTP **MAY** be used only where both ends are the same machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), judged on the address a service listens on and the host of the endpoint it advertises, or where its operator states that the network already encrypts the hop. Elsewhere a service **MUST** refuse to serve in cleartext, not warn, and its refusal **MUST** name the setting and the fix. A service's own outbound calls that carry a credential follow the same rule: it **MUST NOT** send one in cleartext but to loopback or over a hop its operator stated encrypted. *(The refusal and the outbound rule are required from 0.10.0.)* Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over a transport this section does not allow.
@@ -52,7 +56,7 @@ Command payloads routinely carry fields naming a person or subject — an approv
 - On a public surface there is no submitting credential at all, so the control is the whole of the authorisation: the person signing in to the platform and approving, in their own browser, is the out-of-band confirmation. It is not self-serviceable by construction — the agent cannot perform it.
 - Such a control **MUST NOT** be self-serviceable. If the approval step can be performed by the same credential that submitted the command, it is an audit trail, not a control.
 - Where a server offers an approval mode that only logs what it would otherwise reject, that mode **MUST NOT** be the default, and its active mode **MUST** be discoverable by operators.
-- Servers **SHOULD** declare the [`impact` annotation](agents/commands.md#high-impact-annotations-impact) on high-impact commands, so consumers can discover which commands carry these obligations and warn the human before submitting. The annotation is descriptive: it **MUST NOT** be relied upon as the control itself — clients that ignore it must still meet the server-side requirements above.
+- Servers **SHOULD** declare the [`impact` annotation](https://github.com/behavioralstate/spec/blob/main/SPEC.md#impact-annotations) on high-impact commands, so consumers can discover which commands carry these obligations and warn the human before submitting. The annotation is descriptive: it **MUST NOT** be relied upon as the control itself — clients that ignore it must still meet the server-side requirements above.
 
 ## Credential Passthrough at Intermediaries
 
@@ -75,7 +79,7 @@ Not every legitimate client can set HTTP headers — URL-only integrations, webh
 - The exchange request carries only the credential. Tenant context **MUST** be derived from the credential itself, per [Multi-Tenant Isolation](#multi-tenant-isolation) — a tenant identifier submitted alongside it is at most a routing hint, and a server **MUST** reject an exchange whose declared tenant does not match the credential's tenant binding.
 - A **long-lived** credential **SHOULD NOT** be declared or accepted as a query parameter (`apiKey` with `in: "query"`). Query strings leak through request logs, proxies, `Referer` headers, and browser history. A host that needs to serve URL-only clients **SHOULD** offer the token exchange and accept the resulting short-lived token via the `access_token` query parameter, under the constraints of [RFC 6750 §2.3](https://www.rfc-editor.org/rfc/rfc6750#section-2.3).
 - Servers accepting any credential in a query parameter **MUST NOT** write the credential value to logs, **SHOULD** send `Cache-Control: no-store` on responses to such requests, and **SHOULD** issue query-eligible tokens with reduced scope — in particular, a query-borne token **SHOULD NOT** be able to submit [high-impact commands](#high-impact-commands).
-- One-time login links — a single-use, short-lived code minted out of band (e.g. from an operator dashboard) and redeemed for a scoped token — are a valid implementation of this exchange for URL-only onboarding. BEST does not standardise their issuance; a host advertising one does so under a namespaced [`extensions`](discovery.md#extensions) key until a standard exists to promote.
+- One-time login links — a single-use, short-lived code minted out of band (e.g. from an operator dashboard) and redeemed for a scoped token — are a valid implementation of this exchange for URL-only onboarding. BEST does not standardise their issuance; a host advertising one does so under a namespaced [`extensions`](https://github.com/behavioralstate/spec/blob/main/SPEC.md#extensions) key until a standard exists to promote.
 
 ## Command Ingestion — Schema Selection
 
