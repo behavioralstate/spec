@@ -13,7 +13,7 @@ BEST's aim is that a person can name a service to an agent that has never heard 
 - **Name resolution in `best-mcp`** — SPEC.md *Name Resolution* makes a DNS name the whole namespace; the reference client is the missing resolver. Design: a `connect` tool that resolves a name and **returns what it resolved without connecting**, opening the connection only on a second call carrying the person's confirmation — so the confirmation is a step a model cannot skip. Open: whether the `_best` TXT step earns its complexity; whether resolved connections persist across sessions or only their credentials do; how `best-validate` checks that a name resolves.
 - **Retention semantics** — no manifest declares a retention window, so an event poller cannot tell "not processed yet" from "already expired", and the idempotency guarantee refers to a window nothing states. A `retention` declaration on the events capability would close both.
 - **`deprecated` capability status** — the lifecycle is `planned → partial → active`: birth but no death.
-- **Manifest visibility and caching** — prose for the two-tier model (coarse public root, fine detail in authenticated scoped manifests), and non-normative `ETag` / `Cache-Control` guidance.
+- **Manifest visibility** — prose for the two-tier model (coarse public root, fine detail in authenticated scoped manifests).
 - **Watching, not building** — signing of discovery documents and channel-bound identity: adopt what the IETF work standardises rather than invent. TLS is the trust anchor meanwhile.
 - **Rejected by design** — search by category. That is a directory; a directory is a BEST service like any other, and manifests are what it indexes.
 
