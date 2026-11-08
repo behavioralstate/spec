@@ -4,7 +4,7 @@ Conformance validator for **BEST** (Behavioral State Protocol) endpoints. Points
 
 **A plain run never writes anything.** The only POSTs issued are a command with an intentionally unknown `type`, which a conformant endpoint rejects during validation before anything is queued, and a token request with an intentionally unknown `device_code`. The one probe that creates something — a real, inert registration that expires by itself — runs only with `--probe-registration`.
 
-**Staging.** Rules that spec 0.9.11 states and 0.10.0 requires are reported as **warnings** until then (each says "required from 0.10.0"). Misuse of a 0.9.11 field — a service declared public that answers `401`, a `deviceAuthorizationUrl` whose `tokenUrl` does not serve the device-code grant — is a failure now, because those fields are opt-in.
+**Warnings.** Manifest Discipline, the single entry, the pseudo-tenant rule, accepting `application/cloudevents+json` and the JSON errors of the registration endpoints are reported as **warnings**. Misuse of a 0.9.11 field — a service declared public that answers `401`, a `deviceAuthorizationUrl` whose `tokenUrl` does not serve the device-code grant — is a failure now, because those fields are opt-in.
 
 ```bash
 npx @behavioralstate/best-validate https://api.example.com

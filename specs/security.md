@@ -8,7 +8,7 @@ BEST is an open protocol with a broad attack surface. This page catalogues the s
 
 ## TLS
 
-All BEST HTTP endpoints **MUST** be served over HTTPS, but for the cleartext this section allows. Cleartext HTTP **MAY** be used only where both ends are the same machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), judged on the address a service listens on and the host of the endpoint it advertises, or where its operator states that the network already encrypts the hop. Elsewhere a service **MUST** refuse to serve in cleartext, not warn, and its refusal **MUST** name the setting and the fix. A service's own outbound calls that carry a credential follow the same rule: it **MUST NOT** send one in cleartext but to loopback or over a hop its operator stated encrypted. *(The refusal and the outbound rule are required from 0.10.0.)* Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over a transport this section does not allow.
+All BEST HTTP endpoints **MUST** be served over HTTPS, but for the cleartext this section allows. Cleartext HTTP **MAY** be used only where both ends are the same machine's loopback (`127.0.0.0/8`, `::1`, `localhost`), judged on the address a service listens on and the host of the endpoint it advertises, or where its operator states that the network already encrypts the hop. Elsewhere a service **MUST** refuse to serve in cleartext, not warn, and its refusal **MUST** name the setting and the fix. A service's own outbound calls that carry a credential follow the same rule: it **MUST NOT** send one in cleartext but to loopback or over a hop its operator stated encrypted. Any MCP transport carrying BEST traffic or credentials **MUST** provide confidentiality and integrity equivalent to TLS 1.2 or higher. Clients and servers **MUST** validate certificates and hostnames and **MUST NOT** send credentials over a transport this section does not allow.
 
 ## Authentication and Authorisation
 
@@ -133,7 +133,7 @@ The `source` field in a command is **caller-declared** and **MUST NOT** be treat
 
 ## Request Records
 
-A service **SHOULD** keep a record of the requests it answers that names the verified principal when there is one, refused requests included. It **MUST NOT** record a credential, a header carrying one, or a query string, which may carry an exchanged token ([Token Exchange and Query-String Credentials](#token-exchange-and-query-string-credentials)). *(Required from 0.10.0.)*
+A service **SHOULD** keep a record of the requests it answers that names the verified principal when there is one, refused requests included. It **MUST NOT** record a credential, a header carrying one, or a query string, which may carry an exchanged token ([Token Exchange and Query-String Credentials](#token-exchange-and-query-string-credentials)).
 
 ## Credentials Stay Out of Transcripts
 
@@ -151,15 +151,15 @@ For implementations that serve multiple tenants:
 
 - Access to tenant-scoped manifests and resources **MUST** be authorised per tenant. Knowing or guessing another tenant's identifier **MUST NOT** grant access to their resources.
 - Tenant context **MUST** be derived from the authenticated identity (Bearer token, API key), not from caller-supplied path parameters, query strings, body fields, or CloudEvent attributes.
-- A tenant ID names a real scope. A constant pseudo-tenant (`public`, `default`, `anonymous`) hosting a surface that has no scope is non-conformant from 0.10.0 — declare a root-level service with its own `authentication` instead.
+- A tenant ID names a real scope. A constant pseudo-tenant (`public`, `default`, `anonymous`) hosting a surface that has no scope is non-conformant — declare a root-level service with its own `authentication` instead.
 - Tenant-specific HTTP responses **MUST** be isolated in caches (`Vary` headers or non-cacheable) and **MUST NOT** be served to a different tenant.
 - Command deduplication and event streams **MUST** be isolated per tenant.
 
 ## Input Limits
 
-Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded, with `details.limit_bytes`, the largest body the endpoint accepts, since a body refused before it is read has no field to name. A service that forwards a command to another service **MUST** accept no body it cannot forward whole *(required from 0.10.0)*. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
+Servers **MUST** enforce maximum request body sizes for `POST /commands` and **SHOULD** return `413 Payload Too Large` when exceeded, with `details.limit_bytes`, the largest body the endpoint accepts, since a body refused before it is read has no field to name. A service that forwards a command to another service **MUST** accept no body it cannot forward whole. Servers **MUST** bound JSON nesting depth, collection sizes, string lengths, and total attribute counts to prevent parser or validator resource exhaustion.
 
-Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission. A server that limits it **MUST** answer a command past the limit with `429` and a `Retry-After` header, **MUST NOT** count a retry of a command it accepted or a command it refused, and **SHOULD** count a client once across the tenants it opens. *(Required from 0.10.0.)*
+Servers **SHOULD** apply rate limits and quotas per authenticated client and per tenant for command submission. A server that limits it **MUST** answer a command past the limit with `429` and a `Retry-After` header, **MUST NOT** count a retry of a command it accepted or a command it refused, and **SHOULD** count a client once across the tenants it opens.
 
 ## Event Streams
 

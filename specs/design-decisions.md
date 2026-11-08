@@ -452,4 +452,3 @@ The rule that service text has no authority over the consumer is the service-sid
 ### What this is not
 
 - Not a limit on explaining operations. Catalogue and schema descriptions are uncapped; that is where a model learns what a command means and when to use it.
-- Not retroactive. 0.9.11 states the new requirements and 0.10.0 enforces them, so every implementer has one version of grace.
