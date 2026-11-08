@@ -10,9 +10,12 @@
  * From 0.9.11 it also checks Manifest Discipline (the manifest stays structure),
  * access declared versus access served, agent registration (RFC 8628) and the
  * single entry. Some of the rules it checks are reported as warnings (LENIENT).
+ * It also checks what Conformance item 13 lists and can be seen from outside — the tenants
+ * root, the /events range, a query's parameters schema, an active workflows capability with
+ * no recipe, and the 413 and 429 answers — and closes with what it does not check.
  *
- * A plain run never writes anything: the only POSTs issued are a command with an
- * intentionally unknown type, which a conformant endpoint rejects before queuing,
+ * A plain run never writes anything: the only POSTs issued are commands with an
+ * intentionally unknown type (one of them over 1 MiB), which a conformant endpoint rejects before queuing,
  * and a token request with an intentionally unknown device code. The one probe
  * that creates something — a real, inert, self-expiring registration — runs only
  * with --probe-registration.
@@ -381,6 +384,50 @@ async function checkTenancy(root: Dict, base: string, opts: Options, ajv: Ajv202
   return { workingRoot: tRoot, probeable: true };
 }
 
+/**
+ * Multi-Tenancy rule 6: a service the root announces for its tenants — no capability of its own in the root — and gives
+ * an http.endpoint there has that endpoint as its tenants root. Without a credential it answers the 401 a tenant
+ * endpoint gives, never a bare 404; with one, the tenants the credential opens.
+ */
+async function checkTenantsRoot(root: Dict, opts: Options): Promise<void> {
+  const S = 'multi-tenancy';
+  const referenced = new Set(capabilities(root).map(c => serviceKeyFor(c, root)));
+  for (const [key, service] of Object.entries(asDict(root.services) ?? {})) {
+    const ep = asDict(asDict(service)?.http)?.endpoint;
+    if (referenced.has(key) || typeof ep !== 'string') continue;
+    const url = ep.replace(/\/+$/, '');
+    const anon = await http('GET', url, opts, null);
+    if (anon.status === 401) record(S, 'pass', `Tenants root of ${key} answers 401 without a credential`);
+    else record(S, LENIENT, `Tenants root of ${key} (${url}) answers ${anon.status || anon.error} without a credential — it answers the 401 a tenant endpoint gives, never a bare 404: a consumer that kept only its credential otherwise concludes it has no account`);
+
+    const auth = buildAuthPlan(opts, governingAuth(key, root));
+    if (!auth) { record(S, 'skip', `Tenants root of ${key}: no credential given — the tenants a credential opens were not read`); continue; }
+    const res = await http('GET', url, opts, auth);
+    const listed = asDict(res.json)?.tenants;
+    const wellFormed = Array.isArray(listed) && listed.every(t => ['tenant_id', 'endpoint', 'manifest'].every(m => typeof asDict(t)?.[m] === 'string'));
+    if (res.status === 200 && wellFormed) record(S, 'pass', `Tenants root of ${key} lists the tenants the credential opens (${(listed as unknown[]).length})`);
+    else if (res.status === 200) record(S, LENIENT, `Tenants root of ${key} answers 200 without { "tenants": [ { "tenant_id", "endpoint", "manifest" } ] }`);
+    else if (asDict(asDict(res.json)?.error)?.message) record(S, 'skip', `Tenants root of ${key} answers the credential ${res.status} with a BEST error — lawful for a credential that opens one tenant; one answered with no tenant_id gets its tenants listed`);
+    else record(S, LENIENT, `Tenants root of ${key} answers the credential ${res.status || res.error} with no BEST error — with a credential it answers 200 and the tenants it opens, or an error that says where the consumer finds its tenant`);
+  }
+}
+
+/** What the conformance list asks that a run cannot see from outside, without writing or a person's approval. */
+function notChecked(): void {
+  const S = 'not checked';
+  for (const what of [
+    'a correlation id bound to the sender that first used it, another sender refused with a 400 naming the field (Conformance item 12) — it takes two credentials and an accepted command, and a plain run never writes',
+    'a duplicate command answered as the original was, or 409 naming the id — it takes an accepted command',
+    'the correlation id on every later fact about what a command created',
+    'a token answer with no tenant_id from a host with tenants — it takes a registration a person approves',
+    'the end of a credential, and of a stream it opened',
+    'request records without credentials or query strings',
+    'cleartext refused and never carrying a credential',
+    'a forwarded command\'s body accepted whole',
+    'the 429 answer, unless the service rate-limits this run\'s commands'
+  ]) record(S, 'skip', what);
+}
+
 async function checkCommands(cap: Capability, ep: string, ctx: ProbeContext, opts: Options, ajv: Ajv2020): Promise<void> {
   const { auth, authDeclared } = ctx;
   const S = 'commands';
@@ -436,13 +483,21 @@ async function checkCommands(cap: Capability, ep: string, ctx: ProbeContext, opt
     if (minting.length) record(S, 'warn', `Public command(s) ask the caller to mint or keep a secret: ${minting.join(', ')} — identifiers are not secrets; every secret is generated by the service (register agents through authentication.deviceAuthorizationUrl)`);
   }
 
-  // Route-exists probe: unknown type must be rejected by validation, not routing.
-  const probe = await http('POST', `${ep}/commands`, opts, auth, {
-    specversion: '1.0', id: `best-validate-${Date.now()}`, source: 'best-validate',
+  const notFound = await http('GET', `${ep}/commands/best-validate-nonexistent/1.0`, opts, auth);
+  if (notFound.status === 404) record(S, 'pass', 'Unknown schema document → 404');
+  else record(S, 'warn', `Unknown schema document returned ${notFound.status || notFound.error} — expected 404`);
+
+  // Every POST below is a command of an unknown type, which a conformant endpoint refuses before queuing anything.
+  const unknown = (id: string, data: Dict = {}) => ({
+    specversion: '1.0', id: `${id}-${Date.now()}`, source: 'best-validate',
     type: 'BestValidateNonexistentType', datacontenttype: 'application/json',
     dataschema: `${ep}/commands/best-validate-nonexistent/1.0`,
-    time: new Date().toISOString(), data: {}
+    time: new Date().toISOString(), data
   });
+
+  // Route-exists probe: unknown type must be rejected by validation, not routing.
+  const probe = await http('POST', `${ep}/commands`, opts, auth, unknown('best-validate'));
+  if (paced(S, probe)) return;
   if ([400, 422].includes(probe.status)) {
     record(S, 'pass', `POST /commands rejects unknown command type with ${probe.status} (non-destructive probe)`);
     const eValidate = ajv.getSchema('https://behavioralstate.io/v1/schemas/error.json');
@@ -459,18 +514,49 @@ async function checkCommands(cap: Capability, ep: string, ctx: ProbeContext, opt
   }
 
   // CloudEvents structured content mode: the same non-destructive probe, sent as application/cloudevents+json.
-  const ce = await http('POST', `${ep}/commands`, opts, auth, {
-    specversion: '1.0', id: `best-validate-ce-${Date.now()}`, source: 'best-validate',
-    type: 'BestValidateNonexistentType', datacontenttype: 'application/json',
-    dataschema: `${ep}/commands/best-validate-nonexistent/1.0`,
-    time: new Date().toISOString(), data: {}
-  }, { contentType: 'application/cloudevents+json' });
+  const ce = await http('POST', `${ep}/commands`, opts, auth, unknown('best-validate-ce'), { contentType: 'application/cloudevents+json' });
+  if (paced(S, ce)) return;
   if (ce.status === 415) record(S, LENIENT, `POST /commands refuses Content-Type application/cloudevents+json (415)`);
   else if ([400, 422].includes(ce.status) || (ce.status === 401 && !auth)) record(S, 'pass', 'POST /commands accepts Content-Type application/cloudevents+json');
 
-  const notFound = await http('GET', `${ep}/commands/best-validate-nonexistent/1.0`, opts, auth);
-  if (notFound.status === 404) record(S, 'pass', 'Unknown schema document → 404');
-  else record(S, 'warn', `Unknown schema document returned ${notFound.status || notFound.error} — expected 404`);
+  // A body over the limit: refused before it is read, so the answer says the limit instead of naming a field.
+  if (probe.status === 401 && !auth) return;
+  const big = await http('POST', `${ep}/commands`, opts, auth, unknown('best-validate-big', { padding: 'x'.repeat(OVERSIZED_BYTES) }));
+  if (paced(S, big)) return;
+  if (big.status === 413) {
+    const limit = asDict(asDict(asDict(big.json)?.error)?.details)?.limit_bytes;
+    if (typeof limit === 'number') record(S, 'pass', `POST /commands refuses a body over its limit with 413 and details.limit_bytes (${limit})`);
+    else record(S, LENIENT, 'POST /commands refuses a body over its limit with 413 but no details.limit_bytes — the answer states the largest body the endpoint accepts (specs/security.md)');
+  } else if ([400, 422].includes(big.status)) {
+    record(S, 'skip', `POST /commands read a body of ${OVERSIZED_BYTES >> 20} MiB as far as validation — its limit is larger, so its 413 answer was not seen`);
+  }
+}
+
+const OVERSIZED_BYTES = 1 << 20;
+
+/**
+ * A 429 says "not now", not "not there": the probes of that surface stop, and the answer is checked for the
+ * Retry-After that says when to send again (specs/security.md).
+ */
+function paced(section: string, res: Resp): boolean {
+  if (res.status !== 429) return false;
+  if (res.headers?.get('retry-after')) record(section, 'pass', 'POST /commands past the service\'s pace → 429 with Retry-After');
+  else record(section, LENIENT, 'POST /commands answered 429 without Retry-After — a command past the server\'s pace is answered with a Retry-After that says when to send again (specs/security.md)');
+  record(section, 'skip', 'The service rate-limited the command probes — the rest of them were not sent; run again later');
+  return true;
+}
+
+/** Whether a refusal names a field or parameter: the name, whole, anywhere in what is given (an error, or its details). */
+function names(value: unknown, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^A-Za-z0-9_-])${escaped}([^A-Za-z0-9_-]|$)`).test(JSON.stringify(value ?? ''));
+}
+
+/** A JSON Schema a service publishes, compiled on its own: a broken one is the caller's to report. */
+function compileLocal(schema: object): ValidateFunction {
+  const localAjv = new Ajv2020({ strict: false });
+  addFormats.default ? addFormats.default(localAjv) : (addFormats as unknown as (a: Ajv2020) => void)(localAjv);
+  return localAjv.compile(schema);
 }
 
 async function checkEvents(cap: Capability, ep: string, ctx: ProbeContext, opts: Options, ajv: Ajv2020): Promise<void> {
@@ -498,6 +584,14 @@ async function checkEvents(cap: Capability, ep: string, ctx: ProbeContext, opts:
       if (validate(first)) record(S, 'pass', 'First event validates as a BEST envelope');
       else record(S, 'warn', 'First event fails envelope validation', ajvErrors(validate));
     }
+  }
+
+  // A range bound in another form than RFC 3339 is refused, never read as no bound.
+  for (const bound of ['from', 'to']) {
+    const r = await http('GET', `${ep}/events?${bound}=yesterday`, opts, auth);
+    if (r.status === 400 && names(asDict(r.json)?.error, bound)) record(S, 'pass', `GET /events?${bound}=yesterday → 400 naming the parameter`);
+    else if (r.status === 400) record(S, LENIENT, `GET /events?${bound}=yesterday → 400 that does not name the parameter "${bound}" — a bound in another form than RFC 3339 is a 400 naming the parameter`);
+    else if (r.status === 200) record(S, LENIENT, `GET /events?${bound}=yesterday → 200 — a bound in another form than RFC 3339 is a 400 naming the parameter, never read as no bound`);
   }
 }
 
@@ -531,9 +625,7 @@ async function checkQueries(cap: Capability, ep: string, ctx: ProbeContext, opts
     const responseSchema = asDict(sRes.json)?.response;
     if (responseSchema) {
       try {
-        const localAjv = new Ajv2020({ strict: false });
-        addFormats.default ? addFormats.default(localAjv) : (addFormats as unknown as (a: Ajv2020) => void)(localAjv);
-        const v = localAjv.compile(responseSchema as object);
+        const v = compileLocal(responseSchema as object);
         if (v(xRes.json)) record(S, 'pass', 'Query result matches its declared response schema');
         else record(S, 'warn', 'Query result does not match its declared response schema', ajvErrors(v));
       } catch { record(S, 'warn', 'Declared response schema is not itself a compilable JSON Schema'); }
@@ -541,6 +633,35 @@ async function checkQueries(cap: Capability, ep: string, ctx: ProbeContext, opts
   } else if (xRes.status === 400) {
     record(S, 'pass', `GET /queries/${schema} → 400 (route exists; required parameters missing)`);
   } else record(S, 'fail', `GET /queries/${schema} returned ${xRes.status || xRes.error}`);
+
+  const parameters = asDict(asDict(sRes.json)?.parameters);
+  if (parameters) await checkParametersEnforced(S, `${ep}/queries/${schema}`, parameters, opts, auth);
+}
+
+/**
+ * The parameters schema governs what an execution accepts (Queries): one execution it refuses — a required parameter
+ * left out, an undeclared one where it says additionalProperties: false, or a value it does not admit — must be a
+ * 400 whose details name the parameter. Reads only.
+ */
+async function checkParametersEnforced(S: string, url: string, parameters: Dict, opts: Options, auth: AuthPlan | null): Promise<void> {
+  const required = Array.isArray(parameters.required) ? parameters.required.map(String) : [];
+  let probe: { query: string; name: string } | undefined;
+  if (required.length) probe = { query: '', name: required[0] };
+  else if (parameters.additionalProperties === false) probe = { query: 'best-validate-undeclared=1', name: 'best-validate-undeclared' };
+  else {
+    let admits: ValidateFunction | undefined;
+    try { admits = compileLocal(parameters); } catch { record(S, 'warn', 'Declared parameters schema is not itself a compilable JSON Schema'); return; }
+    for (const name of Object.keys(asDict(parameters.properties) ?? {})) {
+      const value = ['best validate?', '-1', '', 'x'.repeat(2048)].find(v => !admits!({ [name]: v }));
+      if (value !== undefined) { probe = { query: `${encodeURIComponent(name)}=${encodeURIComponent(value)}`, name }; break; }
+    }
+  }
+  if (!probe) { record(S, 'skip', `${url}: no execution its parameters schema refuses could be formed — its enforcement was not probed`); return; }
+  const r = await http('GET', probe.query ? `${url}?${probe.query}` : url, opts, auth);
+  const what = `GET ${new URL(url).pathname}${probe.query ? `?${probe.query}` : ''}`;
+  if (r.status === 400 && names(asDict(asDict(r.json)?.error)?.details, probe.name)) record(S, 'pass', `${what} → 400 whose details name the parameter`);
+  else if (r.status === 400) record(S, LENIENT, `${what} → 400 whose details do not name the parameter "${probe.name}" — a failure of the parameters schema is a 400 whose details name the parameter`);
+  else if (r.status === 200) record(S, LENIENT, `${what} → 200, but its parameters schema refuses it — the parameters schema governs what an execution accepts`);
 }
 
 
@@ -590,6 +711,8 @@ async function checkWorkflows(cap: Capability, ep: string, ctx: ProbeContext, op
 
   const index = (asDict(res.json)?.workflows ?? []) as Dict[];
   checkVocabulary(S, 'workflow', index.map(w => String(w.id ?? '')));
+  if (!index.length) { record(S, LENIENT, `${cap.name} is declared active but publishes no recipe — a workflows capability is active only while it publishes one, and planned with none`); return; }
+  record(S, 'pass', `Declared active and publishes ${index.length} recipe(s)`);
 
   const unresolved: string[] = [];
   const instructing: string[] = [];
@@ -902,6 +1025,7 @@ async function main(): Promise<void> {
   if (!root) { process.exitCode = report(opts); return; }
 
   const { workingRoot, probeable } = await checkTenancy(root, base, opts, ajv);
+  if (asDict(root.tenants)) await checkTenantsRoot(root, opts);
   const tenantRoot = workingRoot !== root ? workingRoot : undefined;
   const operations = new Map<string, Set<string>>();
 
@@ -917,6 +1041,7 @@ async function main(): Promise<void> {
   if (tenantRoot && probeable) await probeCapabilities(tenantRoot, 'tenant', opts, ajv, operations);
 
   await checkSingleEntry(base, opts, operations);
+  notChecked();
 
   process.exitCode = report(opts);
 }

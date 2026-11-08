@@ -2,16 +2,21 @@
  * Smoke test for best-validate: an in-process mock BEST service, run twice.
  *
  *   good — a 0.9.11 service that uses every new field correctly: a declared public surface,
- *          agent registration (RFC 8628), a tenant manifest, commandType, cloudevents+json.
- *          Expected: no failure and no warning.
+ *          agent registration (RFC 8628), a tenant manifest, commandType, cloudevents+json, a tenants root,
+ *          an /events range and a query's parameters enforced, a 413 that states its limit.
+ *          Expected: no failure and no warning, and the list of what is not checked.
  *   bad  — the divergences 0.9.11 was written against: a pseudo-tenant, a service described only in
  *          words, mechanics in descriptions, a recipe that instructs the client, a public command that
- *          asks for a minted secret, a second entry document. Expected: each one is reported.
+ *          asks for a minted secret, a second entry document; and a tenants root that answers a bare 404, an
+ *          /events range and a query parameter read as if absent, a 413 without its limit. Expected: each one is reported.
+ *   throttled — a good service that is busy: 429 on a recipe step, and 429 with Retry-After on its commands.
  *   unguided — a good service without the sign-in guidance (0.9.14): no authentication.note and a device
  *          answer without its note. Expected: both fail the run.
  *   tenantUnguided — a good root, and a tenant manifest that declares the same device flow without the note.
  *          Expected: the tenant manifest fails the run, and the shared endpoint is probed once.
- *   older — a service that declares 0.9.14 and carries 0.9.14's words: not failed for not having moved yet.
+ *   unpaced — a good service that answers its commands 429 without Retry-After. Expected: a warning, not a failure.
+ *   recipeless — a good service whose active workflows capability publishes no recipe. Expected: a warning.
+ *   older —a service that declares 0.9.14 and carries 0.9.14's words: not failed for not having moved yet.
  *   stale — a service that declares 0.9.15 and still carries 0.9.14's words: failed, and told which words to carry.
  *
  * Run: npm test   (builds first)
@@ -31,7 +36,10 @@ const TEXTS = JSON.parse(readFileSync(join(dirname(CLI), '..', 'schemas', 'disco
 const byVersion = v => TEXTS[v].properties;
 const CURRENT = Object.keys(TEXTS).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
 const wordsFor = mode => byVersion(mode === 'older' || mode === 'stale' ? '0.9.14' : CURRENT);
-const declares = mode => mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : CURRENT;
+const LIMIT_BYTES = 65536;
+const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const CURRENCY = /^[A-Z]{3}$/;
+const declares = mode =>mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : CURRENT;
 
 const cap = (kind, service, description, endpoints) => ({
   name: `io.best.agents.${kind}`, version: '0.9.11', service, description,
@@ -63,6 +71,7 @@ function manifests(mode, origin) {
       },
       capabilities: [
         cap('commands', 'com.example.info', 'Commands that need no account.', [{ method: 'GET', path: '/commands' }, { method: 'POST', path: '/commands' }]),
+        cap('events', 'com.example.info', 'What became of a callback.', [{ method: 'GET', path: '/events' }]),
         cap('queries', 'com.example.info', 'What a new account starts with.', [{ method: 'GET', path: '/queries' }]),
         cap('workflows', 'com.example.info', 'Published recipes.', [{ method: 'GET', path: '/workflows' }])
       ],
@@ -123,6 +132,13 @@ function serve(mode) {
           : json(400, { error: 'unsupported_grant_type' });
       }
 
+      // the tenants root (Multi-Tenancy rule 6): 401 without a credential, the credential's tenants with one; ('bad') a bare 404
+      if (path === '/tenants' && good) {
+        return authed
+          ? json(200, { tenants: [{ tenant_id: 'acme', endpoint: `${origin}/tenants/acme`, manifest: `${origin}/.well-known/best/acme` }] })
+          : error(401, 'NO_API_KEY', 'A credential is required');
+      }
+
       // surfaces
       const surfaces = [{ base: pub, isPublic: true }, { base: '/tenants/acme', isPublic: false }];
       const surface = surfaces.find(sf => path === sf.base || path.startsWith(sf.base + '/'));
@@ -146,13 +162,28 @@ function serve(mode) {
       }
       if (rest === '/commands' && req.method === 'POST') {
         const type = req.headers['content-type'] ?? '';
+        // past the pace: when to send again ('throttled'), or ('unpaced') not
+        if (mode === 'throttled' || mode === 'unpaced') { res.writeHead(429, { 'Content-Type': 'application/json', ...(mode === 'throttled' ? { 'Retry-After': '30' } : {}) }); return res.end(JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many commands' } })); }
+        if (raw.length > LIMIT_BYTES) return json(413, { error: { code: 'PAYLOAD_TOO_LARGE', message: 'The body is over the limit', ...(good ? { details: { limit_bytes: LIMIT_BYTES } } : {}) } });
         if (!good && type.includes('cloudevents')) return error(415, 'UNSUPPORTED_MEDIA_TYPE', 'application/json only');
         return error(400, 'UNKNOWN_COMMAND_TYPE', 'Unknown command type');
       }
       if (rest === '/queries' && req.method === 'GET') return json(200, { queries: [{ schema: 'get-starting-plan', version: '1.0', dataschema: `${here}/queries/get-starting-plan/1.0`, description: 'What a new account starts with.' }] });
-      if (rest === '/queries/get-starting-plan/1.0') return json(200, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'GetStartingPlan', type: 'object', properties: {}, response: { type: 'object', properties: { plan: { type: 'string' } }, required: ['plan'] } }, 'application/schema+json');
-      if (rest === '/queries/get-starting-plan') return json(200, { plan: 'free' });
-      if (rest === '/workflows' && req.method === 'GET') return json(200, { workflows: [{ id: good ? 'com.example.workflows.ask-for-a-callback' : 'com.example.workflows.sign-in', name: 'Example', description: 'An example recipe.' }] });
+      // a range bound in another form than RFC 3339: a 400 naming it, or ('bad') read as no bound
+      if (rest === '/events' && req.method === 'GET') {
+        const bound = ['from', 'to'].find(b => url.searchParams.has(b) && !RFC3339.test(url.searchParams.get(b)));
+        if (bound && good) return json(400, { error: { code: 'INVALID_PARAMETER', message: `${bound} is not an RFC 3339 timestamp`, details: { parameter: bound } } });
+        return json(200, { events: [] });
+      }
+      if (rest === '/queries/get-starting-plan/1.0') return json(200, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'GetStartingPlan', type: 'object', properties: {}, parameters: { type: 'object', properties: { currency: { type: 'string', pattern: CURRENCY.source } } }, response: { type: 'object', properties: { plan: { type: 'string' } }, required: ['plan'] } }, 'application/schema+json');
+      // the parameters schema enforced, or ('bad') a value it refuses answered as if it were not there
+      if (rest === '/queries/get-starting-plan') {
+        const currency = url.searchParams.get('currency');
+        if (good && currency !== null && !CURRENCY.test(currency)) return json(400, { error: { code: 'INVALID_PARAMETER', message: 'currency is three capital letters', details: { parameter: 'currency' } } });
+        return json(200, { plan: 'free' });
+      }
+      // an active workflows capability publishes a recipe, or ('recipeless') none
+      if (rest === '/workflows' && req.method === 'GET') return json(200, { workflows: mode === 'recipeless' ? [] : [{ id: good ? 'com.example.workflows.ask-for-a-callback' : 'com.example.workflows.sign-in', name: 'Example', description: 'An example recipe.' }] });
       if (rest.startsWith('/workflows/')) {
         return json(200, {
           id: decodeURIComponent(rest.slice('/workflows/'.length)), name: 'Example', description: 'An example recipe.',
@@ -191,9 +222,13 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const noisy = report.checks.filter(c => c.level === 'fail' || c.level === 'warn');
   expect(code === 0, `good: exit code ${code}`);
   expect(noisy.length === 0, `good: expected a clean report, got:\n${noisy.map(c => `  ${c.level} [${c.section}] ${c.message} ${c.detail ?? ''}`).join('\n')}`);
-  for (const needle of ['carries an ETag', 'public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'refuses a connection of another shape', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType']) {
+  for (const needle of ['carries an ETag', 'public surface', 'device_code is service-generated', 'authentication.note carries the sign-in guidance verbatim', 'device authorization answer carries the sign-in guidance verbatim', 'refuses a connection of another shape', 'tokenUrl answers a JSON body with invalid_request', 'deviceAuthorizationUrl answers a JSON body with invalid_request', 'declared with its capabilities by the tenant manifest', 'accepts Content-Type application/cloudevents+json', 'states its commandType',
+    'Tenants root of com.example.app answers 401', 'lists the tenants the credential opens', '/events?from=yesterday → 400 naming the parameter', '/events?to=yesterday → 400 naming the parameter',
+    '?currency=best%20validate%3F → 400 whose details name the parameter', '413 and details.limit_bytes (65536)', 'publishes 1 recipe']) {
     expect(report.checks.some(c => c.level === 'pass' && c.message.includes(needle)), `good: no passing check mentions "${needle}"`);
   }
+  for (const needle of ['Conformance item 12', '409 naming the id', 'request records', 'cleartext refused'])
+    expect(report.checks.some(c => c.level === 'skip' && c.section === 'not checked' && c.message.includes(needle)), `good: the report does not list "${needle}" as not checked`);
 }
 
 {
@@ -207,7 +242,8 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     'names catalogue operations', 'no authentication.deviceAuthorizationUrl', 'without credentials, but the governing',
     'does not resolve in the live catalogue', 'instructs the consumer', "named after the person's acts", 'no commandType',
     'internal routing members', 'mint or keep a secret', 'refuses Content-Type application/cloudevents+json', '/llms.txt restates',
-    'no ETag and Cache-Control: no-store'
+    'no ETag and Cache-Control: no-store', 'never a bare 404', 'never read as no bound', 'the parameters schema governs what an execution accepts',
+    '413 but no details.limit_bytes'
   ]) expect(said(needle), `bad: nothing reported "${needle}"`);
 }
 
@@ -217,7 +253,24 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   server.close();
   const failed = report.checks.filter(c => c.level === 'fail');
   expect(code === 0 && failed.length === 0, `throttled: a 429 on a recipe step was read as a failure (exit ${code}): ${failed.map(c => `${c.message} ${c.detail ?? ''}`).join('; ')}`);
-  expect(report.checks.some(c => c.level === 'skip' && c.message.includes('rate-limited')), 'throttled: the rate-limited walk was not reported as inconclusive');
+  expect(report.checks.some(c => c.level === 'skip' && c.message.includes('rate-limited the recipe walk')), 'throttled: the rate-limited walk was not reported as inconclusive');
+  expect(report.checks.some(c => c.level === 'pass' && c.message.includes('429 with Retry-After')), 'throttled: a 429 with Retry-After on POST /commands was not recognised');
+}
+
+{
+  const { server, origin } = await serve('unpaced');
+  const { code, report } = await run(origin, []);
+  server.close();
+  expect(code === 0, `unpaced: a rule reported as a warning must not fail the run (exit ${code})`);
+  expect(report.checks.some(c => c.level === 'warn' && c.message.includes('429 without Retry-After')), 'unpaced: a 429 without Retry-After was not reported');
+}
+
+{
+  const { server, origin } = await serve('recipeless');
+  const { code, report } = await run(origin, []);
+  server.close();
+  expect(code === 0, `recipeless: a rule reported as a warning must not fail the run (exit ${code})`);
+  expect(report.checks.some(c => c.level === 'warn' && c.message.includes('publishes no recipe')), 'recipeless: an active workflows capability with no recipe was not reported');
 }
 
 {
