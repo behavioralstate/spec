@@ -424,7 +424,7 @@ function notChecked(): void {
     'request records without credentials or query strings',
     'cleartext refused and never carrying a credential',
     'a forwarded command\'s body accepted whole',
-    'the 429 answer, unless the service rate-limits this run\'s commands'
+    ...(metPace ? [] : ['the 429 answer — the service did not rate-limit this run\'s commands'])
   ]) record(S, 'skip', what);
 }
 
@@ -528,7 +528,7 @@ async function checkCommands(cap: Capability, ep: string, ctx: ProbeContext, opt
     if (typeof limit === 'number') record(S, 'pass', `POST /commands refuses a body over its limit with 413 and details.limit_bytes (${limit})`);
     else record(S, LENIENT, 'POST /commands refuses a body over its limit with 413 but no details.limit_bytes — the answer states the largest body the endpoint accepts (specs/security.md)');
   } else if ([400, 422].includes(big.status)) {
-    record(S, 'skip', `POST /commands read a body of ${OVERSIZED_BYTES >> 20} MiB as far as validation — its limit is larger, so its 413 answer was not seen`);
+    record(S, 'skip', `POST /commands read this run's ${OVERSIZED_BYTES >> 20} MiB body as far as validation — a limit, if it has one, is larger, so its 413 answer was not seen (the size is the validator's, not the spec's)`);
   }
 }
 
@@ -538,18 +538,26 @@ const OVERSIZED_BYTES = 1 << 20;
  * A 429 says "not now", not "not there": the probes of that surface stop, and the answer is checked for the
  * Retry-After that says when to send again (specs/security.md).
  */
+let metPace = false;
 function paced(section: string, res: Resp): boolean {
   if (res.status !== 429) return false;
+  metPace = true;
   if (res.headers?.get('retry-after')) record(section, 'pass', 'POST /commands past the service\'s pace → 429 with Retry-After');
   else record(section, LENIENT, 'POST /commands answered 429 without Retry-After — a command past the server\'s pace is answered with a Retry-After that says when to send again (specs/security.md)');
   record(section, 'skip', 'The service rate-limited the command probes — the rest of them were not sent; run again later');
   return true;
 }
 
-/** Whether a refusal names a field or parameter: the name, whole, anywhere in what is given (an error, or its details). */
-function names(value: unknown, name: string): boolean {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^A-Za-z0-9_-])${escaped}([^A-Za-z0-9_-]|$)`).test(JSON.stringify(value ?? ''));
+/**
+ * Whether a BEST error names a field or parameter: as a member or a value of its details, or — where the rule asks only
+ * that the answer name it — quoted in its message. A bare word of the message is not naming: "from" and "to" are prose.
+ */
+function names(error: unknown, name: string, inMessage: boolean): boolean {
+  const stated = (v: unknown): boolean =>
+    v === name || (Array.isArray(v) ? v.some(stated) : Object.entries(asDict(v) ?? {}).some(([k, x]) => k === name || stated(x)));
+  const e = asDict(error);
+  const message = typeof e?.message === 'string' ? e.message : '';
+  return stated(e?.details) || (inMessage && [`'${name}'`, `"${name}"`, `\`${name}\``].some(q => message.includes(q)));
 }
 
 /** A JSON Schema a service publishes, compiled on its own: a broken one is the caller's to report. */
@@ -589,7 +597,7 @@ async function checkEvents(cap: Capability, ep: string, ctx: ProbeContext, opts:
   // A range bound in another form than RFC 3339 is refused, never read as no bound.
   for (const bound of ['from', 'to']) {
     const r = await http('GET', `${ep}/events?${bound}=yesterday`, opts, auth);
-    if (r.status === 400 && names(asDict(r.json)?.error, bound)) record(S, 'pass', `GET /events?${bound}=yesterday → 400 naming the parameter`);
+    if (r.status === 400 && names(asDict(r.json)?.error, bound, true)) record(S, 'pass', `GET /events?${bound}=yesterday → 400 naming the parameter`);
     else if (r.status === 400) record(S, LENIENT, `GET /events?${bound}=yesterday → 400 that does not name the parameter "${bound}" — a bound in another form than RFC 3339 is a 400 naming the parameter`);
     else if (r.status === 200) record(S, LENIENT, `GET /events?${bound}=yesterday → 200 — a bound in another form than RFC 3339 is a 400 naming the parameter, never read as no bound`);
   }
@@ -659,7 +667,7 @@ async function checkParametersEnforced(S: string, url: string, parameters: Dict,
   if (!probe) { record(S, 'skip', `${url}: no execution its parameters schema refuses could be formed — its enforcement was not probed`); return; }
   const r = await http('GET', probe.query ? `${url}?${probe.query}` : url, opts, auth);
   const what = `GET ${new URL(url).pathname}${probe.query ? `?${probe.query}` : ''}`;
-  if (r.status === 400 && names(asDict(asDict(r.json)?.error)?.details, probe.name)) record(S, 'pass', `${what} → 400 whose details name the parameter`);
+  if (r.status === 400 && names(asDict(r.json)?.error, probe.name, false)) record(S, 'pass', `${what} → 400 whose details name the parameter`);
   else if (r.status === 400) record(S, LENIENT, `${what} → 400 whose details do not name the parameter "${probe.name}" — a failure of the parameters schema is a 400 whose details name the parameter`);
   else if (r.status === 200) record(S, LENIENT, `${what} → 200, but its parameters schema refuses it — the parameters schema governs what an execution accepts`);
 }

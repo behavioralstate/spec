@@ -173,6 +173,8 @@ function serve(mode) {
       if (rest === '/events' && req.method === 'GET') {
         const bound = ['from', 'to'].find(b => url.searchParams.has(b) && !RFC3339.test(url.searchParams.get(b)));
         if (bound && good) return json(400, { error: { code: 'INVALID_PARAMETER', message: `${bound} is not an RFC 3339 timestamp`, details: { parameter: bound } } });
+        // ('bad') a refusal whose prose holds the word but names nothing
+        if (bound === 'to') return json(400, { error: { code: 'BAD_REQUEST', message: 'Invalid date, please try to use RFC 3339' } });
         return json(200, { events: [] });
       }
       if (rest === '/queries/get-starting-plan/1.0') return json(200, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'GetStartingPlan', type: 'object', properties: {}, parameters: { type: 'object', properties: { currency: { type: 'string', pattern: CURRENCY.source } } }, response: { type: 'object', properties: { plan: { type: 'string' } }, required: ['plan'] } }, 'application/schema+json');
@@ -227,7 +229,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     '?currency=best%20validate%3F → 400 whose details name the parameter', '413 and details.limit_bytes (65536)', 'publishes 1 recipe']) {
     expect(report.checks.some(c => c.level === 'pass' && c.message.includes(needle)), `good: no passing check mentions "${needle}"`);
   }
-  for (const needle of ['Conformance item 12', '409 naming the id', 'request records', 'cleartext refused'])
+  for (const needle of ['Conformance item 12', '409 naming the id', 'request records', 'cleartext refused', 'the 429 answer'])
     expect(report.checks.some(c => c.level === 'skip' && c.section === 'not checked' && c.message.includes(needle)), `good: the report does not list "${needle}" as not checked`);
 }
 
@@ -242,7 +244,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     'names catalogue operations', 'no authentication.deviceAuthorizationUrl', 'without credentials, but the governing',
     'does not resolve in the live catalogue', 'instructs the consumer', "named after the person's acts", 'no commandType',
     'internal routing members', 'mint or keep a secret', 'refuses Content-Type application/cloudevents+json', '/llms.txt restates',
-    'no ETag and Cache-Control: no-store', 'never a bare 404', 'never read as no bound', 'the parameters schema governs what an execution accepts',
+    'no ETag and Cache-Control: no-store', 'never a bare 404', 'from=yesterday → 200', 'to=yesterday → 400 that does not name the parameter "to"','the parameters schema governs what an execution accepts',
     '413 but no details.limit_bytes'
   ]) expect(said(needle), `bad: nothing reported "${needle}"`);
 }
@@ -255,6 +257,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(code === 0 && failed.length === 0, `throttled: a 429 on a recipe step was read as a failure (exit ${code}): ${failed.map(c => `${c.message} ${c.detail ?? ''}`).join('; ')}`);
   expect(report.checks.some(c => c.level === 'skip' && c.message.includes('rate-limited the recipe walk')), 'throttled: the rate-limited walk was not reported as inconclusive');
   expect(report.checks.some(c => c.level === 'pass' && c.message.includes('429 with Retry-After')), 'throttled: a 429 with Retry-After on POST /commands was not recognised');
+  expect(!report.checks.some(c => c.section === 'not checked' && c.message.includes('429')), 'throttled: the 429 answer was checked and still listed as not checked');
 }
 
 {
