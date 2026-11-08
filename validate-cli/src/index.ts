@@ -400,6 +400,9 @@ async function checkTenantsRoot(root: Dict, opts: Options): Promise<void> {
     if (anon.status === 401) record(S, 'pass', `Tenants root of ${key} answers 401 without a credential`);
     else record(S, LENIENT, `Tenants root of ${key} (${url}) answers ${anon.status || anon.error} without a credential — it answers the 401 a tenant endpoint gives, never a bare 404: a consumer that kept only its credential otherwise concludes it has no account`);
 
+    // As for the capability probes: --api-key is the credential of the manifest's own block, never sent to a service
+    // that declares another scheme for itself.
+    if (hasOwnAuth(key, root)) { record(S, 'skip', `Tenants root of ${key}: the service declares its own authentication, which --api-key does not open — the tenants a credential opens were not read`); continue; }
     const auth = buildAuthPlan(opts, governingAuth(key, root));
     if (!auth) { record(S, 'skip', `Tenants root of ${key}: no credential given — the tenants a credential opens were not read`); continue; }
     const res = await http('GET', url, opts, auth);
@@ -424,7 +427,8 @@ function notChecked(): void {
     'request records without credentials or query strings',
     'cleartext refused and never carrying a credential',
     'a forwarded command\'s body accepted whole',
-    ...(metPace ? [] : ['the 429 answer — the service did not rate-limit this run\'s commands'])
+    ...(seen.pace ? [] : ['the 429 answer — this run met none']),
+    ...(seen.oversized ? [] : ['the 413 answer — no oversized command of this run got an answer to judge'])
   ]) record(S, 'skip', what);
 }
 
@@ -523,6 +527,7 @@ async function checkCommands(cap: Capability, ep: string, ctx: ProbeContext, opt
   if (probe.status === 401 && !auth) return;
   const big = await http('POST', `${ep}/commands`, opts, auth, unknown('best-validate-big', { padding: 'x'.repeat(OVERSIZED_BYTES) }));
   if (paced(S, big)) return;
+  if ([400, 413, 422].includes(big.status)) seen.oversized = true;
   if (big.status === 413) {
     const limit = asDict(asDict(asDict(big.json)?.error)?.details)?.limit_bytes;
     if (typeof limit === 'number') record(S, 'pass', `POST /commands refuses a body over its limit with 413 and details.limit_bytes (${limit})`);
@@ -538,10 +543,12 @@ const OVERSIZED_BYTES = 1 << 20;
  * A 429 says "not now", not "not there": the probes of that surface stop, and the answer is checked for the
  * Retry-After that says when to send again (specs/security.md).
  */
-let metPace = false;
+/** What the run met that the not-checked list depends on. */
+const seen = { pace: false, oversized: false };
+
 function paced(section: string, res: Resp): boolean {
   if (res.status !== 429) return false;
-  metPace = true;
+  seen.pace = true;
   if (res.headers?.get('retry-after')) record(section, 'pass', 'POST /commands past the service\'s pace → 429 with Retry-After');
   else record(section, LENIENT, 'POST /commands answered 429 without Retry-After — a command past the server\'s pace is answered with a Retry-After that says when to send again (specs/security.md)');
   record(section, 'skip', 'The service rate-limited the command probes — the rest of them were not sent; run again later');
@@ -660,7 +667,7 @@ async function checkParametersEnforced(S: string, url: string, parameters: Dict,
     let admits: ValidateFunction | undefined;
     try { admits = compileLocal(parameters); } catch { record(S, 'warn', 'Declared parameters schema is not itself a compilable JSON Schema'); return; }
     for (const name of Object.keys(asDict(parameters.properties) ?? {})) {
-      const value = ['best validate?', '-1', '', 'x'.repeat(2048)].find(v => !admits!({ [name]: v }));
+      const value = ['best validate?', '-1', 'x'.repeat(2048)].find(v => !admits!({ [name]: v }));
       if (value !== undefined) { probe = { query: `${encodeURIComponent(name)}=${encodeURIComponent(value)}`, name }; break; }
     }
   }

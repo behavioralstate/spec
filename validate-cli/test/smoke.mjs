@@ -15,7 +15,8 @@
  *   tenantUnguided — a good root, and a tenant manifest that declares the same device flow without the note.
  *          Expected: the tenant manifest fails the run, and the shared endpoint is probed once.
  *   unpaced — a good service that answers its commands 429 without Retry-After. Expected: a warning, not a failure.
- *   recipeless — a good service whose active workflows capability publishes no recipe. Expected: a warning.
+ *   ownAuth — a good service that also announces a service under a scheme of its own. Expected: --api-key is not sent there.
+ *   recipeless —a good service whose active workflows capability publishes no recipe. Expected: a warning.
  *   older —a service that declares 0.9.14 and carries 0.9.14's words: not failed for not having moved yet.
  *   stale — a service that declares 0.9.15 and still carries 0.9.14's words: failed, and told which words to carry.
  *
@@ -67,7 +68,9 @@ function manifests(mode, origin) {
           ...(good ? { authentication: { type: 'none' } } : {}),
           http: { endpoint: publicEndpoint }
         },
-        ...(good ? {} : { 'com.example.shared': { version: '1.0.0', description: `Send Authorization: Bearer to ${origin}/shares/{shareId}.`, http: { endpoint: `${origin}/shares` } } })
+        // ('ownAuth') a service announced for its tenants under a scheme of its own, which --api-key does not open
+        ...(mode === 'ownAuth' ? { 'com.example.shares': { version: '1.0.0', description: 'Shared views.', authentication: { type: 'bearer' }, http: { endpoint: `${origin}/shares` } } } : {}),
+        ...(good ? {} : { 'com.example.shared':{ version: '1.0.0', description: `Send Authorization: Bearer to ${origin}/shares/{shareId}.`, http: { endpoint: `${origin}/shares` } } })
       },
       capabilities: [
         cap('commands', 'com.example.info', 'Commands that need no account.', [{ method: 'GET', path: '/commands' }, { method: 'POST', path: '/commands' }]),
@@ -138,6 +141,9 @@ function serve(mode) {
           ? json(200, { tenants: [{ tenant_id: 'acme', endpoint: `${origin}/tenants/acme`, manifest: `${origin}/.well-known/best/acme` }] })
           : error(401, 'NO_API_KEY', 'A credential is required');
       }
+
+      // a key sent where it was not issued would read as a tenants root that lists nothing
+      if (path === '/shares' && mode === 'ownAuth') return req.headers.authorization ? json(200, {}) : error(401, 'NO_TOKEN', 'A share token is required');
 
       // surfaces
       const surfaces = [{ base: pub, isPublic: true }, { base: '/tenants/acme', isPublic: false }];
@@ -258,6 +264,16 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(report.checks.some(c => c.level === 'skip' && c.message.includes('rate-limited the recipe walk')), 'throttled: the rate-limited walk was not reported as inconclusive');
   expect(report.checks.some(c => c.level === 'pass' && c.message.includes('429 with Retry-After')), 'throttled: a 429 with Retry-After on POST /commands was not recognised');
   expect(!report.checks.some(c => c.section === 'not checked' && c.message.includes('429')), 'throttled: the 429 answer was checked and still listed as not checked');
+  expect(report.checks.some(c => c.section === 'not checked' && c.message.includes('the 413 answer')), 'throttled: the oversized command was never sent, and the 413 answer is not listed as not checked');
+}
+
+{
+  const { server, origin } = await serve('ownAuth');
+  const { report } = await run(origin, ['--api-key', KEY]);
+  server.close();
+  const shares = report.checks.filter(c => c.message.includes('Tenants root of com.example.shares'));
+  expect(!shares.some(c => c.level === 'warn' || c.level === 'fail'), `ownAuth: --api-key was sent to a service with its own authentication: ${shares.map(c => c.message).join('; ')}`);
+  expect(shares.some(c => c.level === 'skip' && c.message.includes('declares its own authentication')), 'ownAuth: the credentialed read of a service with its own authentication was not reported as skipped');
 }
 
 {
