@@ -225,7 +225,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
   server.close();
   const warned = what => report.checks.some(c => c.level === 'warn' && c.message.includes(`${what} answered a JSON body with 415 and an empty body`));
-  expect(code === 0, `bare415: a staged rule must not fail the run yet (exit ${code})`);
+  expect(code === 0, `bare415: a rule reported as a warning must not fail the run (exit ${code})`);
   expect(warned('tokenUrl') && warned('deviceAuthorizationUrl'), `bare415: a bare 415 to a JSON body was not reported: ${report.checks.filter(c => c.section === 'registration').map(c => `${c.level} ${c.message}`).join('; ')}`);
 }
 

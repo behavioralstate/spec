@@ -9,7 +9,7 @@
  *
  * From 0.9.11 it also checks Manifest Discipline (the manifest stays structure),
  * access declared versus access served, agent registration (RFC 8628) and the
- * single entry. Some of the rules it checks are reported as warnings (STAGED).
+ * single entry. Some of the rules it checks are reported as warnings (LENIENT).
  *
  * A plain run never writes anything: the only POSTs issued are a command with an
  * intentionally unknown type, which a conformant endpoint rejects before queuing,
@@ -105,7 +105,7 @@ const NS = 'io.best.';
 const MODE_LABEL = 'BEST 0.9.17';
 
 // The rules best-validate reports as warnings rather than failures.
-const STAGED: Level = 'warn';
+const LENIENT: Level = 'warn';
 const DESCRIPTION_LIMIT = 500;
 const PSEUDO_TENANTS = ['public', 'default', 'anonymous'];
 
@@ -347,7 +347,7 @@ async function checkTenancy(root: Dict, base: string, opts: Options, ajv: Ajv202
     [`${NS}agents.commands`, `${NS}agents.events`, `${NS}agents.queries`, `${NS}agents.workflows`].includes(c.name));
   const unscoped = rootCaps.filter(c => !hasOwnAuth(serviceKeyFor(c, root), root));
   if (unscoped.length) {
-    record(S, STAGED, `Root manifest of a multi-tenant host declares capabilities on a service with no authentication block of its own: ${[...new Set(unscoped.map(c => serviceKeyFor(c, root) ?? c.name))].join(', ')} — a root-level surface declares its own authentication ("type": "none" when public); tenant-scoped capabilities belong in tenant manifests only`);
+    record(S, LENIENT, `Root manifest of a multi-tenant host declares capabilities on a service with no authentication block of its own: ${[...new Set(unscoped.map(c => serviceKeyFor(c, root) ?? c.name))].join(', ')} — a root-level surface declares its own authentication ("type": "none" when public); tenant-scoped capabilities belong in tenant manifests only`);
   } else record(S, 'pass', rootCaps.length ? 'Root capabilities sit on services that declare their own authentication' : 'Root manifest declares no tenant-scoped capabilities');
 
   if (!opts.tenant) {
@@ -465,7 +465,7 @@ async function checkCommands(cap: Capability, ep: string, ctx: ProbeContext, opt
     dataschema: `${ep}/commands/best-validate-nonexistent/1.0`,
     time: new Date().toISOString(), data: {}
   }, { contentType: 'application/cloudevents+json' });
-  if (ce.status === 415) record(S, STAGED, `POST /commands refuses Content-Type application/cloudevents+json (415)`);
+  if (ce.status === 415) record(S, LENIENT, `POST /commands refuses Content-Type application/cloudevents+json (415)`);
   else if ([400, 422].includes(ce.status) || (ce.status === 401 && !auth)) record(S, 'pass', 'POST /commands accepts Content-Type application/cloudevents+json');
 
   const notFound = await http('GET', `${ep}/commands/best-validate-nonexistent/1.0`, opts, auth);
@@ -642,7 +642,7 @@ async function checkAccess(kind: string, ep: string, ctx: ProbeContext, opts: Op
     else if (res.status === 200) record(S, 'pass', `${ctx.serviceKey}: public surface, GET ${path} → 200 without credentials`);
   } else if (ctx.authDeclared && res.status === 200 && kind !== 'events' && !undeclaredPublic.has(ctx.serviceKey)) {
     undeclaredPublic.add(ctx.serviceKey);
-    record(S, STAGED, `${ctx.serviceKey}: GET ${path} → 200 without credentials, but the governing authentication block requires one — declare the service's own authentication ("type": "none" for a public surface)`);
+    record(S, LENIENT, `${ctx.serviceKey}: GET ${path} → 200 without credentials, but the governing authentication block requires one — declare the service's own authentication ("type": "none" for a public surface)`);
   }
 }
 
@@ -676,11 +676,11 @@ function checkDiscipline(root: Dict, label: string, tenantRoot: Dict | undefined
   const orphans = Object.keys(services).filter(k => !referenced.has(k));
   if (!orphans.length) record(S, 'pass', 'Every declared service is the implementing service of a capability');
   for (const k of orphans) {
-    if (!isRouterRoot) { record(S, STAGED, `Service ${k} is referenced by no capability — it exists only as a description`); continue; }
+    if (!isRouterRoot) { record(S, LENIENT, `Service ${k} is referenced by no capability — it exists only as a description`); continue; }
     if (!tenantFetched || !tenantRoot) { record(S, 'warn', `Service ${k} has no capability in this multi-tenant root — cannot confirm without --tenant that its tenant manifests declare it`); continue; }
     const tRef = new Set(capabilities(tenantRoot).map(c => serviceKeyFor(c, tenantRoot)).filter(Boolean) as string[]);
     if (tRef.has(k)) record(S, 'pass', `Service ${k}: announced by the root, declared with its capabilities by the tenant manifest`);
-    else record(S, STAGED, `Service ${k} has no capability in the root and none in the tenant manifest — it exists only as a description`);
+    else record(S, LENIENT, `Service ${k} has no capability in the root and none in the tenant manifest — it exists only as a description`);
   }
 
   // Rule 4 — no placeholders in structure.
@@ -692,7 +692,7 @@ function checkDiscipline(root: Dict, label: string, tenantRoot: Dict | undefined
     else if (asDict(v)) for (const [k, x] of Object.entries(v as Dict)) walk(x, path ? `${path}.${k}` : k);
   };
   walk(root, '');
-  if (templated.length) record(S, STAGED, `URI templates outside tenants.manifest (${templated.length})`, templated.slice(0, 3).join('; '));
+  if (templated.length) record(S, LENIENT, `URI templates outside tenants.manifest (${templated.length})`, templated.slice(0, 3).join('; '));
   else record(S, 'pass', 'No URI template outside tenants.manifest');
 
   const pseudo: string[] = [];
@@ -706,17 +706,17 @@ function checkDiscipline(root: Dict, label: string, tenantRoot: Dict | undefined
     });
     if (PSEUDO_TENANTS.includes(last) && (siblingBase || /\/tenants\//i.test(ep))) pseudo.push(`${k} → ${ep}`);
   }
-  if (pseudo.length) record(S, STAGED, `Surface hosted under a constant pseudo-tenant: ${pseudo.join('; ')} — a tenant ID names a real scope; declare a root-level service with its own authentication`);
+  if (pseudo.length) record(S, LENIENT, `Surface hosted under a constant pseudo-tenant: ${pseudo.join('; ')} — a tenant ID names a real scope; declare a root-level service with its own authentication`);
 
   // Rules 1 and 2 — descriptions carry meaning, never mechanics, and stay short.
   let clean = true;
   for (const d of describedThings(root)) {
-    if (d.text.length > DESCRIPTION_LIMIT) { clean = false; record(S, STAGED, `${d.where}: description is ${d.text.length} characters — the limit is ${DESCRIPTION_LIMIT}`); }
+    if (d.text.length > DESCRIPTION_LIMIT) { clean = false; record(S, LENIENT, `${d.where}: description is ${d.text.length} characters — the limit is ${DESCRIPTION_LIMIT}`); }
     const found: string[] = [];
     if (URL_IN_TEXT.test(d.text)) found.push('a URL');
     if (TEMPLATE_IN_TEXT.test(d.text)) found.push('a URI template');
     if (CREDENTIAL_IN_TEXT.test(d.text)) found.push('a header name or credential format');
-    if (found.length) { clean = false; record(S, STAGED, `${d.where}: description carries mechanics (${found.join(', ')}) — each has a structural home`); }
+    if (found.length) { clean = false; record(S, LENIENT, `${d.where}: description carries mechanics (${found.join(', ')}) — each has a structural home`); }
   }
   if (clean) record(S, 'pass', `Descriptions are within ${DESCRIPTION_LIMIT} characters and carry no URLs, templates or credential formats`);
 }
@@ -729,7 +729,7 @@ function checkDescriptionsAgainstCatalogues(root: Dict, label: string, operation
   if (!all.size) return;
   for (const d of describedThings(root)) {
     const hits = [...all].filter(n => new RegExp(`(^|[^a-z0-9-])${n}([^a-z0-9-]|$)`, 'i').test(d.text));
-    if (hits.length) record(S, STAGED, `${d.where}: description names catalogue operations (${hits.slice(0, 6).join(', ')}) — operations are discovered from the catalogues`);
+    if (hits.length) record(S, LENIENT, `${d.where}: description names catalogue operations (${hits.slice(0, 6).join(', ')}) — operations are discovered from the catalogues`);
   }
 }
 
@@ -817,7 +817,7 @@ function checkNotFormEncoded(section: string, what: string, res: Resp): void {
   if (res.status === 400 && error === 'invalid_request') {
     record(section, 'pass', `${what} answers a JSON body with invalid_request${asDict(res.json)?.error_description ? ' and says why' : ''}`);
   } else {
-    record(section, STAGED, `${what} answered a JSON body with ${res.status || res.error}${error ? ` ${error}` : res.text ? '' : ' and an empty body'} — expected 400 invalid_request with a JSON error (RFC 6749 §5.2)`);
+    record(section, LENIENT, `${what} answered a JSON body with ${res.status || res.error}${error ? ` ${error}` : res.text ? '' : ' and an empty body'} — expected 400 invalid_request with a JSON error (RFC 6749 §5.2)`);
   }
 }
 
@@ -832,7 +832,7 @@ async function checkSingleEntry(base: string, opts: Options, operations: Map<str
   const names: string[] = [];
   operations.forEach(set => set.forEach(n => { if (n.includes('-') && res.text.includes(n)) names.push(n); }));
   if (/\/commands\b|\/queries\b|\/workflows\b/.test(res.text) || names.length) {
-    record(S, STAGED, `/llms.txt restates the BEST surface (${names.slice(0, 5).join(', ') || 'endpoint paths'}) — the manifest is the only entry; a copy drifts`);
+    record(S, LENIENT, `/llms.txt restates the BEST surface (${names.slice(0, 5).join(', ') || 'endpoint paths'}) — the manifest is the only entry; a copy drifts`);
   } else record(S, 'pass', '/llms.txt is present and only points — it restates no operations');
 }
 

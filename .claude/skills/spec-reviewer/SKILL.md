@@ -71,7 +71,7 @@ allows, a crash, a credential shown.
 - **In the spec text**: a sentence that contradicts another part of the spec, a schema or an example; a rule stated
   in one place and left as it was in another that states it too (the agent navigation guide, the walkthroughs in
   `specs/`, the conformance list); a case the change raises and leaves unanswered; a `must` an existing service could
-  fail with no *Required from* version, or one missing from `SPEC.md`'s Conformance section; a rule cited to a section that
+  fail missing from `SPEC.md`'s Conformance section; a rule cited to a section that
   does not say it on this branch; a broken link or anchor (a link from `specs/` to `SPEC.md` must be the absolute
   GitHub URL); a page in `specs/` restating a section it takes with a `**From SPEC.md:**` line.
 - **In the schemas and examples**: a schema that no longer matches the text that describes it; an example it

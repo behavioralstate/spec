@@ -57,9 +57,8 @@
   `**From SPEC.md:** [Name](<the section's URL>)`, where the website's build puts the section's text, and beside it only
   what the section does not say. A line naming a section `SPEC.md` does not have, or a link to a heading it does not
   have, fails the build and so the gate.
-- **A new obligation is dated and listed.** A `must` that an existing service could fail says the version it is
-  required from (*Required from x.y.z*), and `SPEC.md`'s Conformance section lists it, in its list and in the sentence
-  that names what that version makes required, so an implementor and the validator find it there.
+- **A new obligation is listed.** A `must` that an existing service could fail is listed in `SPEC.md`'s Conformance
+  section, so an implementor and the validator find it there. It names no future version: releases are patches.
 - Facts are events; an event is versioned, never mutated; a redelivery is idempotent; nothing is clamped silently. A
   refusal says what to send.
 - **A schema moves with its examples and its prose.** A change to `protocol/v1/schemas` changes the examples it
@@ -123,7 +122,7 @@
   - The commits these scripts make hold nothing but the version (and, for the specification, the README's table of
     the documents at that version), and are the ones that skip the gates. A release
     gathers every change since the previous one, and is a patch: the minor or the major goes up only when the owner
-    asks for it. A *Required from* version in the spec text dates when an obligation binds; it plans no release.
+    asks for it.
   - The one exception is the legacy `@behavioralstate/bsp-mcp` 1.x line, kept on a branch cut from `mcp/v1.7.1`
     for deployments still pinned to it: its fixes are committed on that branch and released by a tag made by hand,
     as the README says, since `release-mcp.sh` would publish best-mcp from `main`. That branch predates the gate
