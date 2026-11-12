@@ -270,8 +270,9 @@
 		signIn = null;
 		manualCredential = false;
 		// A credential that runs out is forgotten then, so the page never claims a sign-in it lost
+		// (setTimeout holds at most 2^31-1 ms, about 24.8 days: a longer life outlasts the page)
 		const lifetime = Number(answer.expires_in);
-		if (lifetime > 0) {
+		if (lifetime > 0 && lifetime * 1000 <= 2 ** 31 - 1) {
 			expiryTimer = setTimeout(() => {
 				credential = '';
 				signedIn = null;
@@ -379,15 +380,20 @@
 			const json = await res.json();
 			const unwrapped = unwrapManifest(json);
 			assertManifest(unwrapped);
-			// After any redirect, the manifest's final host is the canonical endpoint host
-			manifestHost = new URL(res.url || `${base}/.well-known/best`).host;
+			// After any redirect, the manifest's final URL is the canonical manifest and its host
+			// the canonical endpoint host: the base follows it, so a capability called at the
+			// base goes to the host the credential is kept for.
+			const finalUrl = new URL(res.url || `${base}/.well-known/best`);
+			manifestHost = finalUrl.host;
+			const finalBase = `${finalUrl.origin}${finalUrl.pathname.replace(/\/\.well-known\/best\/?$/, '')}`;
+			if (finalBase !== base) baseUrl = finalBase;
 			rootManifest = unwrapped;
 			manifest = unwrapped;
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
 			activePath = '/.well-known/best';
-			activeEndpointBase = base;
+			activeEndpointBase = finalBase;
 			activeDescription = 'Discovery manifest';
 			syncQueryString();
 
