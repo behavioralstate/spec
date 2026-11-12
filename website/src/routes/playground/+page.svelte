@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	let baseUrl = $state('');
 	let discovering = $state(false);
@@ -8,6 +8,8 @@
 	// Root (global) manifest, kept when a tenant manifest replaces `manifest`
 	// so the tenant strip stays available for switching tenants.
 	let rootManifest = $state(null);
+	// True while `manifest` is a tenant manifest rather than the root one
+	let onTenantManifest = $state(false);
 
 	let activeMethod = $state('');
 	let activePath = $state('');
@@ -31,6 +33,16 @@
 	let tenantDiscovering = $state(false);
 	let tenantError = $state('');
 
+	// Sign-in by the device flow (RFC 8628; SPEC.md, Agent Registration). The credential
+	// lives in `credential`, in this page's memory only: it is never shown, logged or put
+	// in the address bar, and the token answer that carries it is never displayed.
+	let signIn = $state(null); // while waiting: { userCode, link, expiresAt }
+	let signInError = $state('');
+	let signedIn = $state(null); // after approval: { name, tenantId, header }
+	let manualCredential = $state(false);
+	let pollTimer = null;
+	let signInRun = 0;
+
 	// Path parameters extracted from the active path template, e.g. { tenantId: '' }
 	let pathParams = $state({});
 
@@ -50,6 +62,27 @@
 	// Tenant discovery template advertised by the root manifest
 	let tenantTemplate = $derived(rootManifest?.tenants?.manifest ?? null);
 	let needsTenant = $derived(tenantTemplate !== null);
+
+	// Sign-in is declared on the root manifest's authentication block
+	let rootAuth = $derived(rootManifest?.authentication ?? null);
+	let canSignIn = $derived(!!(rootAuth?.deviceAuthorizationUrl && rootAuth?.tokenUrl));
+	let showCredentialInput = $derived(!signedIn && (manualCredential || !canSignIn));
+	let showTenantInput = $derived(
+		needsTenant && (signedIn ? !signedIn.tenantId : manualCredential || !canSignIn)
+	);
+
+	// Each service with the capabilities that belong to it, so a capability is read
+	// under its service and two services' same-named capabilities are told apart.
+	let groupedServices = $derived(
+		serviceEntries.map(([id, svc]) => ({
+			id,
+			svc,
+			caps: capabilities.filter((cap) => capServiceKey(cap) === id)
+		}))
+	);
+	let ungroupedCaps = $derived(
+		capabilities.filter((cap) => !serviceEntries.some(([id]) => id === capServiceKey(cap)))
+	);
 
 	// Active path with {param} tokens replaced by user-supplied values
 	let resolvedPath = $derived(
@@ -76,7 +109,12 @@
 	// Build the Authorization / API-key header value from the declared scheme and the
 	// credential the user typed. Returns an object to spread into fetch headers.
 	function authHeaders() {
-		if (!needsAuth || !credential) return {};
+		if (!credential) return {};
+		// A credential from the device flow goes in the header its token answer named
+		if (signedIn) {
+			return signedIn.header ? { [signedIn.header]: credential } : { Authorization: `Bearer ${credential}` };
+		}
+		if (!needsAuth) return {};
 		if (auth.type === 'bearer') {
 			const scheme = auth.scheme ?? 'Bearer';
 			return { Authorization: `${scheme} ${credential}` };
@@ -95,16 +133,133 @@
 	// Use cap.service, or the service whose key prefixes the capability's name when the
 	// field is absent (SPEC.md, Agent Navigation Guide), to look up its http.endpoint.
 	// Fall back to the URL-bar value if neither names a service with an endpoint.
-	function resolveEndpointBase(cap) {
-		const services = manifest?.services ?? {};
-		const key =
+	function capServiceKey(cap) {
+		const services = manifest?.services && !Array.isArray(manifest.services) ? manifest.services : {};
+		return (
 			cap?.service ??
 			Object.keys(services)
 				.filter((k) => cap?.name === k || cap?.name?.startsWith(`${k}.`))
-				.sort((a, b) => b.length - a.length)[0];
-		const endpoint = key ? services[key]?.http?.endpoint : null;
+				.sort((a, b) => b.length - a.length)[0]
+		);
+	}
+
+	function resolveEndpointBase(cap) {
+		const key = capServiceKey(cap);
+		const endpoint = key ? manifest?.services?.[key]?.http?.endpoint : null;
 		return endpoint ? endpoint.replace(/\/+$/, '') : normalizedBase;
 	}
+
+	// How a service is reached: public, by the platform's sign-in, or by a credential
+	// of its own kind (a share's token) that the root sign-in does not give.
+	function serviceAccess(svc) {
+		const own = svc?.authentication;
+		const type = (own ?? manifest?.authentication)?.type;
+		if (!type || type === 'none') return { label: 'public', kind: 'public' };
+		if (own && manifest?.authentication && own.type !== manifest.authentication.type) {
+			return { label: own.type === 'bearer' ? 'own token' : own.type, kind: 'other' };
+		}
+		return { label: 'sign-in', kind: 'signin' };
+	}
+
+	async function postForm(url, fields) {
+		const res = await fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+			body: new URLSearchParams(fields)
+		});
+		const json = await res.json().catch(() => ({}));
+		return { res, json };
+	}
+
+	function stopSignIn() {
+		signInRun++;
+		clearTimeout(pollTimer);
+		pollTimer = null;
+		signIn = null;
+	}
+
+	async function startSignIn() {
+		stopSignIn();
+		signInError = '';
+		const run = signInRun;
+		try {
+			const { res, json } = await postForm(rootAuth.deviceAuthorizationUrl, {
+				client_id: 'best-playground',
+				agent_label: 'The BEST Playground in this browser',
+				credential_lifetime: 'session'
+			});
+			if (run !== signInRun) return;
+			if (!res.ok || !json.device_code) {
+				throw new Error(json.error_description ?? json.error ?? `HTTP ${res.status}`);
+			}
+			signIn = {
+				userCode: json.user_code ?? '',
+				link: json.verification_uri_complete ?? json.verification_uri,
+				expiresAt: Date.now() + (json.expires_in ?? 900) * 1000
+			};
+			// The device code is a secret until redeemed: it stays in this closure.
+			pollToken(run, json.device_code, Math.max(1, Number(json.interval) || 5));
+		} catch (e) {
+			if (run === signInRun) signInError = `Sign-in could not start: ${e.message}`;
+		}
+	}
+
+	function pollToken(run, deviceCode, interval) {
+		pollTimer = setTimeout(async () => {
+			if (run !== signInRun || !signIn) return;
+			if (Date.now() > signIn.expiresAt) {
+				signInError = 'The code expired before it was approved. Sign in again.';
+				signIn = null;
+				return;
+			}
+			try {
+				const { res, json } = await postForm(rootAuth.tokenUrl, {
+					grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+					device_code: deviceCode,
+					client_id: 'best-playground'
+				});
+				if (run !== signInRun) return;
+				if (res.ok && json.access_token) return await finishSignIn(json);
+				if (json.error === 'authorization_pending') return pollToken(run, deviceCode, interval);
+				if (json.error === 'slow_down') return pollToken(run, deviceCode, interval + 5);
+				throw new Error(
+					json.error === 'access_denied'
+						? 'The sign-in was refused.'
+						: json.error === 'expired_token'
+							? 'The code expired before it was approved. Sign in again.'
+							: (json.error_description ?? json.error ?? `HTTP ${res.status}`)
+				);
+			} catch (e) {
+				if (run !== signInRun) return;
+				signInError = e.message;
+				signIn = null;
+			}
+		}, interval * 1000);
+	}
+
+	async function finishSignIn(answer) {
+		const bearer = String(answer.token_type ?? '').toLowerCase() === 'bearer';
+		credential = answer.access_token;
+		signedIn = {
+			name: answer.name ?? '',
+			tenantId: answer.tenant_id ?? '',
+			header: answer.auth_header ?? (bearer ? null : (rootAuth?.scheme ?? 'X-Api-Key'))
+		};
+		signIn = null;
+		manualCredential = false;
+		if (signedIn.tenantId && tenantTemplate) {
+			tenantId = signedIn.tenantId;
+			await loadTenantManifest();
+		}
+	}
+
+	// Signing out forgets the credential and starts again from the root manifest.
+	// The credential itself is not revoked: a session credential runs out on its own.
+	function signOut() {
+		discover();
+	}
+
+	onDestroy(stopSignIn);
 
 	// Accept both the canonical lowercase "best" envelope and the legacy
 	// uppercase "BEST" casing emitted by pre-erratum implementations.
@@ -143,6 +298,7 @@
 			const unwrapped = unwrapManifest(json);
 			assertManifest(unwrapped);
 			manifest = unwrapped;
+			onTenantManifest = true;
 			responseText = JSON.stringify(json, null, 2);
 			responseStatus = res.status;
 			activeMethod = 'GET';
@@ -162,6 +318,7 @@
 		discoverError = '';
 		manifest = null;
 		rootManifest = null;
+		onTenantManifest = false;
 		responseText = '';
 		responseStatus = null;
 		responseError = '';
@@ -173,6 +330,10 @@
 		credential = '';
 		tenantId = '';
 		tenantError = '';
+		stopSignIn();
+		signedIn = null;
+		signInError = '';
+		manualCredential = false;
 		try {
 			// Accept a bare base URL, a full /.well-known/best URL, or a tenant
 			// manifest URL (/.well-known/best/{tenantId}) pasted straight in.
@@ -330,8 +491,8 @@
 		return 'status-warn';
 	}
 
-	function isActive(method, path) {
-		return activeMethod === method && activePath === path;
+	function isActive(method, path, base) {
+		return activeMethod === method && activePath === path && activeEndpointBase === base;
 	}
 
 	function statusLabel(s) {
@@ -388,8 +549,36 @@
 
 	<!-- Main panel (only shown after manifest is loaded) -->
 	{#if manifest}
-		<!-- Auth strip — shown when the manifest declares non-public authentication -->
-		{#if needsAuth}
+		<!-- Sign-in strip — the device flow where the manifest declares it -->
+		{#if canSignIn || signedIn}
+			<div class="signin-strip">
+				{#if signedIn}
+					<span class="signin-label">
+						Signed in{#if signedIn.name}&nbsp;as <strong>{signedIn.name}</strong>{/if}{#if signedIn.tenantId}&nbsp;· tenant <code>{signedIn.tenantId}</code>{/if}
+					</span>
+					<span class="signin-hint">The credential stays in this page’s memory and is never shown.</span>
+					<button class="btn-quiet" onclick={signOut}>Sign out</button>
+				{:else if signIn}
+					<span class="signin-label">Open this link in your own browser, sign in and approve:</span>
+					<a class="signin-link" href={signIn.link} target="_blank" rel="noopener">{signIn.link}</a>
+					<button class="btn-quiet" onclick={() => navigator.clipboard?.writeText(signIn.link)}>Copy link</button>
+					{#if signIn.userCode}<span class="signin-code">Code <code>{signIn.userCode}</code></span>{/if}
+					<span class="signin-hint">Keep this page open: it collects the credential once you approve.</span>
+					<span class="signin-hint"><span class="spinner small"></span> Waiting for approval…</span>
+					<button class="btn-quiet" onclick={stopSignIn}>Cancel</button>
+				{:else}
+					<button class="btn-discover" onclick={startSignIn}>Sign in</button>
+					<span class="signin-hint">by the device flow (RFC 8628): you approve in your own browser, and the playground is given its own credential.</span>
+					{#if !manualCredential}
+						<button class="btn-link" onclick={() => (manualCredential = true)}>Use a credential you already hold</button>
+					{/if}
+					{#if signInError}<span class="auth-warning">{signInError}</span>{/if}
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Credential strip — pasting a credential, where there is no sign-in or the person asked for it -->
+		{#if needsAuth && showCredentialInput}
 			<div class="auth-strip">
 				<span class="auth-label">
 					{#if auth.type === 'apiKey'}API key{:else if auth.type === 'bearer' || auth.type === 'oauth2'}Bearer token{:else}Credential{/if}
@@ -415,7 +604,7 @@
 			</div>
 		{/if}
 
-		{#if needsTenant}
+		{#if showTenantInput}
 			<div class="auth-strip">
 				<span class="auth-label">Tenant ID required</span>
 				<input
@@ -441,18 +630,10 @@
 		<div class="playground-body">
 			<!-- Left: capabilities tree -->
 			<aside class="tree-panel">
-				<div class="tree-section-label">Capabilities</div>
-
-				{#if capabilities.length === 0 && !tenantTemplate}
-					<div class="no-capabilities">
-						<p>No capabilities declared in this manifest.</p>
-					</div>
-				{/if}
-
-				{#each capabilities as cap}
+				{#snippet capGroup(cap)}
 					{@const capBase = resolveEndpointBase(cap)}
 					<details class="cap-group" open>
-						<summary class="cap-name">
+						<summary class="cap-name" title={cap.description ?? ''}>
 							{cap.name.replace('io.best.', '')}
 							{#if cap.status && cap.status !== 'full'}<span class="cap-badge">{cap.status}</span>{/if}
 						</summary>
@@ -462,7 +643,7 @@
 						{#if cap.endpoints && cap.endpoints.length > 0}
 							{#each cap.endpoints as ep}
 								<button
-									class="endpoint-row {isActive(ep.method, ep.path) ? 'active' : ''}"
+									class="endpoint-row {isActive(ep.method, ep.path, capBase) ? 'active' : ''}"
 									onclick={() => selectEndpoint(ep.method, ep.path, ep.description ?? cap.description, capBase)}
 								>
 									<span class="method-badge {methodClass(ep.method)}">{ep.method}</span>
@@ -473,16 +654,49 @@
 							<p class="no-endpoints">No endpoints declared</p>
 						{/if}
 					</details>
-				{/each}
+				{/snippet}
 
 				{#if serviceEntries.length > 0}
-					<div class="tree-section-label" style="margin-top: 1.5rem;">Services ({serviceEntries.length})</div>
-					{#each serviceEntries as [id, svc]}
-						<div class="service-row" title={svc.description ?? ''}>
-							<span class="svc-name">{id}</span>
-							{#if svc.version}<span class="svc-status">v{svc.version}</span>{/if}
+					<div class="tree-section-label">Services ({serviceEntries.length})</div>
+					{#each groupedServices as group}
+						{@const access = serviceAccess(group.svc)}
+						<div class="svc-group">
+							<div class="svc-head">
+								<span class="svc-name">{group.id}</span>
+								<span class="svc-access access-{access.kind}">{access.label}</span>
+							</div>
+							{#if group.svc.description}
+								<p class="svc-desc" title={group.svc.description}>{group.svc.description}</p>
+							{/if}
+							{#each group.caps as cap}
+								{@render capGroup(cap)}
+							{/each}
+							{#if group.caps.length === 0}
+								<p class="no-endpoints">
+									{#if tenantTemplate && !onTenantManifest && access.kind === 'signin'}
+										Its capabilities are in the account’s manifest, after sign-in.
+									{:else}
+										No capabilities in this manifest.
+									{/if}
+								</p>
+							{/if}
 						</div>
 					{/each}
+				{/if}
+
+				{#if ungroupedCaps.length > 0}
+					<div class="tree-section-label" style={serviceEntries.length > 0 ? 'margin-top: 1.5rem;' : ''}>
+						{serviceEntries.length > 0 ? 'Other capabilities' : 'Capabilities'}
+					</div>
+					{#each ungroupedCaps as cap}
+						{@render capGroup(cap)}
+					{/each}
+				{/if}
+
+				{#if capabilities.length === 0 && serviceEntries.length === 0 && !tenantTemplate}
+					<div class="no-capabilities">
+						<p>No capabilities declared in this manifest.</p>
+					</div>
 				{/if}
 
 				{#if agents.length > 0}
@@ -916,7 +1130,60 @@
 	.method-patch  { color: #fb923c; background: rgba(251, 146, 60, 0.1); }
 	.method-other  { color: var(--color-text-muted); background: rgba(255,255,255,0.06); }
 
-	/* Services */
+	/* Services, each with its capabilities */
+	.svc-group {
+		margin-bottom: 1.25rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.svc-group:last-of-type {
+		border-bottom: none;
+	}
+
+	.svc-head {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.2rem 0.25rem;
+	}
+
+	.svc-head .svc-name {
+		font-family: 'Fira Code', monospace;
+		font-size: 0.75rem;
+		font-weight: 600;
+		word-break: break-all;
+		min-width: 0;
+	}
+
+	.svc-access {
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 0.1em 0.45em;
+		border-radius: 0.25rem;
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.access-public { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+	.access-signin { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+	.access-other  { color: #c4b5fd; background: rgba(196, 181, 253, 0.1); }
+
+	.svc-desc {
+		margin: 0.15rem 0 0.4rem;
+		padding: 0 0.25rem;
+		font-size: 0.75rem;
+		line-height: 1.45;
+		color: var(--color-text-muted);
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
 	.service-row {
 		display: flex;
 		align-items: center;
@@ -1183,6 +1450,73 @@
 
 	.param-input:focus {
 		border-color: #60a5fa;
+	}
+
+	/* Sign-in strip */
+	.signin-strip {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+		padding: 0.75rem 1.5rem;
+		background: rgba(96, 165, 250, 0.06);
+		border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+		font-size: 0.8125rem;
+	}
+
+	.signin-label {
+		color: var(--color-text);
+		font-weight: 600;
+	}
+
+	.signin-label code,
+	.signin-code code {
+		font-family: 'Fira Code', monospace;
+		font-weight: 500;
+		background: rgba(255, 255, 255, 0.07);
+		padding: 0.1em 0.35em;
+		border-radius: 0.25rem;
+	}
+
+	.signin-link {
+		color: #60a5fa;
+		font-family: 'Fira Code', monospace;
+		font-size: 0.8125rem;
+		word-break: break-all;
+	}
+
+	.signin-code {
+		color: var(--color-text);
+	}
+
+	.signin-hint {
+		color: var(--color-text-muted);
+		font-size: 0.75rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.btn-quiet,
+	.btn-link {
+		background: none;
+		border: 1px solid var(--color-border);
+		color: var(--color-text-muted);
+		border-radius: 0.375rem;
+		padding: 0.3rem 0.75rem;
+		font-size: 0.75rem;
+		cursor: pointer;
+	}
+
+	.btn-link {
+		border: none;
+		padding: 0;
+		text-decoration: underline;
+	}
+
+	.btn-quiet:hover,
+	.btn-link:hover {
+		color: var(--color-text);
 	}
 
 	/* Auth strip */
