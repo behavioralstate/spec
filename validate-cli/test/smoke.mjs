@@ -19,6 +19,8 @@
  *   recipeless —a good service whose active workflows capability publishes no recipe. Expected: a warning.
  *   older —a service that declares 0.9.14 and carries 0.9.14's words: not failed for not having moved yet.
  *   stale — a service that declares 0.9.15 and still carries 0.9.14's words: failed, and told which words to carry.
+ *   unversioned — a good service whose services and capabilities carry no version of their own (optional since #327):
+ *          both manifests validate against discovery.json, and nothing fails.
  *
  * Run: npm test   (builds first)
  */
@@ -90,6 +92,11 @@ function manifests(mode, origin) {
       capabilities: [cap('commands', 'com.example.app', 'Everything an account can do.', [{ method: 'GET', path: '/commands' }, { method: 'POST', path: '/commands' }])]
     }
   };
+  if (mode === 'unversioned')
+    for (const m of [root, tenant]) {
+      for (const service of Object.values(m.best.services)) delete service.version;
+      for (const capability of m.best.capabilities) delete capability.version;
+    }
   return { root, tenant, publicEndpoint };
 }
 
@@ -339,6 +346,16 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
   expect(code === 1, `stale: a 0.9.15 service with 0.9.14's words must fail (exit ${code})`);
   expect(failed.some(m => m.includes('authentication.note carries the 0.9.14 sign-in guidance, but the manifest declares 0.9.15')), `stale: the manifest note was not failed as stale: ${failed.join('; ')}`);
   expect(failed.some(m => m.includes('device authorization answer carries the 0.9.14 sign-in guidance')), `stale: the device note was not failed as stale: ${failed.join('; ')}`);
+}
+
+{
+  const { server, origin } = await serve('unversioned');
+  const { code, report } = await run(origin, ['--tenant', 'acme', '--api-key', KEY, '--probe-registration']);
+  server.close();
+  const failed = report.checks.filter(c => c.level === 'fail');
+  expect(code === 0 && failed.length === 0, `unversioned: a service and a capability without a version of their own must not fail (exit ${code}): ${failed.map(c => `${c.message} ${c.detail ?? ''}`).join('; ')}`);
+  const valid = report.checks.filter(c => c.level === 'pass' && /validates against discovery\.json/.test(c.message));
+  expect(valid.length === 2, `unversioned: the root and the tenant manifest did not both validate against discovery.json: ${valid.map(c => c.message).join('; ')}`);
 }
 
 if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
