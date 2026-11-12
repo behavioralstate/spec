@@ -385,7 +385,14 @@
 			// base goes to the host the credential is kept for.
 			const finalUrl = new URL(res.url || `${base}/.well-known/best`);
 			manifestHost = finalUrl.host;
-			const finalBase = `${finalUrl.origin}${finalUrl.pathname.replace(/\/\.well-known\/best\/?$/, '')}`;
+			// A final URL at /.well-known/best gives the base by its prefix; any other keeps the
+			// typed base, moved to the final origin when the redirect left the typed one.
+			const wellKnown = finalUrl.pathname.match(/^(.*)\/\.well-known\/best\/?$/);
+			const finalBase = wellKnown
+				? `${finalUrl.origin}${wellKnown[1]}`
+				: new URL(base).origin === finalUrl.origin
+					? base
+					: finalUrl.origin;
 			if (finalBase !== base) baseUrl = finalBase;
 			rootManifest = unwrapped;
 			manifest = unwrapped;
