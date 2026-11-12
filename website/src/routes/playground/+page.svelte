@@ -41,7 +41,12 @@
 	let signedIn = $state(null); // after approval: { name, tenantId, header }
 	let manualCredential = $state(false);
 	let pollTimer = null;
+	let expiryTimer = null;
 	let signInRun = 0;
+	// The host the root manifest was read from: the only host a credential goes to
+	let manifestHost = $state('');
+	// How the service of the selected endpoint is reached (see serviceAccess)
+	let activeAccessKind = $state('signin');
 
 	// Path parameters extracted from the active path template, e.g. { tenantId: '' }
 	let pathParams = $state({});
@@ -108,8 +113,17 @@
 
 	// Build the Authorization / API-key header value from the declared scheme and the
 	// credential the user typed. Returns an object to spread into fetch headers.
-	function authHeaders() {
+	// A credential is sent only to the host the manifest was read from (SPEC.md, Name
+	// Resolution), never to a public service, and one from the sign-in never to a
+	// service that declares a credential of its own kind.
+	function authHeaders(url, accessKind = 'signin') {
 		if (!credential) return {};
+		try {
+			if (new URL(url).host !== manifestHost) return {};
+		} catch {
+			return {};
+		}
+		if (accessKind === 'public' || (signedIn && accessKind !== 'signin')) return {};
 		// A credential from the device flow goes in the header its token answer named
 		if (signedIn) {
 			return signedIn.header ? { [signedIn.header]: credential } : { Authorization: `Bearer ${credential}` };
@@ -153,9 +167,10 @@
 	// of its own kind (a share's token) that the root sign-in does not give.
 	function serviceAccess(svc) {
 		const own = svc?.authentication;
-		const type = (own ?? manifest?.authentication)?.type;
+		const root = rootAuth ?? manifest?.authentication;
+		const type = (own ?? root)?.type;
 		if (!type || type === 'none') return { label: 'public', kind: 'public' };
-		if (own && manifest?.authentication && own.type !== manifest.authentication.type) {
+		if (own && root && (own.type !== root.type || (own.scheme ?? '') !== (root.scheme ?? ''))) {
 			return { label: own.type === 'bearer' ? 'own token' : own.type, kind: 'other' };
 		}
 		return { label: 'sign-in', kind: 'signin' };
@@ -174,7 +189,9 @@
 	function stopSignIn() {
 		signInRun++;
 		clearTimeout(pollTimer);
+		clearTimeout(expiryTimer);
 		pollTimer = null;
+		expiryTimer = null;
 		signIn = null;
 	}
 
@@ -192,9 +209,14 @@
 			if (!res.ok || !json.device_code) {
 				throw new Error(json.error_description ?? json.error ?? `HTTP ${res.status}`);
 			}
+			// The link is the service's word: only an http(s) one is shown to be opened
+			const link = json.verification_uri_complete ?? json.verification_uri ?? '';
+			if (!/^https?:\/\//i.test(link)) {
+				throw new Error('the service answered no http(s) link to approve at');
+			}
 			signIn = {
 				userCode: json.user_code ?? '',
-				link: json.verification_uri_complete ?? json.verification_uri,
+				link,
 				expiresAt: Date.now() + (json.expires_in ?? 900) * 1000
 			};
 			// The device code is a secret until redeemed: it stays in this closure.
@@ -247,6 +269,15 @@
 		};
 		signIn = null;
 		manualCredential = false;
+		// A credential that runs out is forgotten then, so the page never claims a sign-in it lost
+		const lifetime = Number(answer.expires_in);
+		if (lifetime > 0) {
+			expiryTimer = setTimeout(() => {
+				credential = '';
+				signedIn = null;
+				signInError = 'The credential ran out. Sign in again.';
+			}, lifetime * 1000);
+		}
 		if (signedIn.tenantId && tenantTemplate) {
 			tenantId = signedIn.tenantId;
 			await loadTenantManifest();
@@ -291,7 +322,7 @@
 		try {
 			const url = tenantTemplate.replace('{tenantId}', encodeURIComponent(tenantId));
 			const res = await fetch(url, {
-				headers: { Accept: 'application/json', ...authHeaders() }
+				headers: { Accept: 'application/json', ...authHeaders(url) }
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 			const json = await res.json();
@@ -334,6 +365,7 @@
 		signedIn = null;
 		signInError = '';
 		manualCredential = false;
+		manifestHost = '';
 		try {
 			// Accept a bare base URL, a full /.well-known/best URL, or a tenant
 			// manifest URL (/.well-known/best/{tenantId}) pasted straight in.
@@ -347,6 +379,8 @@
 			const json = await res.json();
 			const unwrapped = unwrapManifest(json);
 			assertManifest(unwrapped);
+			// After any redirect, the manifest's final host is the canonical endpoint host
+			manifestHost = new URL(res.url || `${base}/.well-known/best`).host;
 			rootManifest = unwrapped;
 			manifest = unwrapped;
 			responseText = JSON.stringify(json, null, 2);
@@ -378,10 +412,11 @@
 		discover();
 	});
 
-	async function selectEndpoint(method, path, description, endpointBase) {
+	async function selectEndpoint(method, path, description, endpointBase, accessKind = 'signin') {
 		activeMethod = method;
 		activePath = path;
 		activeEndpointBase = endpointBase ?? normalizedBase;
+		activeAccessKind = accessKind;
 		activeDescription = description;
 		responseText = '';
 		responseStatus = null;
@@ -407,8 +442,9 @@
 
 	async function loadCommandCatalogue() {
 		try {
-			const res = await fetch(`${activeEndpointBase}${resolvedPath.replace(/\/commands.*/, '/commands')}`, {
-				headers: { Accept: 'application/json', ...authHeaders() }
+			const url = `${activeEndpointBase}${resolvedPath.replace(/\/commands.*/, '/commands')}`;
+			const res = await fetch(url, {
+				headers: { Accept: 'application/json', ...authHeaders(url, activeAccessKind) }
 			});
 			if (!res.ok) return;
 			const json = await res.json();
@@ -453,12 +489,13 @@
 		responseStatus = null;
 		responseError = '';
 		try {
+			const url = `${activeEndpointBase}${resolvedPath}`;
 			const opts = {
 				method: activeMethod,
-				headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() }
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders(url, activeAccessKind) }
 			};
 			if (activeMethod !== 'GET' && requestBody) opts.body = requestBody;
-			const res = await fetch(`${activeEndpointBase}${resolvedPath}`, opts);
+			const res = await fetch(url, opts);
 			responseStatus = res.status;
 			const text = await res.text();
 			try {
@@ -558,6 +595,10 @@
 					</span>
 					<span class="signin-hint">The credential stays in this page’s memory and is never shown.</span>
 					<button class="btn-quiet" onclick={signOut}>Sign out</button>
+					{#if tenantError}
+						<span class="auth-warning">The account’s manifest could not be read: {tenantError}</span>
+						<button class="btn-quiet" onclick={loadTenantManifest} disabled={tenantDiscovering}>Try again</button>
+					{/if}
 				{:else if signIn}
 					<span class="signin-label">Open this link in your own browser, sign in and approve:</span>
 					<a class="signin-link" href={signIn.link} target="_blank" rel="noopener">{signIn.link}</a>
@@ -632,6 +673,8 @@
 			<aside class="tree-panel">
 				{#snippet capGroup(cap)}
 					{@const capBase = resolveEndpointBase(cap)}
+					{@const capKey = capServiceKey(cap)}
+					{@const capAccess = capKey ? serviceAccess(manifest?.services?.[capKey]).kind : 'signin'}
 					<details class="cap-group" open>
 						<summary class="cap-name" title={cap.description ?? ''}>
 							{cap.name.replace('io.best.', '')}
@@ -644,7 +687,7 @@
 							{#each cap.endpoints as ep}
 								<button
 									class="endpoint-row {isActive(ep.method, ep.path, capBase) ? 'active' : ''}"
-									onclick={() => selectEndpoint(ep.method, ep.path, ep.description ?? cap.description, capBase)}
+									onclick={() => selectEndpoint(ep.method, ep.path, ep.description ?? cap.description, capBase, capAccess)}
 								>
 									<span class="method-badge {methodClass(ep.method)}">{ep.method}</span>
 									<span class="ep-path">{ep.path}</span>
