@@ -14,7 +14,6 @@
     },
     "services": {
       "io.best.agents": {
-        "version": "{{BEST_VERSION}}",
         "description": "Platform-level routing for the multi-tenant host",
         "spec": "https://behavioralstate.io/specs/agents",
         "http": {

@@ -12,7 +12,6 @@
     },
     "services": {
       "io.best.agents": {
-        "version": "{{BEST_VERSION}}",
         "description": "Agent management, event delivery, command observation",
         "spec": "https://behavioralstate.io/specs/agents",
         "http": {
@@ -35,7 +34,6 @@
     "capabilities": [
       {
         "name": "io.best.agents.events",
-        "version": "{{BEST_VERSION}}",
         "service": "io.best.agents",
         "description": "List and query events, and stream them",
         "spec": "https://behavioralstate.io/specs/agents/events",
@@ -54,7 +52,6 @@
       },
       {
         "name": "io.best.agents.commands",
-        "version": "{{BEST_VERSION}}",
         "service": "io.best.agents",
         "description": "Discover command types this service accepts and send commands",
         "spec": "https://behavioralstate.io/specs/agents/commands",
@@ -67,7 +64,6 @@
       },
       {
         "name": "io.best.agents.workflows",
-        "version": "{{BEST_VERSION}}",
         "service": "io.best.agents",
         "description": "Published multi-step recipes — read-only; the caller drives every step",
         "spec": "https://behavioralstate.io/specs/agents/workflows",

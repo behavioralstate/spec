@@ -8,24 +8,19 @@ Versions follow the [semver.org](https://semver.org) rules.
 
 The release version is the git tag — `v{{BEST_VERSION}}`, `v1.0.0`, etc. This is the version implementers and consumers reference in documentation, dependency declarations, and compatibility checks.
 
-The version string (without the `v` prefix) appears in:
-- The `/.well-known/best` manifest root — `best.version`
-- Each service definition — `services["io.best.*"].version`
-- Each capability definition — `capabilities[*].version`
+The version string (without the `v` prefix) appears at the `/.well-known/best` manifest root, `best.version`: the version of this specification the manifest follows, and the one version a consumer reads.
 
 ```json
 {
   "best": {
     "version": "{{BEST_VERSION}}",
-    "services": {
-      "io.best.agents": { "version": "{{BEST_VERSION}}", "..." : "..." }
-    },
-    "capabilities": [
-      { "name": "io.best.agents.commands", "version": "{{BEST_VERSION}}", "..." : "..." }
-    ]
+    "services": { "...": "..." },
+    "capabilities": [ "..." ]
   }
 }
 ```
+
+A service or a capability may carry a `version` of its own. No consumer behaviour depends on it, so a server can leave it out, and a consumer accepts a manifest either way.
 
 On a `MAJOR` bump, consumers should review the changelog.
 

@@ -154,7 +154,6 @@ GET /.well-known/best
     "version": "{{BEST_VERSION}}",
     "services": {
       "io.best.agents": {
-        "version": "{{BEST_VERSION}}",
         "http": {
           "openapi": "https://behavioralstate.io/v1/services/agents/openapi.json",
           "endpoint": "https://your-service.example.com/"
@@ -162,9 +161,9 @@ GET /.well-known/best
       }
     },
     "capabilities": [
-      { "name": "io.best.agents.events",   "version": "{{BEST_VERSION}}" },
-      { "name": "io.best.agents.commands", "version": "{{BEST_VERSION}}" },
-      { "name": "io.best.agents.queries",  "version": "{{BEST_VERSION}}" }
+      { "name": "io.best.agents.events" },
+      { "name": "io.best.agents.commands" },
+      { "name": "io.best.agents.queries" }
     ]
   }
 }

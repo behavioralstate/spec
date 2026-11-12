@@ -116,11 +116,11 @@
     "service": {
       "type": "object",
       "description": "A top-level service domain the runtime supports.",
-      "required": ["version", "description"],
+      "required": ["description"],
       "properties": {
         "version": {
           "type": "string",
-          "description": "Service version (semver).",
+          "description": "Optional service version (semver). No consumer behaviour depends on it; best.version is the version a consumer reads.",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
         "description": {
@@ -147,7 +147,7 @@
     "capability": {
       "type": "object",
       "description": "A composable capability within a service.",
-      "required": ["name", "version", "description"],
+      "required": ["name", "description"],
       "if": {
         "properties": {
           "name": { "pattern": "^io\\.best\\." }
@@ -165,7 +165,7 @@
         },
         "version": {
           "type": "string",
-          "description": "Capability version (semver).",
+          "description": "Optional capability version (semver). No consumer behaviour depends on it; best.version is the version a consumer reads.",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
         "description": {

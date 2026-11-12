@@ -322,7 +322,7 @@ The same texts are published in [`discovery.json`](protocol/v1/schemas/discovery
 
 ### Services and Transport Bindings
 
-Each entry in `services` declares `version` and `description` (required), optional `spec` URL, an optional `authentication` block of its own, and one or more transport bindings:
+Each entry in `services` declares `description` (required), an optional `version` (semver, see [Versioning](#versioning)), optional `spec` URL, an optional `authentication` block of its own, and one or more transport bindings:
 
 | Binding | Required fields | Notes |
 |---|---|---|
@@ -337,13 +337,11 @@ Multiple transports expose the **same capability surface** — they are alternat
 "authentication": { "type": "apiKey", "scheme": "X-Api-Key", "in": "header" },
 "services": {
   "com.example.catalogue": {
-    "version": "1.0.0",
     "description": "The public product catalogue.",
     "authentication": { "type": "none" },
     "http": { "endpoint": "https://api.example.com/catalogue" }
   },
   "com.example.shared": {
-    "version": "1.0.0",
     "description": "Read-only view of a project shared by link.",
     "authentication": { "type": "bearer", "scheme": "Bearer" },
     "http": { "endpoint": "https://api.example.com/shared" }
@@ -358,7 +356,7 @@ A surface is an ordinary service with ordinary capabilities: what it offers is d
 | Field | Required | Description |
 |---|---|---|
 | `name` | yes | Reverse-domain capability name. `io.best.*` is reserved for the spec; custom capabilities use an implementer-owned prefix (`com.acme.inventory`). |
-| `version` | yes | Semver |
+| `version` | no | Semver, see [Versioning](#versioning) |
 | `description` | yes | Human-readable summary |
 | `spec` | io.best.* only | URL to the capability specification page (optional for custom capabilities) |
 | `schema` | io.best.* only | URL to the capability's **JSON Schema** (not OpenAPI) |
@@ -874,7 +872,7 @@ Compliance does **not** require: any specific language, framework, or architectu
 
 ## Versioning
 
-Semantic versioning (`MAJOR.MINOR.PATCH`). The version string appears at the manifest root, on each service, and on each capability; capabilities may carry different versions in one manifest.
+Semantic versioning (`MAJOR.MINOR.PATCH`). The version string appears at the manifest root, `best.version`: the version of this specification the manifest follows, and the one version a consumer reads. A service or a capability **may** carry a `version` of its own; no consumer behaviour depends on it, so a server can leave it out, and a consumer must accept a manifest either way.
 
 | Change | Bump |
 |---|---|
