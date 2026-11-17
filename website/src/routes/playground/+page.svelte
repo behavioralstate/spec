@@ -894,6 +894,17 @@
 
 <style>
 	.playground-shell {
+		/* Light, as the home page and the docs are */
+		--color-bg: #ffffff;
+		--color-bg-secondary: #f7f7fc;
+		--color-bg-card: #f1f2f8;
+		--color-border: #e2e4f0;
+		--color-text: #1e1e3f;
+		--color-text-muted: #6b6b8a;
+		--color-accent: #4f46e5;
+		--color-accent-hover: #4338ca;
+		background: #ffffff;
+		color: var(--color-text);
 		min-height: calc(100vh - var(--nav-height));
 		display: flex;
 		flex-direction: column;
@@ -988,20 +999,20 @@
 	.error-banner {
 		background: rgba(239, 68, 68, 0.1);
 		border: 1px solid rgba(239, 68, 68, 0.3);
-		color: #fca5a5;
+		color: #b91c1c;
 		border-radius: 0.5rem;
 		padding: 0.75rem 1rem;
 		font-size: 0.875rem;
 	}
 
 	.cors-hint {
-		color: #fca5a5;
+		color: #b91c1c;
 		opacity: 0.85;
 	}
 
 	.cors-hint code {
 		font-family: monospace;
-		background: rgba(255,255,255,0.08);
+		background: rgba(30, 30, 63, 0.08);
 		padding: 0.1em 0.3em;
 		border-radius: 0.25rem;
 	}
@@ -1058,7 +1069,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: #facc15;
+		color: #a16207;
 		background: rgba(250, 204, 21, 0.12);
 		padding: 0.1em 0.45em;
 		border-radius: 0.25rem;
@@ -1105,7 +1116,7 @@
 	}
 
 	.endpoint-row:hover {
-		background: rgba(255, 255, 255, 0.04);
+		background: rgba(30, 30, 63, 0.04);
 		color: var(--color-text);
 	}
 
@@ -1153,7 +1164,7 @@
 	.no-capabilities code {
 		font-family: 'Fira Code', monospace;
 		font-size: 0.75rem;
-		background: rgba(255, 255, 255, 0.07);
+		background: rgba(30, 30, 63, 0.07);
 		padding: 0.1em 0.3em;
 		border-radius: 0.25rem;
 	}
@@ -1179,12 +1190,12 @@
 		line-height: 1.6;
 	}
 
-	.method-get    { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
-	.method-post   { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
-	.method-delete { color: #f87171; background: rgba(248, 113, 113, 0.1); }
-	.method-put    { color: #facc15; background: rgba(250, 204, 21, 0.1); }
-	.method-patch  { color: #fb923c; background: rgba(251, 146, 60, 0.1); }
-	.method-other  { color: var(--color-text-muted); background: rgba(255,255,255,0.06); }
+	.method-get    { color: #15803d; background: rgba(74, 222, 128, 0.1); }
+	.method-post   { color: #1d4ed8; background: rgba(96, 165, 250, 0.1); }
+	.method-delete { color: #b91c1c; background: rgba(248, 113, 113, 0.1); }
+	.method-put    { color: #a16207; background: rgba(250, 204, 21, 0.1); }
+	.method-patch  { color: #c2410c; background: rgba(251, 146, 60, 0.1); }
+	.method-other  { color: var(--color-text-muted); background: rgba(30, 30, 63, 0.06); }
 
 	/* Services, each with its capabilities */
 	.svc-group {
@@ -1223,9 +1234,9 @@
 		flex-shrink: 0;
 	}
 
-	.access-public { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
-	.access-signin { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
-	.access-other  { color: #c4b5fd; background: rgba(196, 181, 253, 0.1); }
+	.access-public { color: #15803d; background: rgba(74, 222, 128, 0.1); }
+	.access-signin { color: #1d4ed8; background: rgba(96, 165, 250, 0.1); }
+	.access-other  { color: #6d28d9; background: rgba(196, 181, 253, 0.1); }
 
 	.svc-desc {
 		margin: 0.15rem 0 0.4rem;
@@ -1254,8 +1265,8 @@
 		border-radius: 50%;
 		flex-shrink: 0;
 	}
-	.dot-running { background: #4ade80; }
-	.dot-paused  { background: #facc15; }
+	.dot-running { background: #16a34a; }
+	.dot-paused  { background: #ca8a04; }
 	.dot-stopped { background: #6b7280; }
 
 	.svc-name { color: var(--color-text); flex: 1; }
@@ -1297,9 +1308,9 @@
 		padding: 0.15em 0.5em;
 		border-radius: 0.25rem;
 	}
-	.status-ok    { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
-	.status-error { color: #f87171; background: rgba(248, 113, 113, 0.1); }
-	.status-warn  { color: #facc15; background: rgba(250, 204, 21, 0.1); }
+	.status-ok    { color: #15803d; background: rgba(74, 222, 128, 0.1); }
+	.status-error { color: #b91c1c; background: rgba(248, 113, 113, 0.1); }
+	.status-warn  { color: #a16207; background: rgba(250, 204, 21, 0.1); }
 
 	/* Command form */
 	.command-form {
@@ -1426,7 +1437,7 @@
 
 	.empty-landing code {
 		font-family: monospace;
-		background: rgba(255,255,255,0.06);
+		background: rgba(30, 30, 63, 0.06);
 		padding: 0.15em 0.4em;
 		border-radius: 0.25rem;
 	}
@@ -1485,7 +1496,7 @@
 	.param-name {
 		font-family: 'Fira Code', monospace;
 		font-size: 0.8125rem;
-		color: #60a5fa;
+		color: #1d4ed8;
 		min-width: 10rem;
 		flex-shrink: 0;
 	}
@@ -1505,7 +1516,7 @@
 	}
 
 	.param-input:focus {
-		border-color: #60a5fa;
+		border-color: #1d4ed8;
 	}
 
 	/* Sign-in strip */
@@ -1529,13 +1540,13 @@
 	.signin-code code {
 		font-family: 'Fira Code', monospace;
 		font-weight: 500;
-		background: rgba(255, 255, 255, 0.07);
+		background: rgba(30, 30, 63, 0.07);
 		padding: 0.1em 0.35em;
 		border-radius: 0.25rem;
 	}
 
 	.signin-link {
-		color: #60a5fa;
+		color: #1d4ed8;
 		font-family: 'Fira Code', monospace;
 		font-size: 0.8125rem;
 		word-break: break-all;
@@ -1588,7 +1599,7 @@
 	}
 
 	.auth-label {
-		color: #fbbf24;
+		color: #b45309;
 		font-weight: 600;
 		white-space: nowrap;
 	}
@@ -1614,11 +1625,11 @@
 	}
 
 	.auth-input:focus {
-		border-color: #fbbf24;
+		border-color: #b45309;
 	}
 
 	.auth-docs-link {
-		color: #fbbf24;
+		color: #b45309;
 		font-size: 0.75rem;
 		text-decoration: none;
 		white-space: nowrap;
@@ -1628,7 +1639,7 @@
 	.auth-docs-link:hover { opacity: 1; }
 
 	.auth-warning {
-		color: #fbbf24;
+		color: #b45309;
 		opacity: 0.65;
 		font-size: 0.75rem;
 	}

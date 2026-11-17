@@ -2,7 +2,6 @@
 	import Logo from '$lib/components/Logo.svelte';
 
 	const navItems = [
-		{ label: 'Features', href: '/#features' },
 		{ label: 'Docs', href: '/specs' },
 		{ label: 'Roadmap', href: '/roadmap' },
 		{ label: 'Playground', href: '/playground' }

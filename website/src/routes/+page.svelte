@@ -1,261 +1,406 @@
 <script>
-	import Hero from '$lib/components/Hero.svelte';
-	import FeatureCard from '$lib/components/FeatureCard.svelte';
-	import CodeBlock from '$lib/components/CodeBlock.svelte';
-
 	// injected at build time from version.json via vite.config.ts define
 	const bestVersion = __BEST_VERSION__;
+
+	const gitTag = import.meta.env.VITE_GIT_TAG;
+	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
+	const shaMatch = gitTag ? gitTag.match(/-g([0-9a-f]+)$/) : null;
+	const tagUrl = isCleanTag
+		? `https://github.com/behavioralstate/spec/releases/tag/${gitTag}`
+		: shaMatch
+			? `https://github.com/behavioralstate/spec/commit/${shaMatch[1]}`
+			: null;
+
+	const draft = 'https://datatracker.ietf.org/doc/draft-dinuzzo-best-protocol/';
+
+	// The smallest complete service: the manifest and one primitive. Kept valid against protocol/v1/schemas/discovery.json.
+	const manifest = JSON.stringify(
+		{
+			best: {
+				version: bestVersion,
+				services: {
+					'com.example.catalogue': {
+						description: 'The products example.com sells, and their prices.',
+						authentication: { type: 'none' },
+						http: { endpoint: 'https://example.com/best' }
+					}
+				},
+				capabilities: [
+					{
+						name: 'io.best.agents.queries',
+						service: 'com.example.catalogue',
+						description: 'Products, prices and stock.',
+						spec: 'https://behavioralstate.io/specs/agents/queries',
+						schema: 'https://behavioralstate.io/v1/schemas/agents/queries.json',
+						endpoints: [
+							{ method: 'GET', path: '/queries' },
+							{ method: 'GET', path: '/queries/{schema}' }
+						]
+					}
+				]
+			}
+		},
+		null,
+		2
+	);
+
+	const parts = [
+		{
+			name: 'Discovery',
+			where: 'GET /.well-known/best',
+			what: 'Required. The manifest: the services at this name, what each one exposes, and how to sign in.',
+			href: '/specs/discovery'
+		},
+		{
+			name: 'Commands',
+			where: 'POST /commands',
+			what: 'Named requests to change the service. Each is a CloudEvent whose data follows a JSON Schema the service publishes.',
+			href: '/specs/agents/commands'
+		},
+		{
+			name: 'Queries',
+			where: 'GET /queries/{schema}',
+			what: 'Reads of current state, each with declared parameters and a declared response.',
+			href: '/specs/agents/queries'
+		},
+		{
+			name: 'Events',
+			where: 'GET /events',
+			what: 'What happened, as a list and as a live stream. An event caused by a command carries that command’s correlation id.',
+			href: '/specs/agents/events'
+		},
+		{
+			name: 'Workflows',
+			where: 'GET /workflows',
+			what: 'Optional. Published sequences of the operations above, which the client follows step by step.',
+			href: '/specs/agents/workflows'
+		}
+	];
+
+	const software = [
+		{
+			name: 'best-mcp',
+			what: 'Connects an MCP client to any BEST service, and signs the person in.',
+			href: 'https://www.npmjs.com/package/@behavioralstate/best-mcp',
+			where: 'npm'
+		},
+		{
+			name: 'best-validate',
+			what: 'Checks a live endpoint against the conformance list.',
+			href: 'https://www.npmjs.com/package/@behavioralstate/best-validate',
+			where: 'npm'
+		},
+		{
+			name: 'best',
+			what: 'A command line for any BEST service.',
+			href: 'https://github.com/behavioralstate/best-cli',
+			where: 'GitHub'
+		},
+		{
+			name: 'best-peer',
+			what: 'A BEST service in front of GPU machines, written from the specification alone.',
+			href: 'https://github.com/behavioralstate/best-peer',
+			where: 'GitHub'
+		},
+		{
+			name: 'best-mcu',
+			what: 'A BEST service on an ESP32 microcontroller, written from the specification alone.',
+			href: 'https://github.com/behavioralstate/best-mcu',
+			where: 'GitHub'
+		}
+	];
 </script>
 
 <svelte:head>
-	<title>BEST — Behavioral State Protocol</title>
+	<title>BEST: The Behavioral State Protocol</title>
+	<meta
+		name="description"
+		content="BEST is an open protocol by which a service describes what it does at /.well-known/best, so a client that has never seen it can find it and use it."
+	/>
 </svelte:head>
 
-<!-- Hero -->
-<Hero />
+<div class="home">
+	<article class="page">
+		<header class="head">
+			<h1>BEST: The Behavioral State Protocol</h1>
+			<p class="lead">
+				BEST is an open protocol by which a service describes what it does, so that a client that has never seen the
+				service can find it and use it. The service publishes a manifest at <code>/.well-known/best</code>. The manifest
+				says which of three things the service exposes: commands that change it, queries that read it, and events that
+				record what happened.
+			</p>
+			<p class="meta">
+				Version {bestVersion} · Apache 2.0 ·
+				<a href={draft} target="_blank" rel="noopener">draft-dinuzzo-best-protocol</a>
+				{#if gitTag}
+					· build
+					{#if tagUrl}<a href={tagUrl} target="_blank" rel="noopener">{gitTag}</a>{:else}{gitTag}{/if}
+				{/if}
+			</p>
+			<p class="links">
+				<a href="/specs">Documentation</a>
+				<a href="https://github.com/behavioralstate/spec/blob/main/SPEC.md" target="_blank" rel="noopener"
+					>The specification in one file</a
+				>
+				<a href="https://github.com/behavioralstate/spec" target="_blank" rel="noopener">Source</a>
+			</p>
+		</header>
 
-<!-- Features -->
-<section id="features" class="features-section">
-	<div class="max-w-6xl mx-auto">
-		<p class="section-eyebrow">Capabilities</p>
-		<h2 class="section-title">Built for agent interoperability</h2>
-		<p class="section-subtitle">
-			Expose what your system does — the commands it accepts, the queries it answers, and the facts it produces — in a standard form any caller can discover, use, and correlate. Over HTTP or MCP.
-		</p>
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-			<FeatureCard
-				icon="🌐"
-				title="Discoverable by Default"
-				description="Expose /.well-known/best and your service becomes immediately usable by any agent or LLM client — no custom integration, no bespoke connector, no onboarding docs. Capabilities, schemas, and transport bindings are all self-describing."
-			/>
-			<FeatureCard
-				icon="⚡"
-				title="Behaviour, Not Resources"
-				description="BEST is not REST. There are no resources to manipulate. Callers express named intents — commands like SignContract or SubmitOrder — and observe the facts that result. The domain language lives in the protocol, not buried in status-field patches."
-			/>
-			<FeatureCard
-				icon="📡"
-				title="Observable Events"
-				description="A service that publishes events lets callers query them — filterable by type, source, time range, or correlation ID. Correlate results back to the command that caused them, build projections, or feed an AI agent with factual history instead of synthetic prompts."
-			/>
-			<FeatureCard
-				icon="🔍"
-				title="Queries"
-				description="Read the current state of a service without sending a command. GET /queries returns the query catalogue — each query is self-documenting with a JSON Schema for its parameters and response. Reads and writes are cleanly separated at the protocol level, and a caller can poll a query for the result of a command."
-			/>
-			<FeatureCard
-				icon="🤖"
-				title="Instant LLM Integration"
-				description="Implement BEST and get MCP for free. Point best-mcp at any BEST-compliant endpoint and every LLM client — Copilot, Claude, ChatGPT — immediately discovers commands, reads state, and sends requests. No custom tool definitions required."
-			/>
-			<FeatureCard
-				icon="🔁"
-				title="Live Events & History"
-				description="Where a service publishes events, subscribe the moment they are produced — or query what already happened. GET /events/stream opens a live SSE connection for real-time results. GET /events lists past events. Together they give you the complete picture, past and present."
-			/>
-		</div>
-	</div>
-</section>
+		<section>
+			<h2 id="discovery">Discovery starts from a name</h2>
+			<p>
+				A client that speaks BEST needs the service’s domain name and nothing else about it. It makes one request over
+				HTTPS, with no credential:
+			</p>
+			<pre><code>GET https://example.com/.well-known/best</code></pre>
+			<p>
+				The answer is the manifest. This one is a complete BEST service: it has the manifest and one of the three
+				primitives, queries that anyone may read.
+			</p>
+			<pre><code>{manifest}</code></pre>
+			<p>
+				BEST defines no registry and no directory. The name is a DNS name its operator controls, and a name that does
+				not answer with a manifest does not resolve.
+			</p>
+		</section>
 
-<!-- See it in action -->
-<section id="example" class="example-section">
-	<div class="max-w-6xl mx-auto">
-		<p class="section-eyebrow">See it in action</p>
-		<h2 class="section-title">Discovery manifest</h2>
-		<p class="section-subtitle">
-			Every BEST endpoint exposes a <code class="code-inline">/.well-known/best</code> manifest. Consumers discover agents, capabilities, and transports in a single request.
-		</p>
-		<CodeBlock code={`{
-  "best": {
-    "version": "${bestVersion}",
-    "services": {
-      "io.best.agents": {
-        "version": "${bestVersion}",
-        "description": "Command ingestion, queries, published events",
-        "http": {
-          "endpoint": "https://api.example.com/"
-        }
-      }
-    },
-    "capabilities": [
-      {
-        "name": "io.best.agents.commands",
-        "version": "${bestVersion}",
-        "description": "Command catalogue and ingestion",
-        "spec": "https://behavioralstate.io/specs/agents/commands",
-        "schema": "https://behavioralstate.io/v1/schemas/agents/commands.json"
-      }
-    ],
-    "agents": [
-      {
-        "id": "negotiation",
-        "name": "Contract Negotiation",
-        "accepts": ["ProposeCounter", "AcceptContract"],
-        "produces": ["CounterProposed", "ContractAccepted"],
-        "status": "running"
-      }
-    ]
-  }
-}`} />
-	</div>
-</section>
+		<section>
+			<h2 id="surface">What a service exposes</h2>
+			<p>
+				The service decides which of commands, queries and events to expose. The manifest and any one of them is enough.
+			</p>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr><th>Part</th><th>Where</th><th>What it is</th></tr>
+					</thead>
+					<tbody>
+						{#each parts as part}
+							<tr>
+								<td><a href={part.href}>{part.name}</a></td>
+								<td><code>{part.where}</code></td>
+								<td>{part.what}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			<p>
+				BEST says nothing about how a service works inside. Storage, execution, retries and the domain model are the
+				service’s own.
+			</p>
+		</section>
 
-<!-- For whom -->
-<section id="audience" class="features-section">
-	<div class="max-w-6xl mx-auto">
-		<p class="section-eyebrow">Designed for everyone</p>
-		<h2 class="section-title">Who is BEST for?</h2>
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-			<div class="audience-card">
-				<h3>For Developers</h3>
-				<p>Build services on an open foundation. JSON Schema definitions, OpenAPI specs, and transport bindings — everything you need to implement BEST.</p>
-			</div>
-			<div class="audience-card">
-				<h3>For Businesses</h3>
-				<p>Expose your services to any agent in the world. No bespoke integrations — just a manifest describing what you accept and produce.</p>
-			</div>
-			<div class="audience-card">
-				<h3>For AI Platforms</h3>
-				<p>Discover and interact with any BEST-compliant agent using MCP or simple HTTP. Compatible with existing agent frameworks.</p>
-			</div>
-			<div class="audience-card">
-				<h3>For IoT &amp; Sensors</h3>
-				<p>Even a temperature sensor can be a BEST service — it accepts commands and publishes events, and any caller can discover it via the manifest.</p>
-			</div>
-		</div>
-	</div>
-</section>
+		<section>
+			<h2 id="sign-in">Signing in</h2>
+			<p>
+				Where a service needs a credential, its manifest names the two endpoints of the OAuth 2.0 device authorization
+				grant (<a href="https://www.rfc-editor.org/rfc/rfc8628" target="_blank" rel="noopener">RFC 8628</a>). The agent
+				gives the person a link. The person signs in and approves in their own browser, and the agent receives a
+				credential of its own. The agent never sees a password. See
+				<a href="/specs/identity-and-registration">Identity and Registration</a>.
+			</p>
+		</section>
 
-<!-- CTA -->
-<section class="cta-section">
-	<div class="max-w-4xl mx-auto text-center">
-		<h2 class="section-title">Get started today</h2>
-		<p class="section-subtitle mx-auto">
-			BEST is open-source under Apache 2.0. Explore the spec, read the schemas, and start building.
-		</p>
-		<div class="cta-actions">
-			<a href="/specs" class="btn-primary">Read the docs</a>
-			<a href="https://github.com/behavioralstate/spec" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
-		</div>
-	</div>
-</section>
+		<section>
+			<h2 id="software">Software</h2>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr><th>Name</th><th>What it does</th><th>Where</th></tr>
+					</thead>
+					<tbody>
+						{#each software as item}
+							<tr>
+								<td><code>{item.name}</code></td>
+								<td>{item.what}</td>
+								<td><a href={item.href} target="_blank" rel="noopener">{item.where}</a></td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			<p>The <a href="/playground">playground</a> reads a live manifest in the browser.</p>
+		</section>
+
+		<section>
+			<h2 id="status">Status</h2>
+			<p>
+				BEST is published by its author as an open specification and as an individual
+				<a href={draft} target="_blank" rel="noopener">Internet-Draft</a>. It is not an IETF standard, and the
+				<code>best</code> well-known suffix is not registered with IANA.
+			</p>
+			<p>
+				What compliance means is in <a href="/specs/conformance">Conformance</a>. Each release says what changed in its
+				<a href="https://github.com/behavioralstate/spec/releases" target="_blank" rel="noopener">release notes</a>, and
+				what is planned is in the <a href="/roadmap">roadmap</a>.
+			</p>
+		</section>
+	</article>
+</div>
 
 <style>
-	/* Shared section utilities */
-	.features-section, .example-section, .cta-section {
-		padding: 6rem 1.5rem;
+	.home {
+		background: #ffffff;
+		min-height: calc(100vh - var(--nav-height));
+		/* Light, as the docs pages are */
+		--color-border: #e2e4f0;
+		--color-text: #1e1e3f;
+		--color-text-muted: #6b6b8a;
+		--color-accent: #4f46e5;
 	}
 
-	.features-section {
-		background: #060912;
+	.page {
+		max-width: 46rem;
+		margin: 0 auto;
+		padding: 3.5rem 1.5rem 5rem;
+		color: var(--color-text);
+		font-size: 1rem;
+		line-height: 1.7;
 	}
 
-	.example-section {
-		background: #060912;
+	.head {
+		padding-bottom: 1.75rem;
+		margin-bottom: 0.5rem;
+		border-bottom: 1px solid var(--color-border);
 	}
 
-	.cta-section {
-		background: #0a0e1a;
-		text-align: center;
-	}
-
-	.section-eyebrow {
-		color: #3b82f6;
-		font-size: 0.8125rem;
-		font-weight: 600;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		margin-bottom: 0.75rem;
-	}
-
-	.section-title {
-		color: #ffffff;
+	h1 {
 		font-size: clamp(1.75rem, 4vw, 2.25rem);
 		font-weight: 700;
 		letter-spacing: -0.02em;
+		line-height: 1.2;
+		color: #111827;
 		margin-bottom: 1rem;
 	}
 
-	.section-subtitle {
-		color: #94a3b8;
-		font-size: 1rem;
-		line-height: 1.7;
-		max-width: 42rem;
-		margin-bottom: 3.5rem;
-	}
-
-	.code-inline {
-		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-		font-size: 0.875em;
-		color: #60a5fa;
-		background: rgba(59, 130, 246, 0.1);
-		padding: 0.1em 0.4em;
-		border-radius: 4px;
-	}
-
-	/* Audience cards */
-	.audience-card {
-		padding: 1.5rem;
-		border-radius: 12px;
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		background: #111827;
-		transition: border-color 0.2s, box-shadow 0.2s;
-	}
-
-	.audience-card:hover {
-		border-color: rgba(59, 130, 246, 0.3);
-		box-shadow: 0 0 60px rgba(59, 130, 246, 0.15);
-	}
-
-	.audience-card h3 {
-		color: #ffffff;
+	.lead {
 		font-size: 1.125rem;
-		font-weight: 600;
-		margin-bottom: 0.625rem;
+		line-height: 1.65;
+		margin-bottom: 1.25rem;
 	}
 
-	.audience-card p {
-		color: #94a3b8;
-		font-size: 0.9375rem;
-		line-height: 1.6;
-		margin: 0;
+	.meta {
+		font-size: 0.875rem;
+		color: var(--color-text-muted);
+		margin-bottom: 1rem;
 	}
 
-	/* CTA actions */
-	.cta-actions {
+	.links {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1rem;
-		justify-content: center;
-		margin-top: 2rem;
-	}
-
-	.btn-primary {
-		padding: 0.75rem 2rem;
-		border-radius: 8px;
-		background: #3b82f6;
-		color: #ffffff;
+		gap: 0.5rem 1.5rem;
 		font-weight: 600;
-		font-size: 0.9375rem;
-		text-decoration: none;
-		transition: background 0.15s;
+		margin-bottom: 0;
 	}
 
-	.btn-primary:hover { background: #60a5fa; }
-
-	.btn-secondary {
-		padding: 0.75rem 2rem;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		color: #e2e8f0;
+	h2 {
+		font-size: 1.25rem;
 		font-weight: 600;
-		font-size: 0.9375rem;
-		text-decoration: none;
-		transition: border-color 0.15s, color 0.15s;
+		color: #111827;
+		margin-top: 2.75rem;
+		margin-bottom: 0.75rem;
+		scroll-margin-top: calc(var(--nav-height) + 1.5rem);
 	}
 
-	.btn-secondary:hover {
-		border-color: #3b82f6;
-		color: #ffffff;
+	p {
+		margin-bottom: 1rem;
+	}
+
+	a {
+		color: var(--color-accent);
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 2px;
+	}
+
+	a:hover {
+		text-decoration-thickness: 2px;
+	}
+
+	code {
+		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+		font-size: 0.875em;
+	}
+
+	p code,
+	td code {
+		background: #f1f2f8;
+		padding: 0.1em 0.35em;
+		border-radius: 4px;
+		white-space: nowrap;
+	}
+
+	pre {
+		background: #f7f7fc;
+		border: 1px solid var(--color-border);
+		border-radius: 6px;
+		padding: 1rem 1.25rem;
+		margin-bottom: 1rem;
+		overflow-x: auto;
+		line-height: 1.55;
+	}
+
+	pre code {
+		font-size: 0.8125rem;
+		color: #1e1e3f;
+	}
+
+	.table-wrap {
+		overflow-x: auto;
+		margin-bottom: 1rem;
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9375rem;
+	}
+
+	th {
+		text-align: left;
+		font-weight: 600;
+		color: #111827;
+		padding: 0.5rem 1rem 0.5rem 0;
+		border-bottom: 2px solid var(--color-border);
+	}
+
+	td {
+		padding: 0.625rem 1rem 0.625rem 0;
+		border-bottom: 1px solid var(--color-border);
+		vertical-align: top;
+	}
+
+	th:last-child,
+	td:last-child {
+		padding-right: 0;
+	}
+
+	/* On a narrow screen a row reads as a short block, not three squeezed columns */
+	@media (max-width: 640px) {
+		thead {
+			display: none;
+		}
+
+		table,
+		tbody,
+		tr,
+		td {
+			display: block;
+		}
+
+		tr {
+			padding: 0.75rem 0;
+			border-bottom: 1px solid var(--color-border);
+		}
+
+		td {
+			padding: 0.125rem 0;
+			border-bottom: none;
+		}
+
+		.page {
+			padding: 2.25rem 1.25rem 3.5rem;
+		}
 	}
 </style>
