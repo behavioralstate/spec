@@ -1007,7 +1007,6 @@
 
 	.cors-hint {
 		color: #b91c1c;
-		opacity: 0.85;
 	}
 
 	.cors-hint code {
@@ -1083,7 +1082,6 @@
 		font-size: 0.6875rem;
 		font-style: italic;
 		color: var(--color-text-muted);
-		opacity: 0.8;
 	}
 
 	.cap-name::before {
@@ -1444,7 +1442,6 @@
 
 	.empty-landing .hint {
 		font-size: 0.875rem;
-		opacity: 0.7;
 	}
 
 	/* Spinner */
