@@ -1160,6 +1160,7 @@
 	}
 
 	.no-capabilities code {
+		color: var(--color-text);
 		font-family: 'Fira Code', monospace;
 		font-size: 0.75rem;
 		background: rgba(30, 30, 63, 0.07);
@@ -1188,12 +1189,12 @@
 		line-height: 1.6;
 	}
 
-	.method-get    { color: #15803d; background: rgba(74, 222, 128, 0.1); }
+	.method-get    { color: #166534; background: rgba(74, 222, 128, 0.1); }
 	.method-post   { color: #1d4ed8; background: rgba(96, 165, 250, 0.1); }
 	.method-delete { color: #b91c1c; background: rgba(248, 113, 113, 0.1); }
-	.method-put    { color: #a16207; background: rgba(250, 204, 21, 0.1); }
-	.method-patch  { color: #c2410c; background: rgba(251, 146, 60, 0.1); }
-	.method-other  { color: var(--color-text-muted); background: rgba(30, 30, 63, 0.06); }
+	.method-put    { color: #854d0e; background: rgba(250, 204, 21, 0.1); }
+	.method-patch  { color: #9a3412; background: rgba(251, 146, 60, 0.1); }
+	.method-other  { color: var(--color-text); background: rgba(30, 30, 63, 0.06); }
 
 	/* Services, each with its capabilities */
 	.svc-group {
