@@ -3,7 +3,7 @@
 	const bestVersion = __BEST_VERSION__;
 
 	const gitTag = import.meta.env.VITE_GIT_TAG;
-	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
+	const isCleanTag = gitTag ? /^spec\/v\d+\.\d+\.\d+$/.test(gitTag) : false;
 	const shaMatch = gitTag ? gitTag.match(/-g([0-9a-f]+)$/) : null;
 	const tagUrl = isCleanTag
 		? `https://github.com/behavioralstate/spec/releases/tag/${gitTag}`
@@ -34,7 +34,8 @@
 						schema: 'https://behavioralstate.io/v1/schemas/agents/queries.json',
 						endpoints: [
 							{ method: 'GET', path: '/queries' },
-							{ method: 'GET', path: '/queries/{schema}' }
+							{ method: 'GET', path: '/queries/{schema}' },
+							{ method: 'GET', path: '/queries/{schema}/{version}' }
 						]
 					}
 				]
@@ -66,7 +67,7 @@
 		{
 			name: 'Events',
 			where: 'GET /events',
-			what: 'What happened, as a list and as a live stream. An event caused by a command carries that command’s correlation id.',
+			what: 'What happened, as a list, and as a live stream where the manifest declares one. An event caused by a command carries that command’s correlation id.',
 			href: '/specs/agents/events'
 		},
 		{
@@ -194,10 +195,11 @@
 		<section>
 			<h2 id="sign-in">Signing in</h2>
 			<p>
-				Where a service needs a credential, its manifest names the two endpoints of the OAuth 2.0 device authorization
-				grant (<a href="https://www.rfc-editor.org/rfc/rfc8628" target="_blank" rel="noopener">RFC 8628</a>). The agent
+				Where a service lets an agent obtain a credential of its own, its manifest names the two endpoints of the OAuth
+				2.0 device authorization grant (<a href="https://www.rfc-editor.org/rfc/rfc8628" target="_blank" rel="noopener">RFC 8628</a>). The agent
 				gives the person a link. The person signs in and approves in their own browser, and the agent receives a
-				credential of its own. The agent never sees a password. See
+				credential of its own. The agent never sees a password. A service that names no such endpoints issues its
+				credentials out of band. See
 				<a href="/specs/identity-and-registration">Identity and Registration</a>.
 			</p>
 		</section>
@@ -227,7 +229,8 @@
 			<h2 id="status">Status</h2>
 			<p>
 				BEST is published by its author as an open specification and as an individual
-				<a href={draft} target="_blank" rel="noopener">Internet-Draft</a>. It is not an IETF standard, and the
+				<a href={draft} target="_blank" rel="noopener">Internet-Draft</a>, which is a snapshot of one release and can
+				trail this version. It is not an IETF standard, and the
 				<code>best</code> well-known suffix is not registered with IANA.
 			</p>
 			<p>

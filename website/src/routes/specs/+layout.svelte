@@ -9,7 +9,7 @@
 	});
 
 	const gitTag = import.meta.env.VITE_GIT_TAG;
-	const isCleanTag = gitTag ? /^v\d+\.\d+\.\d+$/.test(gitTag) : false;
+	const isCleanTag = gitTag ? /^spec\/v\d+\.\d+\.\d+$/.test(gitTag) : false;
 	const shaMatch = gitTag ? gitTag.match(/-g([0-9a-f]+)$/) : null;
 	const tagUrl = isCleanTag
 		? `https://github.com/behavioralstate/spec/releases/tag/${gitTag}`
@@ -49,7 +49,7 @@
 		display: flex;
 		min-height: calc(100vh - var(--nav-height));
 		background: #ffffff;
-		/* Light theme — scoped to docs only so the home page stays dark */
+		/* Light theme, set here for the docs; the home page and the Playground set the same one */
 		--color-bg: #ffffff;
 		--color-bg-secondary: #f7f7fc;
 		--color-bg-card: #f1f2f8;

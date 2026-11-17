@@ -1452,10 +1452,16 @@
 		display: inline-block;
 		width: 0.875rem;
 		height: 0.875rem;
-		border: 2px solid rgba(255,255,255,0.3);
-		border-top-color: #fff;
+		border: 2px solid rgba(30, 30, 63, 0.2);
+		border-top-color: var(--color-accent);
 		border-radius: 50%;
 		animation: spin 0.7s linear infinite;
+	}
+
+	/* On the accent buttons the spinner is white */
+	.btn-discover .spinner {
+		border-color: rgba(255,255,255,0.3);
+		border-top-color: #fff;
 	}
 
 	.spinner.small {
@@ -1606,7 +1612,6 @@
 
 	.auth-scheme {
 		font-weight: 400;
-		opacity: 0.75;
 	}
 
 	.auth-input {
@@ -1633,14 +1638,12 @@
 		font-size: 0.75rem;
 		text-decoration: none;
 		white-space: nowrap;
-		opacity: 0.8;
 	}
 
 	.auth-docs-link:hover { opacity: 1; }
 
 	.auth-warning {
 		color: #b45309;
-		opacity: 0.65;
 		font-size: 0.75rem;
 	}
 
