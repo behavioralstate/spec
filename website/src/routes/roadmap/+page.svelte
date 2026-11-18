@@ -4,10 +4,6 @@
 
 <svelte:head>
 	<title>Roadmap — BEST</title>
-	<meta
-		name="description"
-		content="Where the BEST protocol stands, the standards track, and what's next."
-	/>
 </svelte:head>
 
 <div class="roadmap-shell">

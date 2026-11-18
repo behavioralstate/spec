@@ -114,10 +114,6 @@
 
 <svelte:head>
 	<title>BEST: The Behavioral State Protocol</title>
-	<meta
-		name="description"
-		content="BEST is an open protocol by which a service describes what it does at /.well-known/best, so a client that has never seen it can find it and use it."
-	/>
 </svelte:head>
 
 <div class="home">
