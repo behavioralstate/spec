@@ -133,7 +133,7 @@ fi
 # Step 2: Update README.md documents table to reference the new tag.
 # GitHub blob/release URLs must use the FULL namespaced tag (spec/vX.Y.Z) — that is the actual git tag,
 # so unprefixed (v0.6.4) URLs 404. The version column still displays the clean vX.Y.Z label.
-CURRENT_README_TAG=$(grep -oP '(?<=blob/spec/)v[0-9]+\.[0-9]+\.[0-9]+' README.md | sort | uniq | head -1)
+CURRENT_README_TAG=$(grep -oE 'blob/spec/v[0-9]+\.[0-9]+\.[0-9]+' README.md | sed 's|^blob/spec/||' | sort | uniq | head -1)
 if [ -z "$CURRENT_README_TAG" ]; then
   echo "Warning: Could not detect current tag in README.md — skipping table update."
 elif [ "$CURRENT_README_TAG" = "$VERSION_TAG" ]; then
