@@ -483,7 +483,7 @@ Whether a person without an account can get one is the page's business, not the 
 
 Commands are intents to change a domain service. The service validates, queues, and processes them **asynchronously**; results surface as events.
 
-Asynchronous describes what the caller sees: the answer to `POST /commands` never carries the result. How a service runs a command is its own. It **may** process the command within the request, before it answers `201`, and it needs no queue and no background worker to do so.
+Asynchronous describes what the caller sees: the answer to `POST /commands` never carries the result. How a service runs a command is its own. To queue a command is to record it durably, and a service **may** then process it within the same request, before it answers `201`: nothing here requires a background worker.
 
 Schema: [`commands.json`](protocol/v1/schemas/agents/commands.json)
 
