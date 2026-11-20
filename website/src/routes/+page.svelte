@@ -128,6 +128,23 @@
 			name: 'dotQuant',
 			what: 'A trading platform an agent can operate: market data, strategies with backtesting, and orders on the person’s own broker account.',
 			host: 'baas.dotquant.io'
+		},
+		{
+			name: 'Remundo',
+			what: 'An employer of record: engagements and offers, timesheets, absences, expenses, invoices and payments, for a hiring organisation, its workers and the back office.',
+			host: 'api.baas.remundo.com'
+		},
+		{
+			name: 'Belmont Cottage',
+			what: 'A self-catering holiday cottage in Whitstable: what it is like, when it is free and at what price, and a request to its owner to book a stay.',
+			host: 'belmontcottage.co.uk'
+		},
+		{
+			name: 'NotALemon',
+			what: 'An assessment of a used vehicle from its UK registration and the evidence available about it.',
+			host: 'notalemon.co.uk',
+			// Its manifest sends no CORS header, so a page in a browser cannot read it: the link is the manifest itself.
+			direct: true
 		}
 	];
 </script>
@@ -245,7 +262,7 @@
 			<h2 id="services">Services in production</h2>
 			<p>
 				These services publish a manifest today. Each name below is all a client needs: the link reads the live
-				manifest in the playground.
+				manifest, in the playground where the service lets a browser read it.
 			</p>
 			<div class="table-wrap">
 				<table>
@@ -258,9 +275,11 @@
 								<td>{service.name}</td>
 								<td>{service.what}</td>
 								<td
-									><a href={`/playground?url=${encodeURIComponent(`https://${service.host}`)}`}
-										><code>{service.host}</code></a
-									></td
+									>{#if service.direct}<a href={`https://${service.host}/.well-known/best`} target="_blank" rel="noopener"
+											><code>{service.host}</code></a
+										>{:else}<a href={`/playground?url=${encodeURIComponent(`https://${service.host}`)}`}
+											><code>{service.host}</code></a
+										>{/if}</td
 								>
 							</tr>
 						{/each}
@@ -268,8 +287,8 @@
 				</table>
 			</div>
 			<p>
-				All three are run by the specification’s author. <code>best-peer</code> and <code>best-mcu</code>, above, were
-				written from the specification alone.
+				Sudio, Windlet and dotQuant are run by the specification’s author. Belmont Cottage and NotALemon are
+				independent deployments, run by others.
 			</p>
 		</section>
 
