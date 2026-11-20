@@ -110,6 +110,26 @@
 			where: 'GitHub'
 		}
 	];
+
+	// Services that answer GET /.well-known/best in production. A row is added only for a name that does, and is taken
+	// out when it stops: the playground link reads the live manifest, so a dead row shows itself.
+	const services = [
+		{
+			name: 'Sudio',
+			what: 'A studio that makes tutorial and marketing videos of web platforms, directed by the person’s agent.',
+			host: 'sudio.io'
+		},
+		{
+			name: 'Windlet',
+			what: 'A group’s own GPU machines, shared among people who know each other and run by them and their agents.',
+			host: 'windlet.io'
+		},
+		{
+			name: 'dotQuant',
+			what: 'A trading platform an agent can operate: market data, strategies with backtesting, and orders on the person’s own broker account.',
+			host: 'baas.dotquant.io'
+		}
+	];
 </script>
 
 <svelte:head>
@@ -219,6 +239,38 @@
 				</table>
 			</div>
 			<p>The <a href="/playground">playground</a> reads a live manifest in the browser.</p>
+		</section>
+
+		<section>
+			<h2 id="services">Services in production</h2>
+			<p>
+				These services publish a manifest today. Each name below is all a client needs: the link reads the live
+				manifest in the playground.
+			</p>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr><th>Service</th><th>What it is</th><th>Name</th></tr>
+					</thead>
+					<tbody>
+						{#each services as service}
+							<tr>
+								<td>{service.name}</td>
+								<td>{service.what}</td>
+								<td
+									><a href={`/playground?url=${encodeURIComponent(`https://${service.host}`)}`}
+										><code>{service.host}</code></a
+									></td
+								>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			<p>
+				All three are run by the specification’s author. <code>best-peer</code> and <code>best-mcu</code>, above, were
+				written from the specification alone.
+			</p>
 		</section>
 
 		<section>
