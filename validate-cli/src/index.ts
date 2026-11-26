@@ -300,7 +300,10 @@ async function checkDiscovery(base: string, opts: Options, ajv: Ajv2020): Promis
     ...(res.headers?.get('etag') ? [] : ['no ETag']),
     ...(!cacheControl ? ['no Cache-Control'] : /\bno-store\b/i.test(cacheControl) ? ['Cache-Control: no-store'] : [])
   ];
-  if (unsent.length) record(S, 'warn', `Manifest response has ${unsent.join(' and ')} — a server should send an ETag and a Cache-Control other than no-store, so a consumer can tell the manifest changed without reading it again`);
+  // A must from 0.9.24 (Conformance item 14), a should before it: a manifest is held to the version it declares.
+  const declaredVersion = ((res.json as Dict | undefined)?.[ROOT_KEY] as Dict | undefined)?.version;
+  const cachingIsMust = typeof declaredVersion === 'string' && /^\d+\.\d+\.\d+$/.test(declaredVersion) && compareVersions(declaredVersion, '0.9.24') >= 0;
+  if (unsent.length) record(S, cachingIsMust ? 'fail' : 'warn', `Manifest response has ${unsent.join(' and ')} — a server ${cachingIsMust ? 'must' : 'should'} send an ETag and a Cache-Control other than no-store, so a consumer can tell the manifest changed without reading it again${cachingIsMust ? ' (a must from 0.9.24, which this manifest declares)' : ' (a must from 0.9.24)'}`);
   else record(S, 'pass', 'Manifest response carries an ETag and a Cache-Control other than no-store');
 
   if (res.json === undefined) { record(S, 'fail', 'Response body is not valid JSON'); return undefined; }

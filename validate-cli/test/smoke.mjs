@@ -42,7 +42,7 @@ const wordsFor = mode => byVersion(mode === 'older' || mode === 'stale' ? '0.9.1
 const LIMIT_BYTES = 65536;
 const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 const CURRENCY = /^[A-Z]{3}$/;
-const declares = mode =>mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : CURRENT;
+const declares = mode =>mode === 'older' ? '0.9.14' : mode === 'stale' ? '0.9.15' : mode === 'uncached' ? '0.9.24' : CURRENT;
 
 const cap = (kind, service, description, endpoints) => ({
   name: `io.best.agents.${kind}`, version: '0.9.11', service, description,
@@ -114,7 +114,7 @@ function serve(mode) {
     let raw = '';
     req.on('data', c => { raw += c; });
     req.on('end', () => {
-      if (path === '/.well-known/best') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': good ? 'max-age=300' : 'no-store', ...(good ? { ETag: '"manifest-1"' } : {}) }); return res.end(JSON.stringify(root)); }
+      if (path === '/.well-known/best') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': good && mode !== 'uncached' ? 'max-age=300' : 'no-store', ...(good && mode !== 'uncached' ? { ETag: '"manifest-1"' } : {}) }); return res.end(JSON.stringify(root)); }
       if (path === '/.well-known/best/acme') return authed ? json(200, tenant) : error(401, 'NO_API_KEY', 'A credential is required');
       if (path === '/llms.txt') {
         if (good) return error(404, 'NOT_FOUND', 'Unknown route');
@@ -260,6 +260,18 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
     'no ETag and Cache-Control: no-store', 'never a bare 404', 'from=yesterday → 200', 'to=yesterday → 400 that does not name the parameter "to"','the parameters schema governs what an execution accepts',
     '413 but no details.limit_bytes'
   ]) expect(said(needle), `bad: nothing reported "${needle}"`);
+}
+
+// A manifest is held to the version it declares: the caching headers are a must from 0.9.24, a should before it.
+{
+  const { server, origin } = await serve('uncached');
+  const { code, report } = await run(origin, []);
+  server.close();
+  const hit = report.checks.find(c => c.message.includes('no ETag and Cache-Control: no-store'));
+  expect(code === 1, `uncached: exit code ${code} (a 0.9.24 manifest sent with no-store is a failure)`);
+  expect(hit?.level === 'fail', `uncached: a 0.9.24 manifest with no ETag and no-store is reported as ${hit?.level}, expected fail`);
+  const others = report.checks.filter(c => c.level === 'fail' && c !== hit);
+  expect(others.length === 0, `uncached: only the caching headers should fail, got:\n${others.map(c => `  [${c.section}] ${c.message}`).join('\n')}`);
 }
 
 {
